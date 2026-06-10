@@ -1,0 +1,31 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Northward.BuildingBlocks/Northward.BuildingBlocks.csproj" />
+  </Folder>
+  <Folder Name="/src/Gateway/">
+    <Project Path="src/Gateway/Northward.Gateway/Northward.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Northward.Auth/">
+    <Project Path="src/Services/Northward.Auth/Northward.Auth.API/Northward.Auth.API.csproj" />
+    <Project Path="src/Services/Northward.Auth/Northward.Auth.Application/Northward.Auth.Application.csproj" />
+    <Project Path="src/Services/Northward.Auth/Northward.Auth.Domain/Northward.Auth.Domain.csproj" />
+    <Project Path="src/Services/Northward.Auth/Northward.Auth.Infrastructure/Northward.Auth.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Northward.Game/">
+    <Project Path="src/Services/Northward.Game/Northward.Game.API/Northward.Game.API.csproj" />
+    <Project Path="src/Services/Northward.Game/Northward.Game.Application/Northward.Game.Application.csproj" />
+    <Project Path="src/Services/Northward.Game/Northward.Game.Domain/Northward.Game.Domain.csproj" />
+    <Project Path="src/Services/Northward.Game/Northward.Game.Infrastructure/Northward.Game.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Northward.Leaderboard/">
+    <Project Path="src/Services/Northward.Leaderboard/Northward.Leaderboard.API/Northward.Leaderboard.API.csproj" />
+    <Project Path="src/Services/Northward.Leaderboard/Northward.Leaderboard.Application/Northward.Leaderboard.Application.csproj" />
+    <Project Path="src/Services/Northward.Leaderboard/Northward.Leaderboard.Domain/Northward.Leaderboard.Domain.csproj" />
+    <Project Path="src/Services/Northward.Leaderboard/Northward.Leaderboard.Infrastructure/Northward.Leaderboard.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/WebApp/">
+    <Project Path="src/WebApp/Northward.WebApp/Northward.WebApp.csproj" />
+  </Folder>
+</Solution>

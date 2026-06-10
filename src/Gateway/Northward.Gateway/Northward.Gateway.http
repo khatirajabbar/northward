@@ -1,0 +1,6 @@
+@Northward.Gateway_HostAddress = http://localhost:5136
+
+GET {{Northward.Gateway_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
