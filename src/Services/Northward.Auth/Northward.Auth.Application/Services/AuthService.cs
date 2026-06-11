@@ -7,6 +7,9 @@ namespace Northward.Auth.Application.Services;
 
 public class AuthService : IAuthService
 {
+    private const string TokenType = "Bearer";
+    private const int TokenLifetimeDays = 7;
+
     private readonly IUserRepository _userRepository;
     private readonly IJwtService _jwtService;
 
@@ -27,8 +30,7 @@ public class AuthService : IAuthService
         await _userRepository.AddAsync(user);
         await _userRepository.SaveChangesAsync();
 
-        var token = _jwtService.GenerateToken(user);
-        return new AuthResponse(token, user.Username, user.Id);
+        return BuildAuthResponse(user);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -39,7 +41,23 @@ public class AuthService : IAuthService
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             throw new DomainException("Invalid email or password.");
 
+        user.RecordLogin();
+        await _userRepository.SaveChangesAsync();
+
+        return BuildAuthResponse(user);
+    }
+
+    private AuthResponse BuildAuthResponse(User user)
+    {
         var token = _jwtService.GenerateToken(user);
-        return new AuthResponse(token, user.Username, user.Id);
+        var expiresAt = DateTime.UtcNow.AddDays(TokenLifetimeDays);
+
+        return new AuthResponse(
+            Token: token,
+            TokenType: TokenType,
+            ExpiresAt: expiresAt,
+            UserId: user.Id,
+            Username: user.Username
+        );
     }
 }
