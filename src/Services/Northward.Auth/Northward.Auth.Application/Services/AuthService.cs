@@ -23,7 +23,7 @@ public class AuthService : IAuthService
         _jwtService = jwtService;
     }
 
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
+    public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
     {
         if (await _userRepository.ExistsAsync(request.Email))
             throw new DomainException("A user with this email already exists.");
@@ -37,7 +37,7 @@ public class AuthService : IAuthService
         return await BuildAuthResponseAsync(user);
     }
 
-    public async Task<AuthResponse> LoginAsync(LoginRequest request)
+    public async Task<AuthResponseDto> LoginAsync(LoginRequestDto request)
     {
         var user = await _userRepository.GetByEmailAsync(request.Email)
             ?? throw new DomainException("Invalid email or password.");
@@ -51,7 +51,7 @@ public class AuthService : IAuthService
         return await BuildAuthResponseAsync(user);
     }
 
-    public async Task<AuthResponse> RefreshAsync(RefreshTokenRequest request)
+    public async Task<AuthResponseDto> RefreshAsync(RefreshTokenRequestDto request)
     {
         var storedToken = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken)
             ?? throw new DomainException("Invalid refresh token.");
@@ -71,7 +71,7 @@ public class AuthService : IAuthService
         await _refreshTokenRepository.AddAsync(newRefreshTokenEntity);
         await _refreshTokenRepository.SaveChangesAsync();
 
-        return new AuthResponse(
+        return new AuthResponseDto(
             AccessToken: newAccessToken.Token,
             RefreshToken: newRefreshToken.Token,
             TokenType: TokenType,
@@ -82,7 +82,21 @@ public class AuthService : IAuthService
         );
     }
 
-    private async Task<AuthResponse> BuildAuthResponseAsync(User user)
+    public async Task<UserProfileResponseDto> GetCurrentUserAsync(Guid userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId)
+            ?? throw new DomainException("User not found.");
+
+        return new UserProfileResponseDto(
+            UserId: user.Id,
+            Username: user.Username,
+            Email: user.Email,
+            CreatedAt: user.CreatedAt,
+            LastLoginAt: user.LastLoginAt
+        );
+    }
+
+    private async Task<AuthResponseDto> BuildAuthResponseAsync(User user)
     {
         var accessToken = _jwtService.GenerateAccessToken(user);
         var refreshToken = _jwtService.GenerateRefreshToken();
@@ -91,7 +105,7 @@ public class AuthService : IAuthService
         await _refreshTokenRepository.AddAsync(refreshTokenEntity);
         await _refreshTokenRepository.SaveChangesAsync();
 
-        return new AuthResponse(
+        return new AuthResponseDto(
             AccessToken: accessToken.Token,
             RefreshToken: refreshToken.Token,
             TokenType: TokenType,

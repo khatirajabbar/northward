@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Northward.Auth.Application.DTOs;
 
-public record LoginRequest(
+public record LoginRequestDto(
     [Required(ErrorMessage = "Email is required.")]
     [EmailAddress(ErrorMessage = "Please provide a valid email address.")]
     string Email,

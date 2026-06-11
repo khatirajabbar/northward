@@ -4,7 +4,8 @@ namespace Northward.Auth.Application.Interfaces;
 
 public interface IAuthService
 {
-    Task<AuthResponse> RegisterAsync(RegisterRequest request);
-    Task<AuthResponse> LoginAsync(LoginRequest request);
-    Task<AuthResponse> RefreshAsync(RefreshTokenRequest request);
+    Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request);
+    Task<AuthResponseDto> LoginAsync(LoginRequestDto request);
+    Task<AuthResponseDto> RefreshAsync(RefreshTokenRequestDto request);
+    Task<UserProfileResponseDto> GetCurrentUserAsync(Guid userId);
 }

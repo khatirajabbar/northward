@@ -1,6 +1,6 @@
 namespace Northward.Auth.Application.DTOs;
 
-public record AuthResponse(
+public record AuthResponseDto(
     string AccessToken,
     string RefreshToken,
     string TokenType,

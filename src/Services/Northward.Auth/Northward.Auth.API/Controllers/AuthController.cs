@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Northward.Auth.Application.DTOs;
 using Northward.Auth.Application.Interfaces;
@@ -17,7 +19,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
     {
         try
         {
@@ -31,7 +33,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
         try
         {
@@ -45,7 +47,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
     {
         try
         {
@@ -55,6 +57,26 @@ public class AuthController : ControllerBase
         catch (DomainException ex)
         {
             return Unauthorized(new { error = ex.Message });
+        }
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> Me()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { error = "Invalid authentication token." });
+
+        try
+        {
+            var response = await _authService.GetCurrentUserAsync(userId);
+            return Ok(response);
+        }
+        catch (DomainException ex)
+        {
+            return NotFound(new { error = ex.Message });
         }
     }
 }
