@@ -4,5 +4,6 @@ namespace Northward.Auth.Application.Interfaces;
 
 public interface IJwtService
 {
-    string GenerateToken(User user);
+    (string Token, DateTime ExpiresAt) GenerateAccessToken(User user);
+    (string Token, DateTime ExpiresAt) GenerateRefreshToken();
 }

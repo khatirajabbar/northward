@@ -1,9 +1,11 @@
 namespace Northward.Auth.Application.DTOs;
 
 public record AuthResponse(
-    string Token,
+    string AccessToken,
+    string RefreshToken,
     string TokenType,
-    DateTime ExpiresAt,
+    DateTime AccessTokenExpiresAt,
+    DateTime RefreshTokenExpiresAt,
     Guid UserId,
     string Username
 );

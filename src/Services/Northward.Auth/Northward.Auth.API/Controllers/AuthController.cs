@@ -43,4 +43,18 @@ public class AuthController : ControllerBase
             return Unauthorized(new { error = ex.Message });
         }
     }
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+    {
+        try
+        {
+            var response = await _authService.RefreshAsync(request);
+            return Ok(response);
+        }
+        catch (DomainException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+    }
 }
