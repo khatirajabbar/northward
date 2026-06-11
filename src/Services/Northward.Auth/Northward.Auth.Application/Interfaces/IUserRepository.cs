@@ -8,5 +8,6 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(Guid id);
     Task<bool> ExistsAsync(string email);
     Task AddAsync(User user);
+    void Update(User user);
     Task SaveChangesAsync();
 }

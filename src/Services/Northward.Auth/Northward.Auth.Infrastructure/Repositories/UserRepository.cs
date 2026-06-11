@@ -15,16 +15,19 @@ public class UserRepository : IUserRepository
     }
 
     public async Task<User?> GetByEmailAsync(string email) =>
-        await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        await _context.Users.FirstOrDefaultAsync(u => u.Email == email.ToLowerInvariant());
 
     public async Task<User?> GetByIdAsync(Guid id) =>
         await _context.Users.FindAsync(id);
 
     public async Task<bool> ExistsAsync(string email) =>
-        await _context.Users.AnyAsync(u => u.Email == email);
+        await _context.Users.AnyAsync(u => u.Email == email.ToLowerInvariant());
 
     public async Task AddAsync(User user) =>
         await _context.Users.AddAsync(user);
+
+    public void Update(User user) =>
+        _context.Users.Update(user);
 
     public async Task SaveChangesAsync() =>
         await _context.SaveChangesAsync();
