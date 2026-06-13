@@ -31,8 +31,7 @@ public class GameSessionService : IGameSessionService
         var session = await _gameSessionRepository.GetByIdAsync(sessionId);
 
         if (session == null || session.UserId != userId)
-            throw new Exception("session not found");
-
+            throw new KeyNotFoundException("session not found");
         session.AddScore(points);
         await _gameSessionRepository.UpdateAsync(session);
         return MapToDto(session);
@@ -43,8 +42,7 @@ public class GameSessionService : IGameSessionService
         var session = await _gameSessionRepository.GetByIdAsync(sessionId);
 
         if (session == null || session.UserId != userId)
-            throw new Exception("session not found");
-
+            throw new KeyNotFoundException("session not found");
         session.Complete();
         await _gameSessionRepository.UpdateAsync(session);
         return MapToDto(session);

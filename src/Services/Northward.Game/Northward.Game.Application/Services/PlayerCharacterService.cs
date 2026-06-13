@@ -32,8 +32,7 @@ public class PlayerCharacterService : IPlayerCharacterService
         var knight = characters.FirstOrDefault(c => c.CharacterType == CharacterTypes.Knight);
 
         if (knight == null)
-            throw new Exception("knight character not found");
-
+            throw new KeyNotFoundException("knight character not found");
         knight.Unlock();
         await _playerCharacterRepository.UpdateAsync(knight);
         return MapToDto(knight);
@@ -44,8 +43,7 @@ public class PlayerCharacterService : IPlayerCharacterService
         var character = await _playerCharacterRepository.GetByIdAsync(characterId);
 
         if (character == null || character.UserId != userId)
-            throw new Exception("character not found");
-
+            throw new KeyNotFoundException("character not found");
         character.Rename(newName);
         await _playerCharacterRepository.UpdateAsync(character);
         return MapToDto(character);

@@ -46,6 +46,7 @@ builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Northward.Game.Application.Validators.CreatePlayerCharacterDtoValidator>();
 
 var app = builder.Build();
+app.UseMiddleware<Northward.Game.API.Middleware.ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
