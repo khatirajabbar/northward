@@ -1,4 +1,5 @@
 using Northward.Game.Application.DTOs;
+using Northward.Game.Application.Interfaces;
 using Northward.Game.Domain.Entities;
 using Northward.Game.Domain.Repositories;
 
@@ -32,6 +33,7 @@ public class GameSessionService : IGameSessionService
 
         if (session == null || session.UserId != userId)
             throw new KeyNotFoundException("session not found");
+
         session.AddScore(points);
         await _gameSessionRepository.UpdateAsync(session);
         return MapToDto(session);
@@ -43,6 +45,7 @@ public class GameSessionService : IGameSessionService
 
         if (session == null || session.UserId != userId)
             throw new KeyNotFoundException("session not found");
+
         session.Complete();
         await _gameSessionRepository.UpdateAsync(session);
         return MapToDto(session);
@@ -50,15 +53,14 @@ public class GameSessionService : IGameSessionService
 
     private static GameSessionDto MapToDto(GameSession gameSession)
     {
-        return new GameSessionDto
-        {
-            Id = gameSession.Id,
-            PlayerCharacterId = gameSession.PlayerCharacterId,
-            Season = gameSession.Season,
-            Score = gameSession.Score,
-            IsCompleted = gameSession.IsCompleted,
-            StartedAt = gameSession.StartedAt,
-            CompletedAt = gameSession.CompletedAt
-        };
+        return new GameSessionDto(
+            Id: gameSession.Id,
+            PlayerCharacterId: gameSession.PlayerCharacterId,
+            Season: gameSession.Season,
+            Score: gameSession.Score,
+            IsCompleted: gameSession.IsCompleted,
+            StartedAt: gameSession.StartedAt,
+            CompletedAt: gameSession.CompletedAt
+        );
     }
 }

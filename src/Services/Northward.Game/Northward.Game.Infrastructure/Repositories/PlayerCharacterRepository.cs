@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Northward.Game.Domain.Entities;
 using Northward.Game.Domain.Repositories;
-using Northward.Game.Infrastructure.Data;
+using Northward.Game.Infrastructure.Persistence;
 
 namespace Northward.Game.Infrastructure.Repositories;
 

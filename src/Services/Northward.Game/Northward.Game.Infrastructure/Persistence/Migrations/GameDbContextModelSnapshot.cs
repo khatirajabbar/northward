@@ -3,12 +3,12 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Northward.Game.Infrastructure.Data;
+using Northward.Game.Infrastructure.Persistence;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Northward.Game.Infrastructure.Migrations
+namespace Northward.Game.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GameDbContext))]
     partial class GameDbContextModelSnapshot : ModelSnapshot

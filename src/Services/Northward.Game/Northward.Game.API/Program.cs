@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Northward.Game.Application.Interfaces;
 using Northward.Game.Application.Services;
 using Northward.Game.Domain.Repositories;
-using Northward.Game.Infrastructure.Data;
+using Northward.Game.Infrastructure.Persistence;
 using Northward.Game.Infrastructure.Repositories;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;

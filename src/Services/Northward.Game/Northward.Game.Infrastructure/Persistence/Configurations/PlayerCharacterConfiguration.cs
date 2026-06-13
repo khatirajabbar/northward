@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Northward.Game.Domain.Entities;
 
-namespace Northward.Game.Infrastructure.Data.Configurations;
+namespace Northward.Game.Infrastructure.Persistence.Configurations;
 
 public class PlayerCharacterConfiguration : IEntityTypeConfiguration<PlayerCharacter>
 {
