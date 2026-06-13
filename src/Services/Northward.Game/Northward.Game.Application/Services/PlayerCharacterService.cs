@@ -1,4 +1,5 @@
 using Northward.Game.Application.DTOs;
+using Northward.Game.Application.Interfaces;
 using Northward.Game.Domain.Entities;
 using Northward.Game.Domain.Repositories;
 
@@ -33,6 +34,7 @@ public class PlayerCharacterService : IPlayerCharacterService
 
         if (knight == null)
             throw new KeyNotFoundException("knight character not found");
+
         knight.Unlock();
         await _playerCharacterRepository.UpdateAsync(knight);
         return MapToDto(knight);
@@ -44,6 +46,7 @@ public class PlayerCharacterService : IPlayerCharacterService
 
         if (character == null || character.UserId != userId)
             throw new KeyNotFoundException("character not found");
+
         character.Rename(newName);
         await _playerCharacterRepository.UpdateAsync(character);
         return MapToDto(character);
@@ -51,13 +54,12 @@ public class PlayerCharacterService : IPlayerCharacterService
 
     private static PlayerCharacterDto MapToDto(PlayerCharacter playerCharacter)
     {
-        return new PlayerCharacterDto
-        {
-            Id = playerCharacter.Id,
-            CharacterType = playerCharacter.CharacterType,
-            CustomName = playerCharacter.CustomName,
-            IsUnlocked = playerCharacter.IsUnlocked,
-            CreatedAt = playerCharacter.CreatedAt
-        };
+        return new PlayerCharacterDto(
+            Id: playerCharacter.Id,
+            CharacterType: playerCharacter.CharacterType,
+            CustomName: playerCharacter.CustomName,
+            IsUnlocked: playerCharacter.IsUnlocked,
+            CreatedAt: playerCharacter.CreatedAt
+        );
     }
 }

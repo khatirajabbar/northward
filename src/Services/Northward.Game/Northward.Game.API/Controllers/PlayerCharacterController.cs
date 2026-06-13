@@ -2,7 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Northward.Game.Application.DTOs;
-using Northward.Game.Application.Services;
+using Northward.Game.Application.Interfaces;
 
 namespace Northward.Game.API.Controllers;
 

@@ -29,11 +29,20 @@ public class GameSession
 
     public void AddScore(int points)
     {
+        if (IsCompleted)
+            throw new InvalidOperationException("cannot add score to a completed session");
+
+        if (points <= 0)
+            throw new ArgumentException("points must be positive", nameof(points));
+
         Score += points;
     }
 
     public void Complete()
     {
+        if (IsCompleted)
+            throw new InvalidOperationException("session is already completed");
+
         IsCompleted = true;
         CompletedAt = DateTime.UtcNow;
     }

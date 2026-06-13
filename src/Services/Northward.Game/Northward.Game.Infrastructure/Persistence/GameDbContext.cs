@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Northward.Game.Domain.Entities;
 
-namespace Northward.Game.Infrastructure.Data;
+namespace Northward.Game.Infrastructure.Persistence;
 
 public class GameDbContext : DbContext
 {

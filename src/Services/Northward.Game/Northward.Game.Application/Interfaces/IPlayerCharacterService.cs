@@ -1,6 +1,6 @@
 using Northward.Game.Application.DTOs;
 
-namespace Northward.Game.Application.Services;
+namespace Northward.Game.Application.Interfaces;
 
 public interface IPlayerCharacterService
 {

@@ -13,12 +13,14 @@ public class PlayerCharacter
 
     public static PlayerCharacter Create(Guid userId, string characterType, string customName)
     {
+        ValidateName(customName);
+
         return new PlayerCharacter
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             CharacterType = characterType,
-            CustomName = customName,
+            CustomName = customName.Trim(),
             IsUnlocked = characterType != CharacterTypes.Knight,
             CreatedAt = DateTime.UtcNow
         };
@@ -26,11 +28,29 @@ public class PlayerCharacter
 
     public void Unlock()
     {
+        if (IsUnlocked)
+            throw new InvalidOperationException("character is already unlocked");
+
         IsUnlocked = true;
     }
 
     public void Rename(string newName)
     {
-        CustomName = newName;
+        ValidateName(newName);
+        CustomName = newName.Trim();
+    }
+
+    private static void ValidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("name cannot be empty", nameof(name));
+
+        var trimmed = name.Trim();
+
+        if (trimmed.Length < 2)
+            throw new ArgumentException("name must be at least 2 characters", nameof(name));
+
+        if (trimmed.Length > 20)
+            throw new ArgumentException("name must be at most 20 characters", nameof(name));
     }
 }
