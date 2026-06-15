@@ -1,31 +1,397 @@
-html {
-  font-size: 14px;
+/* ── reset ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+
+/* ── base ────────────────────────────────────────────── */
+:root {
+  --bg: #000;
+  --fg: #fff;
+  --muted: rgb(178, 178, 178);
+  --line: #1a1a1a;
+  --radius: 2px;
 }
 
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
+/* light theme for content pages */
+.theme-light {
+  --bg: #fff;
+  --fg: #000;
+  --muted: rgb(120, 120, 120);
+  --line: #e8e8e8;
 }
 
 body {
-  margin-bottom: 60px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.5;
+  text-transform: lowercase;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+h1, h2, h3, h4 {
+  font-weight: 200;
+  letter-spacing: -0.02em;
+  margin: 0 0 1rem;
+  line-height: 1.05;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+h1 { font-size: clamp(2.5rem, 6vw, 5.5rem); }
+h2 { font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 300; }
+h3 { font-size: 1rem; font-weight: 400; }
+
+p { margin: 0 0 1rem; color: var(--muted); font-weight: 300; }
+
+/* ── header ──────────────────────────────────────────── */
+.site-header {
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 50;
+}
+
+.site-header__inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2.5rem;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.site-logo {
+  font-size: 0.95rem;
+  font-weight: 300;
+  letter-spacing: 0;
+}
+
+.site-nav {
+  display: flex;
+  gap: 2.5rem;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 300;
+}
+
+.site-nav a {
+  position: relative;
+  padding: 0.25rem 0;
+  color: var(--fg);
+  transition: opacity 0.2s ease;
+}
+
+.site-nav a:hover {
+  opacity: 0.5;
+}
+
+.site-nav .nav-howto {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.site-nav a.btn {
+  border: 1px solid var(--fg);
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+}
+
+.site-nav a.btn:hover {
+  background: var(--fg);
+  color: var(--bg);
+  opacity: 1;
+}
+
+/* ── windmill ────────────────────────────────────────── */
+.windmill {
+  width: 22px;
+  height: 26px;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.windmill__pole {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.5px;
+  height: 11px;
+  background: currentColor;
+}
+
+.windmill__blades {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  margin-left: -10px;
+  width: 20px;
+  height: 20px;
+  transform-origin: center;
+  transform: rotate(0deg);
+  transition: transform 1.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.windmill.spinning .windmill__blades {
+  animation: windmill-spin 0.9s linear infinite;
+  transition: none;
+}
+
+.windmill__blade {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1.5px;
+  height: 10px;
+  background: currentColor;
+  transform-origin: bottom center;
+}
+
+.windmill__blade:nth-child(1) { transform: translate(-50%, 0) rotate(0deg); }
+.windmill__blade:nth-child(2) { transform: translate(-50%, 0) rotate(90deg); }
+.windmill__blade:nth-child(3) { transform: translate(-50%, 0) rotate(180deg); }
+.windmill__blade:nth-child(4) { transform: translate(-50%, 0) rotate(270deg); }
+
+@keyframes windmill-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── main ────────────────────────────────────────────── */
+.site-main { min-height: calc(100vh - 200px); }
+
+/* ── hero ────────────────────────────────────────────── */
+.hero {
+  padding: 9rem 2.5rem 7rem;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.hero h1 { max-width: 14ch; }
+
+.hero p {
+  font-size: 1.05rem;
+  max-width: 48ch;
+  margin: 1.5rem 0 2.5rem;
+}
+
+.hero__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.5rem;
+  border: 1px solid var(--fg);
+  border-radius: var(--radius);
+  color: var(--fg);
+  transition: all 0.2s ease;
+  font-weight: 300;
+}
+
+.hero__cta:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* ── section ─────────────────────────────────────────── */
+.section {
+  padding: 6rem 2.5rem;
+  max-width: 1500px;
+  margin: 0 auto;
+  border-top: 1px solid var(--line);
+}
+
+.section__title {
+  margin-bottom: 3rem;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+/* ── forms ───────────────────────────────────────────── */
+.form-card {
+  max-width: 380px;
+  margin: 7rem auto;
+  padding: 0 1.5rem;
+}
+
+.form-card h2 {
+  margin-bottom: 0.4rem;
+  font-weight: 300;
+}
+
+.form-card .form-intro {
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+.form-field { margin-bottom: 1.25rem; }
+
+.form-field label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  font-weight: 300;
+}
+
+.form-field input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 300;
+  text-transform: lowercase;
+}
+
+.form-field input:focus {
+  outline: none;
+  border-color: var(--fg);
+}
+
+.form-field input::placeholder { color: var(--muted); }
+
+.form-submit {
+  width: 100%;
+  padding: 0.95rem;
+  background: var(--fg);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 400;
+  text-transform: lowercase;
+  margin-top: 0.5rem;
+  transition: opacity 0.2s ease;
+}
+
+.form-submit:hover { opacity: 0.85; }
+
+.form-link {
+  display: block;
+  text-align: center;
+  margin-top: 2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.form-link a { color: var(--fg); border-bottom: 1px solid var(--fg); padding-bottom: 1px; }
+
+.form-error {
+  border: 1px solid #ff5050;
+  color: #ff5050;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+}
+
+/* ── leaderboard table ───────────────────────────────── */
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 2rem;
+  font-weight: 300;
+}
+
+.lb-table th, .lb-table td {
+  text-align: left;
+  padding: 1.1rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.lb-table th {
+  color: var(--muted);
+  font-weight: 300;
+  font-size: 0.85rem;
+}
+
+.lb-rank {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  width: 4ch;
+}
+
+/* ── footer ──────────────────────────────────────────── */
+.site-footer {
+  border-top: 1px solid var(--line);
+  margin-top: 6rem;
+}
+
+.site-footer__inner {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 2rem 2.5rem;
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 300;
+}
+
+/* ── scroll fade ─────────────────────────────────────── */
+.fade-in {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.fade-in.is-visible { opacity: 1; transform: translateY(0); }
+
+/* ── responsive ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  .site-header__inner { padding: 1.25rem; flex-wrap: wrap; gap: 1rem; }
+  .site-nav { gap: 1.25rem; font-size: 0.9rem; flex-wrap: wrap; }
+  .hero { padding: 5rem 1.25rem 4rem; }
+  .section { padding: 4rem 1.25rem; }
+  .site-footer__inner { flex-direction: column; gap: 0.5rem; padding: 1.5rem; text-align: center; }
+}
+
+/* ── pinwheel (proper 4-petal toy) ───────────────────── */
+.pinwheel {
+  width: 22px;
+  height: 30px;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 0;
+}
+
+.pinwheel svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pinwheel__pole {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.pinwheel__blades {
+  fill: currentColor;
+  transform-origin: 30px 30px;
+  transform-box: fill-box;
+  transform-origin: center 37.5%;
+  transition: transform 2.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pinwheel.spinning .pinwheel__blades {
+  animation: pinwheel-spin 0.7s linear infinite;
+  transition: none;
+}
+
+@keyframes pinwheel-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }

@@ -1,50 +1,60 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Northward.WebApp</title>
-    <script type="importmap"></script>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/Northward.WebApp.styles.css" asp-append-version="true" />
+    <title>@ViewData["Title"] · northward</title>
+    <link rel="stylesheet" href="~/css/site.css" />
 </head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Northward.WebApp</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
+<body class="@(ViewData["BodyTheme"] as string ?? "")">
+    <header class="site-header">
+        <div class="site-header__inner">
+            <a class="site-logo" href="@Url.Action("Index", "Home")">northward</a>
+            <nav class="site-nav">
+                <a href="@Url.Action("Index", "Home")">home</a>
+                <a class="nav-howto" href="@Url.Action("HowToPlay", "Home")" data-windmill-trigger>
+                    <span class="pinwheel" aria-hidden="true">
+                        <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
+                            <line class="pinwheel__pole" x1="30" y1="30" x2="30" y2="78" />
+                            <g class="pinwheel__blades">
+                                <path d="M30 30 C 30 14, 18 8, 8 14 C 16 18, 24 24, 30 30 Z" />
+                                <path d="M30 30 C 46 30, 52 18, 46 8 C 42 16, 36 24, 30 30 Z" />
+                                <path d="M30 30 C 30 46, 42 52, 52 46 C 44 42, 36 36, 30 30 Z" />
+                                <path d="M30 30 C 14 30, 8 42, 14 52 C 18 44, 24 36, 30 30 Z" />
+                                <circle cx="30" cy="30" r="2.5" />
+                            </g>
+                        </svg>
+                    </span>
+                    <span>how to play</span>
+                </a>
+                <a href="@Url.Action("Index", "Leaderboard")">leaderboard</a>
+                <a href="@Url.Action("Index", "Download")">download</a>
+                @if (Context.Session.GetString("AccessToken") is null)
+                {
+                    <a href="@Url.Action("Login", "Account")">log in</a>
+                    <a class="btn" href="@Url.Action("Register", "Account")">register</a>
+                }
+                else
+                {
+                    <a href="@Url.Action("Profile", "Account")">profile</a>
+                    <a href="@Url.Action("Logout", "Account")">log out</a>
+                }
+            </nav>
+        </div>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - Northward.WebApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+    <main class="site-main">
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-footer__inner">
+            <span>© 2026 northward · graduation project · code academy azerbaijan</span>
+            <span>made with care in a swedish forest</span>
         </div>
     </footer>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    @await RenderSectionAsync("Scripts", required: false)
+
+    <script src="~/js/windmill.js"></script>
+    <script src="~/js/scroll-fade.js"></script>
 </body>
 </html>
