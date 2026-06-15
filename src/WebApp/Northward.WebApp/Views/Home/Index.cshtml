@@ -1,8 +1,12 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="hero">
+    <h1>a quiet adventure through a swedish forest.</h1>
+    <p>northward is a story-driven 2d side-scroller about kindness, exploration, and the small magic of being still in the woods.</p>
+    <a class="hero__cta" href="@Url.Action("Index", "Download")">
+        <span>download the game</span>
+        <span>→</span>
+    </a>
+</section>

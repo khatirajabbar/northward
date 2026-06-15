@@ -1,0 +1,42 @@
+@model Northward.WebApp.Models.RegisterViewModel
+@{
+    ViewData["Title"] = "register";
+}
+
+<div class="form-card">
+    <h2>create an account</h2>
+    <p class="form-intro">register once on the website. then sign in inside the game with the same details.</p>
+
+    @if (!ViewData.ModelState.IsValid && ViewData.ModelState[""]?.Errors.Count > 0)
+    {
+        <div class="form-error">@ViewData.ModelState[""]!.Errors[0].ErrorMessage</div>
+    }
+
+    <form asp-action="Register" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="form-field">
+            <label asp-for="Username"></label>
+            <input asp-for="Username" placeholder="username, 3+ chars" autocomplete="username" />
+            <span asp-validation-for="Username" class="field-error"></span>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Email"></label>
+            <input asp-for="Email" placeholder="you@example.com" autocomplete="email" />
+            <span asp-validation-for="Email" class="field-error"></span>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Password"></label>
+            <input asp-for="Password" placeholder="password, 8+ chars" autocomplete="new-password" />
+            <span asp-validation-for="Password" class="field-error"></span>
+        </div>
+
+        <button type="submit" class="form-submit">register</button>
+    </form>
+
+    <span class="form-link">
+        already have an account? <a asp-action="Login">log in</a>
+    </span>
+</div>
