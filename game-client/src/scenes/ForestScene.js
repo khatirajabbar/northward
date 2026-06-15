@@ -8,83 +8,110 @@ export default class ForestScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Sky / background gradient (top portion)
-    this.cameras.main.setBackgroundColor('#0a0a0a');
+    // Sky (cozy dusk blue-grey)
+    this.cameras.main.setBackgroundColor('#13191e');
 
-    // Distant trees (parallax background, slower scrolling)
-    this.bgTrees = this.add.group();
-    for (let i = 0; i < 30; i++) {
-      const x = i * 80 + Phaser.Math.Between(-20, 20);
-      const tree = this.add.image(x, height - 100, 'tree').setScale(1, 1.5);
-      tree.setTint(0x0a1a0a);
-      tree.setAlpha(0.6);
-      tree.setScrollFactor(0.3);
-      this.bgTrees.add(tree);
-    }
+    const worldWidth = 3000;
+    const groundTop = height - 80;
 
-    // Mid-ground trees
-    for (let i = 0; i < 20; i++) {
+    // Distant trees (parallax background, slower)
+    for (let i = 0; i < 25; i++) {
       const x = i * 130 + Phaser.Math.Between(-30, 30);
-      const tree = this.add.image(x, height - 80, 'tree');
-      tree.setTint(0x152515);
+      const tree = this.add.image(x, groundTop, 'tree');
+      tree.setOrigin(0.5, 1);
+      tree.setScale(0.7);
+      tree.setTint(0x0a1410);
+      tree.setAlpha(0.7);
+      tree.setScrollFactor(0.3);
+      tree.setDepth(-3);
+    }
+
+    // Mid trees
+    for (let i = 0; i < 18; i++) {
+      const x = i * 180 + Phaser.Math.Between(-40, 40);
+      const tree = this.add.image(x, groundTop, 'tree');
+      tree.setOrigin(0.5, 1);
+      tree.setScale(0.9);
+      tree.setTint(0x152620);
       tree.setScrollFactor(0.6);
+      tree.setDepth(-2);
     }
 
-    // Ground (physics-enabled platforms)
+    // Ground (grass on top + dirt below for depth)
     this.platforms = this.physics.add.staticGroup();
-    const groundY = height - 32;
-    for (let x = 0; x < 3000; x += 32) {
-      this.platforms.create(x, groundY, 'ground').refreshBody();
+
+    // Grass top row
+    for (let x = 0; x < worldWidth; x += 16) {
+      this.platforms.create(x, groundTop, 'grass').setOrigin(0, 0).refreshBody();
     }
 
-    // A few floating platforms for variety
-    this.platforms.create(400, height - 200, 'ground').setScale(3, 0.5).refreshBody();
-    this.platforms.create(700, height - 320, 'ground').setScale(3, 0.5).refreshBody();
-    this.platforms.create(1100, height - 240, 'ground').setScale(3, 0.5).refreshBody();
+    // Dirt rows below (decoration, not physics)
+    for (let y = groundTop + 16; y < height; y += 16) {
+      for (let x = 0; x < worldWidth; x += 16) {
+        this.add.image(x, y, 'dirt').setOrigin(0, 0).setDepth(-1);
+      }
+    }
 
-    // Foreground trees (in front of player, scroll faster)
-    for (let i = 0; i < 15; i++) {
-      const x = i * 200 + Phaser.Math.Between(-50, 50);
-      const tree = this.add.image(x, height - 60, 'tree').setScale(0.7, 0.8);
-      tree.setTint(0x0a1a0a);
-      tree.setScrollFactor(1.4);
+    // Floating grass platforms
+    this.makePlatform(400, height - 220, 4);
+    this.makePlatform(720, height - 320, 3);
+    this.makePlatform(1100, height - 260, 5);
+    this.makePlatform(1500, height - 380, 3);
+
+    // Foreground trees (in front of player, faster parallax)
+    for (let i = 0; i < 10; i++) {
+      const x = i * 320 + Phaser.Math.Between(-60, 60);
+      const tree = this.add.image(x, groundTop + 8, 'tree');
+      tree.setOrigin(0.5, 1);
+      tree.setScale(1.1);
+      tree.setTint(0x081410);
+      tree.setScrollFactor(1.3);
       tree.setDepth(10);
     }
 
     // Player
-    this.player = this.physics.add.sprite(100, height - 200, 'player');
+    this.player = this.physics.add.sprite(100, height - 200, 'player', 12);
     this.player.setCollideWorldBounds(false);
     this.player.setDragX(800);
     this.player.setMaxVelocity(200, 600);
+    this.player.setScale(1.5);
+    this.player.setSize(20, 28);
+    this.player.setOffset(14, 18);
+    this.player.setDepth(5);
 
-    // Physics: player vs ground
     this.physics.add.collider(this.player, this.platforms);
 
-    // World bounds (so we can walk a bit before hitting the edge)
-    this.physics.world.setBounds(0, 0, 3000, height);
-    this.cameras.main.setBounds(0, 0, 3000, height);
+    this.physics.world.setBounds(0, 0, worldWidth, height);
+    this.cameras.main.setBounds(0, 0, worldWidth, height);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
-    // Input
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
 
-    // UI text (stays on screen)
+    // HUD
     this.add.text(20, 20, 'a quiet adventure', {
       fontFamily: 'Helvetica Neue, sans-serif',
       fontSize: '14px',
-      color: '#888888'
+      color: '#aaaaaa'
     }).setScrollFactor(0).setDepth(100);
 
     this.add.text(20, 40, 'arrow keys or wasd  ·  space to jump', {
       fontFamily: 'Helvetica Neue, sans-serif',
       fontSize: '12px',
-      color: '#555555'
+      color: '#666666'
     }).setScrollFactor(0).setDepth(100);
+
+    this.player.play('idle');
+  }
+
+  makePlatform(x, y, length) {
+    for (let i = 0; i < length; i++) {
+      this.platforms.create(x + i * 16, y, 'grass').setOrigin(0, 0).refreshBody();
+    }
   }
 
   update() {
-    const speed = 220;
+    const speed = 200;
     const jumpSpeed = -480;
 
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
@@ -93,8 +120,18 @@ export default class ForestScene extends Phaser.Scene {
 
     if (left) {
       this.player.setVelocityX(-speed);
+      this.player.setFlipX(true);
+      if (this.player.body.blocked.down && this.player.anims.currentAnim?.key !== 'walk') {
+        this.player.play('walk');
+      }
     } else if (right) {
       this.player.setVelocityX(speed);
+      this.player.setFlipX(false);
+      if (this.player.body.blocked.down && this.player.anims.currentAnim?.key !== 'walk') {
+        this.player.play('walk');
+      }
+    } else if (this.player.body.blocked.down && this.player.anims.currentAnim?.key !== 'idle') {
+      this.player.play('idle');
     }
 
     if (jump && this.player.body.blocked.down) {

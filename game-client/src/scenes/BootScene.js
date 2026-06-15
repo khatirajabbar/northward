@@ -6,13 +6,13 @@ export default class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // Loading text
     const { width, height } = this.scale;
+
+    // Loading screen
     this.add.text(width / 2, height / 2 - 20, 'northward', {
       fontFamily: 'Helvetica Neue, sans-serif',
       fontSize: '42px',
-      color: '#ffffff',
-      fontStyle: '200'
+      color: '#ffffff'
     }).setOrigin(0.5);
 
     this.add.text(width / 2, height / 2 + 30, 'loading the forest...', {
@@ -21,41 +21,53 @@ export default class BootScene extends Phaser.Scene {
       color: '#888888'
     }).setOrigin(0.5);
 
-    // Placeholder textures (we'll replace with real pixel art later)
-    this.createPlaceholderTextures();
+    // Load character spritesheet
+    this.load.spritesheet('player', 'assets/characters/player.png', {
+      frameWidth: 48,
+      frameHeight: 48
+    });
+
+    // Load grass tile
+    this.load.image('grass', 'assets/tiles/grass.png');
+
+    // Create a darker grass texture for the ground depth
+    const dirtGfx = this.make.graphics({ x: 0, y: 0, add: false });
+    dirtGfx.fillStyle(0x3a2d1f);
+    dirtGfx.fillRect(0, 0, 16, 16);
+    dirtGfx.generateTexture('dirt', 16, 16);
+    dirtGfx.destroy();
+
+    // Create a simple tree silhouette (triangle on a trunk)
+    const treeGfx = this.make.graphics({ x: 0, y: 0, add: false });
+    // Trunk
+    treeGfx.fillStyle(0x2a1a0f);
+    treeGfx.fillRect(28, 80, 8, 32);
+    // Foliage (pine tree triangles, stacked)
+    treeGfx.fillStyle(0x1a2818);
+    treeGfx.fillTriangle(32, 0, 8, 40, 56, 40);
+    treeGfx.fillTriangle(32, 20, 4, 60, 60, 60);
+    treeGfx.fillTriangle(32, 40, 0, 84, 64, 84);
+    treeGfx.generateTexture('tree', 64, 112);
+    treeGfx.destroy();
   }
 
   create() {
-    // Small delay so the loading screen is actually visible
+    this.anims.create({
+      key: 'idle',
+      frames: this.anims.generateFrameNumbers('player', { start: 12, end: 17 }),
+      frameRate: 6,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'walk',
+      frames: this.anims.generateFrameNumbers('player', { start: 30, end: 35 }),
+      frameRate: 10,
+      repeat: -1
+    });
+
     this.time.delayedCall(800, () => {
       this.scene.start('ForestScene');
     });
-  }
-
-  createPlaceholderTextures() {
-    // Generate placeholder graphics so we can build without art assets yet
-
-    // Player character (white rectangle, 16x32)
-    const playerGfx = this.make.graphics({ x: 0, y: 0, add: false });
-    playerGfx.fillStyle(0xffffff);
-    playerGfx.fillRect(0, 0, 16, 32);
-    playerGfx.generateTexture('player', 16, 32);
-    playerGfx.destroy();
-
-    // Ground tile (32x32 dark green)
-    const groundGfx = this.make.graphics({ x: 0, y: 0, add: false });
-    groundGfx.fillStyle(0x2a3a2a);
-    groundGfx.fillRect(0, 0, 32, 32);
-    groundGfx.lineStyle(1, 0x3a4a3a);
-    groundGfx.strokeRect(0, 0, 32, 32);
-    groundGfx.generateTexture('ground', 32, 32);
-    groundGfx.destroy();
-
-    // Tree (32x96 dark)
-    const treeGfx = this.make.graphics({ x: 0, y: 0, add: false });
-    treeGfx.fillStyle(0x1a2a1a);
-    treeGfx.fillRect(0, 0, 32, 96);
-    treeGfx.generateTexture('tree', 32, 96);
-    treeGfx.destroy();
   }
 }
