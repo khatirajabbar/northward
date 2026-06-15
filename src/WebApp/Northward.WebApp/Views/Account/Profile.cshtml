@@ -1,0 +1,28 @@
+@model Northward.WebApp.Services.UserProfile
+@{
+    ViewData["Title"] = "profile";
+}
+
+<section class="hero">
+    <h1>hello, @Model.Username.</h1>
+    <p>welcome back to the forest. here is what we know about you.</p>
+
+    <div style="margin-top:3rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;max-width:800px;">
+        <div>
+            <div style="color:var(--muted);font-size:0.8rem;margin-bottom:0.4rem;">username</div>
+            <div>@Model.Username</div>
+        </div>
+        <div>
+            <div style="color:var(--muted);font-size:0.8rem;margin-bottom:0.4rem;">email</div>
+            <div>@Model.Email</div>
+        </div>
+        <div>
+            <div style="color:var(--muted);font-size:0.8rem;margin-bottom:0.4rem;">member since</div>
+            <div>@Model.CreatedAt.ToString("MMM d, yyyy").ToLower()</div>
+        </div>
+        <div>
+            <div style="color:var(--muted);font-size:0.8rem;margin-bottom:0.4rem;">last login</div>
+            <div>@(Model.LastLoginAt?.ToString("MMM d, yyyy · HH:mm").ToLower() ?? "first time")</div>
+        </div>
+    </div>
+</section>

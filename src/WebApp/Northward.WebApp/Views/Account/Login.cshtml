@@ -1,0 +1,36 @@
+@model Northward.WebApp.Models.LoginViewModel
+@{
+    ViewData["Title"] = "log in";
+}
+
+<div class="form-card">
+    <h2>welcome back</h2>
+    <p class="form-intro">sign in to see your profile and submit scores.</p>
+
+    @if (!ViewData.ModelState.IsValid && ViewData.ModelState[""]?.Errors.Count > 0)
+    {
+        <div class="form-error">@ViewData.ModelState[""]!.Errors[0].ErrorMessage</div>
+    }
+
+    <form asp-action="Login" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="form-field">
+            <label asp-for="Email"></label>
+            <input asp-for="Email" placeholder="you@example.com" autocomplete="email" />
+            <span asp-validation-for="Email" class="field-error"></span>
+        </div>
+
+        <div class="form-field">
+            <label asp-for="Password"></label>
+            <input asp-for="Password" placeholder="your password" autocomplete="current-password" />
+            <span asp-validation-for="Password" class="field-error"></span>
+        </div>
+
+        <button type="submit" class="form-submit">log in</button>
+    </form>
+
+    <span class="form-link">
+        new here? <a asp-action="Register">create an account</a>
+    </span>
+</div>

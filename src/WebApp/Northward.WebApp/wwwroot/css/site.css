@@ -395,3 +395,16 @@ p { margin: 0 0 1rem; color: var(--muted); font-weight: 300; }
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ── field-level validation message ──────────────────── */
+.field-error {
+  display: block;
+  margin-top: 0.4rem;
+  color: #ff5050;
+  font-size: 0.8rem;
+  font-weight: 300;
+  min-height: 0;
+}
+.field-error:empty {
+  display: none;
+}
