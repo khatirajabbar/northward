@@ -2,6 +2,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<Northward.WebApp.Services.AuthApiClient>();
+builder.Services.AddScoped<Northward.WebApp.Services.LeaderboardApiClient>();
 builder.Services.AddHttpClient("AuthApi", c =>
 {
     c.BaseAddress = new Uri(builder.Configuration["Services:AuthApi"]!);

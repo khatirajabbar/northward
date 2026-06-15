@@ -1,0 +1,63 @@
+@model List<Northward.WebApp.Services.LeaderboardEntry>
+@{
+    ViewData["Title"] = "leaderboard";
+    var season = ViewData["Season"] as string ?? "all";
+    var sort = ViewData["Sort"] as string ?? "score";
+}
+
+<section class="hero">
+    <h1>leaderboard.</h1>
+    <p>the kindest travelers, ranked. updated as players finish their journeys.</p>
+
+    <div style="display:flex;gap:1.5rem;margin-top:2.5rem;flex-wrap:wrap;font-size:0.9rem;">
+        <div>
+            <span style="color:var(--muted);margin-right:0.75rem;">season:</span>
+            <a asp-action="Index" asp-route-sort="@sort" style="@(season == "all" ? "border-bottom:1px solid var(--fg);" : "color:var(--muted);")">all</a>
+            <span style="color:var(--muted);margin:0 0.5rem;">·</span>
+            <a asp-action="Index" asp-route-sort="@sort" asp-route-season="summer" style="@(season == "summer" ? "border-bottom:1px solid var(--fg);" : "color:var(--muted);")">summer</a>
+            <span style="color:var(--muted);margin:0 0.5rem;">·</span>
+            <a asp-action="Index" asp-route-sort="@sort" asp-route-season="winter" style="@(season == "winter" ? "border-bottom:1px solid var(--fg);" : "color:var(--muted);")">winter</a>
+        </div>
+        <div>
+            <span style="color:var(--muted);margin-right:0.75rem;">rank by:</span>
+            <a asp-action="Index" asp-route-sort="score" asp-route-season="@(season != "all" ? season : null)" style="@(sort == "score" ? "border-bottom:1px solid var(--fg);" : "color:var(--muted);")">score</a>
+            <span style="color:var(--muted);margin:0 0.5rem;">·</span>
+            <a asp-action="Index" asp-route-sort="time" asp-route-season="@(season != "all" ? season : null)" style="@(sort == "time" ? "border-bottom:1px solid var(--fg);" : "color:var(--muted);")">time</a>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <p style="margin-top:3rem;color:var(--muted);">no one has finished yet. be the first.</p>
+    }
+    else
+    {
+        <table class="lb-table">
+            <thead>
+                <tr>
+                    <th class="lb-rank">#</th>
+                    <th>player</th>
+                    <th>character</th>
+                    <th>season</th>
+                    <th>score</th>
+                    <th>time</th>
+                    <th>finished</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in Model)
+                {
+                    <tr>
+                        <td class="lb-rank">@entry.Rank</td>
+                        <td>@entry.Username</td>
+                        <td>@entry.CharacterType</td>
+                        <td>@entry.Season</td>
+                        <td>@entry.Score.ToString("N0")</td>
+                        <td>@($"{(int)entry.CompletionTime.TotalMinutes}:{entry.CompletionTime.Seconds:D2}")</td>
+                        <td style="color:var(--muted);">@entry.CompletedAt.ToString("MMM d").ToLower()</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
