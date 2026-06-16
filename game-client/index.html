@@ -8,6 +8,32 @@
   </head>
   <body>
     <div id="game"></div>
+
+    <div id="login-overlay">
+      <div class="login-card">
+        <h1>northward</h1>
+        <p class="login-subtitle">sign in to begin your journey.</p>
+
+        <div id="login-error" class="login-error" hidden></div>
+
+        <div class="login-field">
+          <label for="login-email">email</label>
+          <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+
+        <div class="login-field">
+          <label for="login-password">password</label>
+          <input id="login-password" type="password" placeholder="your password" autocomplete="current-password" />
+        </div>
+
+        <button id="login-submit" class="login-submit">enter the forest</button>
+
+        <p class="login-link">
+          no account? <a href="http://localhost:5222/Account/Register" target="_blank">register on the website</a>
+        </p>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

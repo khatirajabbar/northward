@@ -8,7 +8,6 @@ export default class BootScene extends Phaser.Scene {
   preload() {
     const { width, height } = this.scale;
 
-    // Loading screen
     this.add.text(width / 2, height / 2 - 20, 'northward', {
       fontFamily: 'Helvetica Neue, sans-serif',
       fontSize: '42px',
@@ -21,28 +20,22 @@ export default class BootScene extends Phaser.Scene {
       color: '#888888'
     }).setOrigin(0.5);
 
-    // Load character spritesheet
     this.load.spritesheet('player', 'assets/characters/player.png', {
       frameWidth: 48,
       frameHeight: 48
     });
 
-    // Load grass tile
     this.load.image('grass', 'assets/tiles/grass.png');
 
-    // Create a darker grass texture for the ground depth
     const dirtGfx = this.make.graphics({ x: 0, y: 0, add: false });
     dirtGfx.fillStyle(0x3a2d1f);
     dirtGfx.fillRect(0, 0, 16, 16);
     dirtGfx.generateTexture('dirt', 16, 16);
     dirtGfx.destroy();
 
-    // Create a simple tree silhouette (triangle on a trunk)
     const treeGfx = this.make.graphics({ x: 0, y: 0, add: false });
-    // Trunk
     treeGfx.fillStyle(0x2a1a0f);
     treeGfx.fillRect(28, 80, 8, 32);
-    // Foliage (pine tree triangles, stacked)
     treeGfx.fillStyle(0x1a2818);
     treeGfx.fillTriangle(32, 0, 8, 40, 56, 40);
     treeGfx.fillTriangle(32, 20, 4, 60, 60, 60);
@@ -67,7 +60,7 @@ export default class BootScene extends Phaser.Scene {
     });
 
     this.time.delayedCall(800, () => {
-      this.scene.start('ForestScene');
+      this.scene.start('LoginScene');
     });
   }
 }

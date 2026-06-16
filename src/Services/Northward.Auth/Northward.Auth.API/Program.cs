@@ -41,6 +41,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 
+// CORS for game client and website
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("GameClient", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5222")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -81,6 +92,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("GameClient");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
