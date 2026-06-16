@@ -42,6 +42,39 @@ export default class BootScene extends Phaser.Scene {
     treeGfx.fillTriangle(32, 40, 0, 84, 64, 84);
     treeGfx.generateTexture('tree', 64, 112);
     treeGfx.destroy();
+
+    // Campfire checkpoint — unlit (dim logs) and lit (glowing)
+    const logsGfx = this.make.graphics({ x: 0, y: 0, add: false });
+    logsGfx.fillStyle(0x3a2818);
+    logsGfx.fillRect(2, 20, 28, 6);
+    logsGfx.fillRect(6, 24, 20, 5);
+    logsGfx.fillStyle(0x2a1c10);
+    logsGfx.fillRect(0, 26, 32, 4);
+    logsGfx.generateTexture('campfire_off', 32, 32);
+    logsGfx.destroy();
+
+    const fireGfx = this.make.graphics({ x: 0, y: 0, add: false });
+    fireGfx.fillStyle(0x3a2818);
+    fireGfx.fillRect(2, 20, 28, 6);
+    fireGfx.fillRect(6, 24, 20, 5);
+    fireGfx.fillStyle(0x2a1c10);
+    fireGfx.fillRect(0, 26, 32, 4);
+    // flames
+    fireGfx.fillStyle(0xff8c42);
+    fireGfx.fillTriangle(16, 0, 6, 22, 26, 22);
+    fireGfx.fillStyle(0xffd24a);
+    fireGfx.fillTriangle(16, 8, 10, 22, 22, 22);
+    fireGfx.generateTexture('campfire_on', 32, 32);
+    fireGfx.destroy();
+
+    // Goal marker (tall glowing post)
+    const goalGfx = this.make.graphics({ x: 0, y: 0, add: false });
+    goalGfx.fillStyle(0xdce8e0);
+    goalGfx.fillRect(14, 0, 4, 80);
+    goalGfx.fillStyle(0xffd24a);
+    goalGfx.fillCircle(16, 8, 8);
+    goalGfx.generateTexture('goal', 32, 80);
+    goalGfx.destroy();
   }
 
   create() {
