@@ -27,6 +27,18 @@ export default class BootScene extends Phaser.Scene {
 
     this.load.image('grass', 'assets/tiles/grass.png');
 
+    // Parallax forest layers (ansimuz, 272x160 each)
+    this.load.image('forest-back', 'assets/forest/back-trees.png');
+    this.load.image('forest-middle', 'assets/forest/middle-trees.png');
+    this.load.image('forest-front', 'assets/forest/front-trees.png');
+    this.load.image('forest-lights', 'assets/forest/lights.png');
+
+    // Demon Woods layers (592x272 trees, 480x272 bg) — silhouette style
+    this.load.image('dw-bg', 'assets/forest2/dw-bg.png');
+    this.load.image('dw-far', 'assets/forest2/dw-far.png');
+    this.load.image('dw-mid', 'assets/forest2/dw-mid.png');
+    this.load.image('dw-close', 'assets/forest2/dw-close.png');
+
     const dirtGfx = this.make.graphics({ x: 0, y: 0, add: false });
     dirtGfx.fillStyle(0x3a2d1f);
     dirtGfx.fillRect(0, 0, 16, 16);

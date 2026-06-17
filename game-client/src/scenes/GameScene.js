@@ -11,19 +11,48 @@ export default class GameScene extends Phaser.Scene {
     const worldWidth = 4000;
     const groundY = height - 60;
 
-    this.cameras.main.setBackgroundColor('#13191e');
+    // ── gradient dawn sky (cool misty blue) ──
+    this.cameras.main.setBackgroundColor('#10161c');
+    const skyBands = [0x10161c, 0x1a2630, 0x2b3d49, 0x415863, 0x6a8088];
+    const bandH = height / skyBands.length;
+    skyBands.forEach((c, i) => {
+      this.add.rectangle(0, i * bandH, width, bandH + 1, c)
+        .setOrigin(0, 0).setScrollFactor(0).setDepth(-30);
+    });
 
-    for (let i = 0; i < 40; i++) {
-      const x = i * 120 + Phaser.Math.Between(-30, 30);
-      const tree = this.add.image(x, groundY + 20, 'tree');
-      tree.setOrigin(0.5, 1);
-      tree.setScale(0.7);
-      tree.setTint(0x0e1a16);
-      tree.setAlpha(0.6);
-      tree.setScrollFactor(0.4);
-      tree.setDepth(-5);
-    }
+    // ── Demon Woods parallax layers (recolored cool/misty, no red) ──
+    // Layers are 272px tall silhouettes. Scale to fill from bottom.
+    const dwScale = height / 272 * 1.05;
+    const dwH = 272 * dwScale;
+    const dwY = height - dwH;
+    const coolTint = 0x3a5a6e; // cool blue-teal to kill the red
+    this.bgLayers = [];
 
+    const addDW = (key, factor, depth, tint, alpha) => {
+      const ts = this.add.tileSprite(0, dwY, width, dwH, key);
+      ts.setOrigin(0, 0);
+      ts.setScrollFactor(0);
+      ts.setTileScale(dwScale, dwScale);
+      ts.setDepth(depth);
+      ts.setTint(tint);
+      ts.setAlpha(alpha);
+      ts.parallaxFactor = factor;
+      this.bgLayers.push(ts);
+      return ts;
+    };
+
+    // back to front: bg wash, far trees, mid trees, close trees
+    addDW('dw-bg', 0.05, -25, 0x2b4453, 1);
+    addDW('dw-far', 0.12, -24, 0x35525f, 0.9);
+    addDW('dw-mid', 0.25, -23, 0x223843, 1);
+    addDW('dw-close', 0.45, -22, 0x14242c, 1);
+
+    // legacy var kept so later code referencing bgLayers parallax still works
+    const layerH = dwH;
+    const layerY = dwY;
+
+
+    // ── platforms with gaps ──
     this.platforms = this.physics.add.staticGroup();
     const segments = [
       [0, 600], [760, 1200], [1360, 1700], [1900, 2400],
@@ -42,6 +71,7 @@ export default class GameScene extends Phaser.Scene {
     this.makeFloater(2980, groundY - 100, 4);
     this.makeFloater(3540, groundY - 110, 4);
 
+    // ── checkpoints ──
     this.checkpoints = this.physics.add.staticGroup();
     this.checkpointPositions = [
       { x: 100, y: groundY - 20 },
@@ -55,17 +85,18 @@ export default class GameScene extends Phaser.Scene {
       fire.setOrigin(0.5, 1);
       fire.setScale(1.5);
       fire.refreshBody();
-      fire.checkpointIndex = index;
       fire.lit = index === 0;
       this.checkpointSprites.push(fire);
     });
 
     this.respawnPoint = { x: this.checkpointPositions[0].x, y: this.checkpointPositions[0].y - 40 };
 
+    // ── goal ──
     this.goal = this.physics.add.staticImage(3950, groundY - 40, 'goal');
     this.goal.setOrigin(0.5, 1);
     this.goal.refreshBody();
 
+    // ── player ──
     this.player = this.physics.add.sprite(this.respawnPoint.x, this.respawnPoint.y, 'player', 12);
     this.player.setCollideWorldBounds(false);
     this.player.setDragX(800);
@@ -86,17 +117,18 @@ export default class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
 
+    // HUD
     this.add.text(20, 20, 'reach the light at the end of the path', {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '14px', color: '#aaaaaa'
+      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '14px', color: '#2a2018'
     }).setScrollFactor(0).setDepth(100);
 
     this.deathCount = 0;
     this.deathText = this.add.text(20, 44, 'falls: 0', {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#666666'
+      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#4a3a28'
     }).setScrollFactor(0).setDepth(100);
 
     this.timerText = this.add.text(20, 64, 'time: 0:00', {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#666666'
+      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#4a3a28'
     }).setScrollFactor(0).setDepth(100);
 
     this.startTime = this.time.now;
@@ -130,7 +162,6 @@ export default class GameScene extends Phaser.Scene {
     this.levelComplete = true;
 
     const { width, height } = this.scale;
-
     const score = Math.max(0, 1000 - this.deathCount * 50 - Math.floor(this.elapsedSeconds));
     const timeStr = formatTime(this.elapsedSeconds);
 
@@ -177,6 +208,11 @@ export default class GameScene extends Phaser.Scene {
 
   update() {
     if (this.levelComplete) return;
+
+    const camX = this.cameras.main.scrollX;
+    this.bgLayers.forEach((layer) => {
+      layer.tilePositionX = camX * layer.parallaxFactor / layer.tileScaleX;
+    });
 
     this.elapsedSeconds = (this.time.now - this.startTime) / 1000;
     const m = Math.floor(this.elapsedSeconds / 60);
