@@ -39,6 +39,21 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('dw-mid', 'assets/forest2/dw-mid.png');
     this.load.image('dw-close', 'assets/forest2/dw-close.png');
 
+    // Cabin interior assets (Gemini art, cut to transparent PNGs)
+    this.load.image('cabin-bg', 'assets/cabin/bg.png');
+    this.load.image('cabin-bed', 'assets/cabin/bed_side.png');
+    this.load.image('cabin-bed-sleeping', 'assets/cabin/bed_sleeping.png');
+    this.load.image('cabin-window', 'assets/cabin/window.png');
+    this.load.image('cabin-curtain-left', 'assets/cabin/curtain_left.png');
+    this.load.image('cabin-curtain-right', 'assets/cabin/curtain_right.png');
+    this.load.image('cabin-washbasin', 'assets/cabin/washbasin.png');
+    this.load.image('cabin-counter', 'assets/cabin/counter.png');
+    this.load.image('cabin-fridge-closed', 'assets/cabin/fridge_closed.png');
+    this.load.image('cabin-fridge-open', 'assets/cabin/fridge_open.png');
+    this.load.image('cabin-birdhouse', 'assets/cabin/birdhouse.png');
+    this.load.image('cabin-bag', 'assets/cabin/bag.png');
+    this.load.image('cabin-door', 'assets/cabin/door.png');
+
     const dirtGfx = this.make.graphics({ x: 0, y: 0, add: false });
     dirtGfx.fillStyle(0x3a2d1f);
     dirtGfx.fillRect(0, 0, 16, 16);
