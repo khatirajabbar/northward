@@ -53,6 +53,25 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('cabin-birdhouse', 'assets/cabin/birdhouse.png');
     this.load.image('cabin-bag', 'assets/cabin/bag.png');
     this.load.image('cabin-door', 'assets/cabin/door.png');
+    this.load.image('cabin-lantern', 'assets/cabin/lantern.png');
+    this.load.image('cabin-painting', 'assets/cabin/painting.png');
+    this.load.image('cabin-shelf', 'assets/cabin/shelf.png');
+    this.load.image('cabin-wall', 'assets/cabin/wall.png');
+    this.load.image('cabin-floor', 'assets/cabin/floor.png');
+    this.load.image('cabin-lamp-top', 'assets/cabin/lamp_top.png');
+    this.load.image('cabin-lamp-mid', 'assets/cabin/lamp_mid.png');
+    this.load.image('cabin-lamp-bottom', 'assets/cabin/lamp_bottom.png');
+    this.load.image('cabin-counter-left', 'assets/cabin/counter_left.png');
+    this.load.image('cabin-counter-mid', 'assets/cabin/counter_mid.png');
+    this.load.image('cabin-counter-right', 'assets/cabin/counter_right.png');
+    this.load.image('cabin-teapot', 'assets/cabin/teapot.png');
+    this.load.image('cabin-mug', 'assets/cabin/mug.png');
+    this.load.image('cabin-plant', 'assets/cabin/plant.png');
+    this.load.image('cabin-sofa', 'assets/cabin/sofa.png');
+    this.load.image('cabin-coffee-table', 'assets/cabin/coffee_table.png');
+    this.load.image('cabin-floor-lamp', 'assets/cabin/floor_lamp.png');
+    this.load.image('cabin-bookshelf', 'assets/cabin/bookshelf.png');
+    this.load.image('cabin-radio', 'assets/cabin/radio.png');
 
     const dirtGfx = this.make.graphics({ x: 0, y: 0, add: false });
     dirtGfx.fillStyle(0x3a2d1f);

@@ -61,7 +61,7 @@ export default class MorningScene extends Phaser.Scene {
     this.stations = [];
 
     // ---- BED (far left, on floor) ----
-    const bedX = W * 0.15;
+    const bedX = W * 0.12;
     this.bedSprite = this.add.image(bedX, floorY + 2, 'cabin-bed').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.bedX = bedX;
 
@@ -83,16 +83,17 @@ export default class MorningScene extends Phaser.Scene {
     this.add.image(counterX, floorY + 2, 'cabin-counter-mid').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.add.image(counterX + cw, floorY + 2, 'cabin-counter-right').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.add.image(counterX - cw, floorY + 2 - cw, 'cabin-teapot').setOrigin(0.5, 1).setScale(this.px).setDepth(3);
+    this.add.image(counterX + cw, floorY + 2 - cw, 'cabin-radio').setOrigin(0.5, 1).setScale(this.px).setDepth(3);
     // coffee station is the counter's left side (the teapot)
     this.stations.push({ name: 'coffee', x: counterX - 60, label: 'start the coffee' });
 
     // fridge (right of counter) — decor
-    const fridgeX = W * 0.95;
+    const fridgeX = W * 0.9;
     this.fridge = this.add.image(fridgeX, floorY + 2, 'cabin-fridge-closed').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.fridgeX = fridgeX;
 
     // ---- DOOR (far right edge) — the way out ----
-    const doorX = W * 0.86;
+    const doorX = W * 0.97;
     this.add.image(doorX, floorY + 2, 'cabin-door').setOrigin(0.5, 1).setScale(this.px).setDepth(1);
     this.stations.push({ name: 'leave', x: doorX, label: 'head out north' });
     this.doorX = doorX;
@@ -100,20 +101,18 @@ export default class MorningScene extends Phaser.Scene {
     // ---- CEILING LAMP (mount + chain + lamp, hung from the ceiling) ----
     const lampX = W / 2;
     const seg = this.px * 8;
-    const lampTopY = -this.px * 2; // pull the mount flush to the ceiling (more negative = higher)
-    this.add.image(lampX, lampTopY, 'cabin-lamp-top').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-    this.add.image(lampX, lampTopY + seg, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-    this.add.image(lampX, lampTopY + seg * 2, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-    this.add.image(lampX, lampTopY + seg * 3, 'cabin-lamp-bottom').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    this.add.image(lampX, 0, 'cabin-lamp-top').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    this.add.image(lampX, seg, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    this.add.image(lampX, seg * 2, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    this.add.image(lampX, seg * 3, 'cabin-lamp-bottom').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
 
     // ---- WALL DECOR ----
     this.add.image(W * 0.06, H * 0.34, 'cabin-painting').setOrigin(0.5, 0.5).setScale(this.px).setDepth(1);
     this.add.image(W * 0.27, H * 0.40, 'cabin-shelf').setOrigin(0.5, 0.5).setScale(this.px).setDepth(1);
-    this.add.image(W * 0.27, H * 0.40 - this.px * 4, 'cabin-radio').setOrigin(0.5, 1).setScale(this.px).setDepth(1);
-    this.add.image(W * 0.22, floorY + 2, 'cabin-plant').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
+    this.add.image(W * 0.27, H * 0.40 - this.px * 4, 'cabin-plant').setOrigin(0.5, 1).setScale(this.px).setDepth(1);
 
     // ---- LIVING AREA: sofa + coffee table + mug (the coffee beat) ----
-    this.sofaX = W * 0.42;
+    this.sofaX = W * 0.45;
     this.add.image(this.sofaX, floorY + 2, 'cabin-sofa').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     const tableX = this.sofaX + this.px * 10;
     this.add.image(tableX, floorY + 2, 'cabin-coffee-table').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
@@ -122,12 +121,13 @@ export default class MorningScene extends Phaser.Scene {
     this.mug = this.add.image(tableX, this.mugY, 'cabin-mug').setOrigin(0.5, 1).setScale(this.px).setDepth(3).setVisible(false);
 
     // ---- FILLER (fills the wall, makes it feel lived-in) ----
-    this.add.image(W * 0.035, floorY + 2, 'cabin-floor-lamp').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
+    this.add.image(W * 0.60, floorY + 2, 'cabin-bookshelf').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
+    this.add.image(W * 0.04, floorY + 2, 'cabin-floor-lamp').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
   }
 
   buildPlayer() {
-    this.player = this.add.sprite(this.bedX, this.floorY - this.px * 10, 'player', 12).setScale(3).setDepth(10);
-    this.player.setAngle(90); // lying on the bed until they wake (flip to -90 if his head ends up at the wrong end)
+    this.player = this.add.sprite(this.bedX, this.floorY - this.px * 7, 'player', 12).setScale(3).setDepth(10);
+    this.player.setAngle(-90); // lying on the bed until they wake
     if (this.anims.exists('idle')) this.player.play('idle');
     this.playerSpeed = 3;
     this.canMove = false;

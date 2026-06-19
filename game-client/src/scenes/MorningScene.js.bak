@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 
 // Beat 1 — the morning. A cozy one-room cabin built from real art assets.
 // Walk with arrow keys, press E near a station to interact. Freeform order.
-// Make coffee, sit a while, then head out the door when you're ready.
 // Nature (bird singing + growing light) wakes you; opening the curtains warms
 // the room. The bird motif is planted here and pays off in the ending.
 export default class MorningScene extends Phaser.Scene {
@@ -16,7 +15,7 @@ export default class MorningScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#1a140e');
 
-    // ── background room ──
+    // ── background room (scaled to fill) ──
     // cabin walls + floor are tiled from the Penzilla set (see buildBackground)
 
     // floor line: where furniture and the player stand
@@ -37,9 +36,9 @@ export default class MorningScene extends Phaser.Scene {
     this.keyE = this.input.keyboard.addKey('E');
     this.keyE.on('down', () => this.tryInteract());
 
-    this.done = { curtains: false, teeth: false, coffee: false };
+    this.done = { curtains: false, teeth: false, coffee: false, cereal: false, milk: false };
     this.busy = false;
-    this.sitting = false;
+    this._cerealStep = 0;
 
     this.startAsleep();
   }
@@ -61,7 +60,7 @@ export default class MorningScene extends Phaser.Scene {
     this.stations = [];
 
     // ---- BED (far left, on floor) ----
-    const bedX = W * 0.15;
+    const bedX = W * 0.12;
     this.bedSprite = this.add.image(bedX, floorY + 2, 'cabin-bed').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.bedX = bedX;
 
@@ -70,11 +69,13 @@ export default class MorningScene extends Phaser.Scene {
     this.add.image(sinkX, floorY + 2, 'cabin-washbasin').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.stations.push({ name: 'teeth', x: sinkX, label: 'brush your teeth' });
 
-    // ---- WINDOW (center, on the wall) ----
+    // ---- WINDOW + CURTAINS + BIRDHOUSE (center, on the wall) ----
     const winX = W * 0.52;
-    const winY = floorY - this.px * 22; // eye-level on the wall
+    const winY = floorY - 250; // natural height on the wall
     this.add.image(winX, winY, 'cabin-window').setOrigin(0.5).setScale(this.px).setDepth(1);
+
     this.stations.push({ name: 'curtains', x: winX, label: 'open the curtains' });
+
 
     // ---- KITCHEN: coffee counter + fridge (right) ----
     const counterX = W * 0.74;
@@ -83,52 +84,40 @@ export default class MorningScene extends Phaser.Scene {
     this.add.image(counterX, floorY + 2, 'cabin-counter-mid').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.add.image(counterX + cw, floorY + 2, 'cabin-counter-right').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.add.image(counterX - cw, floorY + 2 - cw, 'cabin-teapot').setOrigin(0.5, 1).setScale(this.px).setDepth(3);
-    // coffee station is the counter's left side (the teapot)
+    this.add.image(counterX + cw, floorY + 2 - cw, 'cabin-mug').setOrigin(0.5, 1).setScale(this.px).setDepth(3);
+    // coffee station is the counter's left side (machine), cereal is the right (bowl)
     this.stations.push({ name: 'coffee', x: counterX - 60, label: 'start the coffee' });
+    this.stations.push({ name: 'cereal', x: counterX + 50, label: 'make some cereal' });
+    // steam anchor
+    this.coffeeX = counterX - 60; this.coffeeY = floorY - 130;
 
-    // fridge (right of counter) — decor
-    const fridgeX = W * 0.95;
+    // fridge (right of counter) — its own station; open to get milk
+    const fridgeX = W * 0.9;
     this.fridge = this.add.image(fridgeX, floorY + 2, 'cabin-fridge-closed').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.fridgeX = fridgeX;
+    this.stations.push({ name: 'fridge', x: fridgeX, label: 'get the milk' });
 
-    // ---- DOOR (far right edge) — the way out ----
-    const doorX = W * 0.86;
+    // ---- DOOR + BAG (far right edge) ----
+    const doorX = W * 0.97;
     this.add.image(doorX, floorY + 2, 'cabin-door').setOrigin(0.5, 1).setScale(this.px).setDepth(1);
-    this.stations.push({ name: 'leave', x: doorX, label: 'head out north' });
-    this.doorX = doorX;
+    const bagX = W * 0.84;
+    this.bag = this.add.image(bagX, floorY + 4, 'cabin-bag').setOrigin(0.5, 1).setScale(0.7).setDepth(2);
 
-    // ---- CEILING LAMP (mount + chain + lamp, hung from the ceiling) ----
-    const lampX = W / 2;
-    const seg = this.px * 8;
-    const lampTopY = -this.px * 2; // pull the mount flush to the ceiling (more negative = higher)
-    this.add.image(lampX, lampTopY, 'cabin-lamp-top').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-    this.add.image(lampX, lampTopY + seg, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-    this.add.image(lampX, lampTopY + seg * 2, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-    this.add.image(lampX, lampTopY + seg * 3, 'cabin-lamp-bottom').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-
-    // ---- WALL DECOR ----
+    // ---- WALL & CEILING DECOR ----
+    const lh = this.px * 8;
+    this.add.image(W / 2, 0, 'cabin-lamp-top').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    this.add.image(W / 2, lh, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    this.add.image(W / 2, lh * 2, 'cabin-lamp-bottom').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
     this.add.image(W * 0.06, H * 0.34, 'cabin-painting').setOrigin(0.5, 0.5).setScale(this.px).setDepth(1);
     this.add.image(W * 0.27, H * 0.40, 'cabin-shelf').setOrigin(0.5, 0.5).setScale(this.px).setDepth(1);
-    this.add.image(W * 0.27, H * 0.40 - this.px * 4, 'cabin-radio').setOrigin(0.5, 1).setScale(this.px).setDepth(1);
-    this.add.image(W * 0.22, floorY + 2, 'cabin-plant').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
-
-    // ---- LIVING AREA: sofa + coffee table + mug (the coffee beat) ----
-    this.sofaX = W * 0.42;
-    this.add.image(this.sofaX, floorY + 2, 'cabin-sofa').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
-    const tableX = this.sofaX + this.px * 10;
-    this.add.image(tableX, floorY + 2, 'cabin-coffee-table').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
-    this.mugX = tableX;
-    this.mugY = floorY + 2 - this.px * 8;
-    this.mug = this.add.image(tableX, this.mugY, 'cabin-mug').setOrigin(0.5, 1).setScale(this.px).setDepth(3).setVisible(false);
-
-    // ---- FILLER (fills the wall, makes it feel lived-in) ----
-    this.add.image(W * 0.035, floorY + 2, 'cabin-floor-lamp').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
+    this.add.image(W * 0.27, H * 0.40 - this.px * 4, 'cabin-plant').setOrigin(0.5, 1).setScale(this.px).setDepth(1);
+    this.stations.push({ name: 'bag', x: bagX, label: 'take your bag and go' });
+    this.doorX = doorX;
   }
 
   buildPlayer() {
-    this.player = this.add.sprite(this.bedX, this.floorY - this.px * 10, 'player', 12).setScale(3).setDepth(10);
-    this.player.setAngle(90); // lying on the bed until they wake (flip to -90 if his head ends up at the wrong end)
-    if (this.anims.exists('idle')) this.player.play('idle');
+    this.player = this.add.sprite(this.bedX + 40, this.floorY - 55, 'player', 12).setScale(3).setDepth(10);
+    this.player.setVisible(false); // 'under the blanket' until they wake
     this.playerSpeed = 3;
     this.canMove = false;
   }
@@ -154,15 +143,17 @@ export default class MorningScene extends Phaser.Scene {
     this.tweens.add({ targets: this.roomDim, alpha: 0.38, duration: 5000, ease: 'Sine.inOut' });
     this.time.delayedCall(5000, () => {
       this.thought.setText('morning already. a bird singing somewhere outside.');
-      // sit up off the pillow and stand beside the bed
+      // swap the sleeping bed for the empty bed (reset scale to normal bed size)
+      this.bedSprite.setTexture('cabin-bed');
+      this.bedSprite.setScale(this.px);
+      this.player.setPosition(this.bedX + 80, this.floorY - 40);
+      this.player.setAlpha(0);
+      this.player.setVisible(true);
+      if (this.anims.exists('idle')) this.player.play('idle');
       this.tweens.add({
-        targets: this.player, angle: 0,
+        targets: this.player, alpha: 1,
         duration: 700, ease: 'Sine.inOut',
-        onComplete: () => {
-          this.player.setPosition(this.bedX + 80, this.floorY - 40);
-          this.canMove = true;
-          this.thoughtIdle();
-        }
+        onComplete: () => { this.canMove = true; this.thoughtIdle(); }
       });
     });
   }
@@ -184,7 +175,6 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   tryInteract() {
-    if (this.sitting) return this.standUp();
     if (this.busy || !this.canMove) return;
     const s = this.nearestStation();
     if (!s) return;
@@ -192,7 +182,9 @@ export default class MorningScene extends Phaser.Scene {
       case 'curtains': return this.doCurtains();
       case 'teeth': return this.doTeeth();
       case 'coffee': return this.doCoffee();
-      case 'leave': return this.doLeave();
+      case 'cereal': return this.doCereal();
+      case 'fridge': return this.doFridge();
+      case 'bag': return this.doBag();
     }
   }
 
@@ -217,54 +209,37 @@ export default class MorningScene extends Phaser.Scene {
   doCoffee() {
     if (this.done.coffee) { this.thought.setText("coffee's ready. warm."); return; }
     this.thought.setText('coffee brewing…');
-    this.setBusy(2600, () => {
+    this.setBusy(3000, () => {
       this.done.coffee = true;
-      this.sitWithCoffee();
+      this.thought.setText('mm. coffee.');
+      this.steam(this.coffeeX, this.coffeeY);
     });
   }
 
-  sitWithCoffee() {
-    this.canMove = false;
-    this.busy = true;
-    this.prompt.setVisible(false);
-    this.cameras.main.fadeOut(600, 21, 17, 12);
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      // settle onto the sofa with the mug on the table
-      this.player.setPosition(this.sofaX, this.floorY - this.px * 5);
-      this.player.setFlipX(false);
-      if (this.anims.exists('idle')) this.player.play('idle');
-      this.mug.setVisible(true);
-      this.cameras.main.fadeIn(700, 21, 17, 12);
-      this.cameras.main.once('camerafadeincomplete', () => {
-        this.sitting = true;
-        this.busy = false;
-        this.thought.setText('a few quiet minutes before the forest.');
-        this.prompt.setText('▸ e  get up');
-        this.prompt.setPosition(this.player.x, this.floorY - 80);
-        this.prompt.setVisible(true);
-        this.sipTimer = this.time.addEvent({
-          delay: 1500, loop: true, callback: () => this.steam(this.mugX, this.mugY)
-        });
-      });
-    });
+  doCereal() {
+    if (this.done.cereal && this.done.milk) { this.thought.setText("breakfast's ready. good."); return; }
+    if (this.done.cereal) { this.thought.setText('cereal\'s in the bowl. just the milk now — from the fridge.'); return; }
+    this.done.cereal = true;
+    this.thought.setText('cereal in the bowl. now the milk from the fridge.');
   }
 
-  standUp() {
-    this.sitting = false;
-    if (this.sipTimer) this.sipTimer.remove();
-    this.prompt.setVisible(false);
-    this.thought.setText('alright. onward.');
-    this.player.setPosition(this.sofaX + this.px * 8, this.floorY - 40);
-    this.canMove = true;
+  doFridge() {
+    if (this.done.milk) { this.thought.setText("breakfast's ready. good."); return; }
+    if (!this.done.cereal) { this.thought.setText('cereal in the bowl first, then the milk.'); return; }
+    this.fridge.setTexture('cabin-fridge-open');
+    this.thought.setText('milk in the bowl… there. breakfast.');
+    this.done.milk = true;
+    this.time.delayedCall(1100, () => { this.fridge.setTexture('cabin-fridge-closed'); });
   }
 
-  doLeave() {
-    const ready = this.done.teeth && this.done.coffee;
-    if (!ready) {
+  doBag() {
+    const coreDone = this.done.coffee && this.done.cereal && this.done.milk && this.done.teeth;
+    if (!coreDone) {
       const left = [];
       if (!this.done.teeth) left.push('brush my teeth');
-      if (!this.done.coffee) left.push('have my coffee');
-      this.thought.setText('not yet — i should ' + left.join(' and ') + ' first.');
+      if (!this.done.coffee) left.push('make coffee');
+      if (!this.done.cereal || !this.done.milk) left.push('finish breakfast');
+      this.thought.setText('not yet — i should ' + left.join(', ') + ' first.');
       return;
     }
     this.canMove = false;
