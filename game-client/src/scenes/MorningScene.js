@@ -28,7 +28,7 @@ export default class MorningScene extends Phaser.Scene {
     this.buildUI();
 
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasd = this.input.keyboard.addKeys('A,D');
+    this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.keyE = this.input.keyboard.addKey('E');
     this.keyE.on('down', () => this.tryInteract());
 
@@ -118,11 +118,19 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   buildPlayer() {
-    // hidden while asleep — the character is painted into the sleeping-bed art
-    this.player = this.add.sprite(this.bedX + 70, this.floorY - 40, 'player', 12).setScale(3).setDepth(10);
+    // physics player — arcade body + global gravity (matches GameScene)
+    this.player = this.physics.add.sprite(this.bedX + 70, this.floorY - 40, 'player', 12).setScale(3).setDepth(10);
     this.player.setVisible(false);
-    this.playerSpeed = 3;
+    this.player.setCollideWorldBounds(true);
+    this.player.body.setAllowGravity(false); // asleep: stay put until we wake
+    this.playerSpeed = 240;   // walk speed (px/sec)
+    this.jumpSpeed = -480;    // same jump strength as GameScene
     this.canMove = false;
+
+    // invisible floor to stand and land on
+    const ground = this.add.rectangle(this.W / 2, this.floorY + 40, this.W, 20).setVisible(false);
+    this.physics.add.existing(ground, true);
+    this.physics.add.collider(this.player, ground);
   }
 
   buildUI() {
@@ -149,6 +157,7 @@ export default class MorningScene extends Phaser.Scene {
       this.bedSprite.setTexture('cabin-bed');
       this.bedSprite.setScale(this.fitW('cabin-bed', 260));
       this.player.setPosition(this.bedX + 70, this.floorY - 40);
+      this.player.body.setAllowGravity(true);
       this.player.setAlpha(0).setVisible(true);
       if (this.anims.exists('idle')) this.player.play('idle');
       this.tweens.add({
@@ -218,6 +227,8 @@ export default class MorningScene extends Phaser.Scene {
     this.cameras.main.fadeOut(600, 21, 17, 12);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.player.setPosition(this.sofaX, this.floorY - this.px * 5);
+      this.player.body.setAllowGravity(false);
+      this.player.setVelocity(0, 0);
       this.player.setFlipX(false);
       if (this.anims.exists('idle')) this.player.play('idle');
       this.mug.setVisible(true);
@@ -238,6 +249,7 @@ export default class MorningScene extends Phaser.Scene {
     this.prompt.setVisible(false);
     this.thought.setText('alright. onward.');
     this.player.setPosition(this.sofaX + this.px * 8, this.floorY - 40);
+    this.player.body.setAllowGravity(true);
     this.canMove = true;
   }
 
@@ -311,18 +323,28 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   update() {
-    if (!this.canMove || this.busy) return;
+    if (!this.canMove || this.busy) {
+      if (this.player && this.player.body) this.player.setVelocityX(0);
+      return;
+    }
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
-    let moving = false;
-    if (left) { this.player.x -= this.playerSpeed; this.player.setFlipX(true); moving = true; }
-    else if (right) { this.player.x += this.playerSpeed; this.player.setFlipX(false); moving = true; }
-    this.player.x = Phaser.Math.Clamp(this.player.x, 40, this.W - 40);
-    if (moving) {
+    const jump = this.cursors.up.isDown || this.wasd.W.isDown || this.cursors.space.isDown;
+    const onGround = this.player.body.blocked.down;
+
+    if (left) { this.player.setVelocityX(-this.playerSpeed); this.player.setFlipX(true); }
+    else if (right) { this.player.setVelocityX(this.playerSpeed); this.player.setFlipX(false); }
+    else { this.player.setVelocityX(0); }
+
+    if (jump && onGround) this.player.setVelocityY(this.jumpSpeed);
+
+    const moving = left || right;
+    if (moving && onGround) {
       if (this.anims.exists('walk') && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
-    } else {
+    } else if (onGround) {
       if (this.anims.exists('idle') && this.player.anims.currentAnim?.key !== 'idle') this.player.play('idle');
     }
+
     const s = this.nearestStation();
     if (s) {
       this.prompt.setText('▸ e  ' + s.label);
