@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 
-// Beat 1 — the morning. A cozy one-room cabin built from real art assets.
-// Walk with arrow keys, press E near a station to interact. Freeform order.
-// Make coffee, sit a while, then head out the door when you're ready.
-// Nature (bird singing + growing light) wakes you; opening the curtains warms
-// the room. The bird motif is planted here and pays off in the ending.
+// Beat 1 — the morning. A cozy one-room cabin: Penzilla walls/floor with the
+// hand-drawn Gemini furniture on top. Walk with arrows, press E at a station.
+// Make coffee and sit a while, make breakfast (cereal + milk from the fridge),
+// then head out the door. Nature wakes you; the curtains warm the room. The
+// bird at the window is planted here and pays off in the ending.
 export default class MorningScene extends Phaser.Scene {
   constructor() {
     super('MorningScene');
@@ -16,15 +16,10 @@ export default class MorningScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#1a140e');
 
-    // ── background room ──
-    // cabin walls + floor are tiled from the Penzilla set (see buildBackground)
-
-    // floor line: where furniture and the player stand
     this.floorY = height - 96;
-    this.px = 7;                 // one source pixel = 7 screen pixels (whole-room scale)
+    this.px = 7;                 // penzilla wall/floor scale
     this.buildBackground();
 
-    // dim overlay (brightens when curtains open)
     this.roomDim = this.add.rectangle(0, 0, width, height, 0x0a0d14)
       .setOrigin(0, 0).setDepth(40).setAlpha(0.5);
 
@@ -37,21 +32,21 @@ export default class MorningScene extends Phaser.Scene {
     this.keyE = this.input.keyboard.addKey('E');
     this.keyE.on('down', () => this.tryInteract());
 
-    this.done = { curtains: false, teeth: false, coffee: false };
+    this.done = { curtains: false, teeth: false, coffee: false, cereal: false, milk: false };
     this.busy = false;
     this.sitting = false;
 
     this.startAsleep();
   }
 
+  // scale a hi-res Gemini piece to a target on-screen width / height
+  fitW(key, w) { return w / this.textures.get(key).getSourceImage().width; }
+  fitH(key, h) { return h / this.textures.get(key).getSourceImage().height; }
+
   buildBackground() {
     const { W, H, floorY, px } = this;
-
-    // wall — wallpaper tiled across everything above the floor
     this.add.tileSprite(0, 0, W, floorY, 'cabin-wall')
       .setOrigin(0, 0).setTileScale(px, px).setDepth(-20);
-
-    // floor — floor tile run along the bottom strip
     this.add.tileSprite(0, floorY, W, H - floorY, 'cabin-floor')
       .setOrigin(0, 0).setTileScale(px, px).setDepth(-19);
   }
@@ -60,75 +55,72 @@ export default class MorningScene extends Phaser.Scene {
     const { W, H, floorY } = this;
     this.stations = [];
 
-    // ---- BED (far left, on floor) ----
+    // ---- BED (far left) — starts as the sleeping bed (character in it) ----
     const bedX = W * 0.15;
-    this.bedSprite = this.add.image(bedX, floorY + 2, 'cabin-bed').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.bedX = bedX;
+    this.bedSprite = this.add.image(bedX, floorY + 2, 'cabin-bed-sleeping')
+      .setOrigin(0.5, 1).setScale(this.fitW('cabin-bed-sleeping', 260)).setDepth(2);
 
     // ---- WASHBASIN (left-center) ----
-    const sinkX = W * 0.32;
+    const sinkX = W * 0.30;
     this.add.image(sinkX, floorY + 2, 'cabin-washbasin').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     this.stations.push({ name: 'teeth', x: sinkX, label: 'brush your teeth' });
 
-    // ---- WINDOW (center, on the wall) ----
+    // ---- WINDOW (center wall) — the bird in the glass ----
     const winX = W * 0.52;
-    const winY = floorY - this.px * 22; // eye-level on the wall
-    this.add.image(winX, winY, 'cabin-window').setOrigin(0.5).setScale(this.px).setDepth(1);
+    const winY = floorY - 210;
+    this.add.image(winX, winY, 'cabin-window').setOrigin(0.5).setScale(this.fitW('cabin-window', 180)).setDepth(1);
     this.stations.push({ name: 'curtains', x: winX, label: 'open the curtains' });
 
-    // ---- KITCHEN: coffee counter + fridge (right) ----
-    const counterX = W * 0.74;
-    const cw = this.px * 8;
-    this.add.image(counterX - cw, floorY + 2, 'cabin-counter-left').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
-    this.add.image(counterX, floorY + 2, 'cabin-counter-mid').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
-    this.add.image(counterX + cw, floorY + 2, 'cabin-counter-right').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
-    this.add.image(counterX - cw, floorY + 2 - cw, 'cabin-teapot').setOrigin(0.5, 1).setScale(this.px).setDepth(3);
-    // coffee station is the counter's left side (the teapot)
-    this.stations.push({ name: 'coffee', x: counterX - 60, label: 'start the coffee' });
+    // ---- KITCHEN: counter (coffee machine + bowl) + fridge ----
+    const counterX = W * 0.72;
+    this.add.image(counterX, floorY + 14, 'cabin-counter').setOrigin(0.5, 1).setScale(this.fitW('cabin-counter', 210)).setDepth(2);
+    this.stations.push({ name: 'coffee', x: counterX - 45, label: 'start the coffee' });
+    this.stations.push({ name: 'cereal', x: counterX + 45, label: 'make some cereal' });
+    this.coffeeX = counterX - 45; this.coffeeY = floorY - 120;
+    this.cerealX = counterX + 45; this.cerealY = floorY - 110;
 
-    // fridge (right of counter) — decor
-    const fridgeX = W * 0.95;
-    this.fridge = this.add.image(fridgeX, floorY + 2, 'cabin-fridge-closed').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
+    // fridge (right) — bottom-LEFT origin so closed/open share the same body position
+    const fridgeX = W * 0.82;
+    this.fridge = this.add.image(fridgeX, floorY + 12, 'cabin-fridge-closed')
+      .setOrigin(0, 1).setScale(this.fitH('cabin-fridge-closed', 155)).setDepth(2);
     this.fridgeX = fridgeX;
+    this.stations.push({ name: 'fridge', x: fridgeX + 40, label: 'get the milk' });
 
-    // ---- DOOR (far right edge) — the way out ----
-    const doorX = W * 0.86;
+    // ---- DOOR (right edge) — the way out ----
+    const doorX = W * 0.97;
     this.add.image(doorX, floorY + 2, 'cabin-door').setOrigin(0.5, 1).setScale(this.px).setDepth(1);
     this.stations.push({ name: 'leave', x: doorX, label: 'head out north' });
     this.doorX = doorX;
 
-    // ---- CEILING LAMP (mount + chain + lamp, hung from the ceiling) ----
-    const lampX = W / 2;
-    const seg = this.px * 8;
-    const lampTopY = -this.px * 2; // pull the mount flush to the ceiling (more negative = higher)
-    this.add.image(lampX, lampTopY, 'cabin-lamp-top').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-    this.add.image(lampX, lampTopY + seg, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-    this.add.image(lampX, lampTopY + seg * 2, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
-    this.add.image(lampX, lampTopY + seg * 3, 'cabin-lamp-bottom').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    // ---- CEILING LAMP (penzilla, hung from ceiling) ----
+    const lampX = W / 2, seg = this.px * 8, top = -this.px * 2;
+    this.add.image(lampX, top, 'cabin-lamp-top').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    this.add.image(lampX, top + seg, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    this.add.image(lampX, top + seg * 2, 'cabin-lamp-mid').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
+    this.add.image(lampX, top + seg * 3, 'cabin-lamp-bottom').setOrigin(0.5, 0).setScale(this.px).setDepth(3);
 
-    // ---- WALL DECOR ----
+    // ---- WALL DECOR (penzilla) ----
     this.add.image(W * 0.06, H * 0.34, 'cabin-painting').setOrigin(0.5, 0.5).setScale(this.px).setDepth(1);
-    this.add.image(W * 0.27, H * 0.40, 'cabin-shelf').setOrigin(0.5, 0.5).setScale(this.px).setDepth(1);
-    this.add.image(W * 0.27, H * 0.40 - this.px * 4, 'cabin-radio').setOrigin(0.5, 1).setScale(this.px).setDepth(1);
-    this.add.image(W * 0.22, floorY + 2, 'cabin-plant').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
+    this.add.image(W * 0.24, H * 0.40, 'cabin-shelf').setOrigin(0.5, 0.5).setScale(this.px).setDepth(1);
+    this.add.image(W * 0.20, floorY + 2, 'cabin-plant').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
 
-    // ---- LIVING AREA: sofa + coffee table + mug (the coffee beat) ----
+    // ---- LIVING AREA: sofa + table + mug (the coffee beat) ----
     this.sofaX = W * 0.42;
     this.add.image(this.sofaX, floorY + 2, 'cabin-sofa').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
     const tableX = this.sofaX + this.px * 10;
     this.add.image(tableX, floorY + 2, 'cabin-coffee-table').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
-    this.mugX = tableX;
-    this.mugY = floorY + 2 - this.px * 8;
+    this.mugX = tableX; this.mugY = floorY + 2 - this.px * 8;
     this.mug = this.add.image(tableX, this.mugY, 'cabin-mug').setOrigin(0.5, 1).setScale(this.px).setDepth(3).setVisible(false);
 
-    // ---- FILLER (fills the wall, makes it feel lived-in) ----
+    // ---- FILLER (penzilla) ----
     this.add.image(W * 0.035, floorY + 2, 'cabin-floor-lamp').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
   }
 
   buildPlayer() {
-    this.player = this.add.sprite(this.bedX, this.floorY - this.px * 10, 'player', 12).setScale(3).setDepth(10);
-    this.player.setAngle(90); // lying on the bed until they wake (flip to -90 if his head ends up at the wrong end)
-    if (this.anims.exists('idle')) this.player.play('idle');
+    // hidden while asleep — the character is painted into the sleeping-bed art
+    this.player = this.add.sprite(this.bedX + 70, this.floorY - 40, 'player', 12).setScale(3).setDepth(10);
+    this.player.setVisible(false);
     this.playerSpeed = 3;
     this.canMove = false;
   }
@@ -140,7 +132,6 @@ export default class MorningScene extends Phaser.Scene {
       color: '#f4ead6', fontStyle: 'italic', align: 'center',
       wordWrap: { width: W * 0.7 }, stroke: '#1a140e', strokeThickness: 3
     }).setOrigin(0.5).setDepth(60);
-
     this.prompt = this.add.text(0, 0, '', {
       fontFamily: 'Helvetica Neue, sans-serif', fontSize: '14px', color: '#f4ead6',
       backgroundColor: '#00000077', padding: { x: 8, y: 4 }
@@ -154,15 +145,15 @@ export default class MorningScene extends Phaser.Scene {
     this.tweens.add({ targets: this.roomDim, alpha: 0.38, duration: 5000, ease: 'Sine.inOut' });
     this.time.delayedCall(5000, () => {
       this.thought.setText('morning already. a bird singing somewhere outside.');
-      // sit up off the pillow and stand beside the bed
+      // swap sleeping bed -> empty bed, stand the character up beside it
+      this.bedSprite.setTexture('cabin-bed');
+      this.bedSprite.setScale(this.fitW('cabin-bed', 260));
+      this.player.setPosition(this.bedX + 70, this.floorY - 40);
+      this.player.setAlpha(0).setVisible(true);
+      if (this.anims.exists('idle')) this.player.play('idle');
       this.tweens.add({
-        targets: this.player, angle: 0,
-        duration: 700, ease: 'Sine.inOut',
-        onComplete: () => {
-          this.player.setPosition(this.bedX + 80, this.floorY - 40);
-          this.canMove = true;
-          this.thoughtIdle();
-        }
+        targets: this.player, alpha: 1, duration: 700, ease: 'Sine.inOut',
+        onComplete: () => { this.canMove = true; this.thoughtIdle(); }
       });
     });
   }
@@ -192,6 +183,8 @@ export default class MorningScene extends Phaser.Scene {
       case 'curtains': return this.doCurtains();
       case 'teeth': return this.doTeeth();
       case 'coffee': return this.doCoffee();
+      case 'cereal': return this.doCereal();
+      case 'fridge': return this.doFridge();
       case 'leave': return this.doLeave();
     }
   }
@@ -211,40 +204,30 @@ export default class MorningScene extends Phaser.Scene {
   doTeeth() {
     if (this.done.teeth) { this.thought.setText('minty. good.'); return; }
     this.thought.setText('brushing… (a fresh start).');
-    this.setBusy(1800, () => { this.done.teeth = true; this.sparkle(this.W * 0.32, this.floorY - 150); });
+    this.setBusy(1800, () => { this.done.teeth = true; this.sparkle(this.W * 0.30, this.floorY - 150); });
   }
 
   doCoffee() {
     if (this.done.coffee) { this.thought.setText("coffee's ready. warm."); return; }
     this.thought.setText('coffee brewing…');
-    this.setBusy(2600, () => {
-      this.done.coffee = true;
-      this.sitWithCoffee();
-    });
+    this.setBusy(2600, () => { this.done.coffee = true; this.sitWithCoffee(); });
   }
 
   sitWithCoffee() {
-    this.canMove = false;
-    this.busy = true;
-    this.prompt.setVisible(false);
+    this.canMove = false; this.busy = true; this.prompt.setVisible(false);
     this.cameras.main.fadeOut(600, 21, 17, 12);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      // settle onto the sofa with the mug on the table
       this.player.setPosition(this.sofaX, this.floorY - this.px * 5);
       this.player.setFlipX(false);
       if (this.anims.exists('idle')) this.player.play('idle');
       this.mug.setVisible(true);
       this.cameras.main.fadeIn(700, 21, 17, 12);
       this.cameras.main.once('camerafadeincomplete', () => {
-        this.sitting = true;
-        this.busy = false;
+        this.sitting = true; this.busy = false;
         this.thought.setText('a few quiet minutes before the forest.');
         this.prompt.setText('▸ e  get up');
-        this.prompt.setPosition(this.player.x, this.floorY - 80);
-        this.prompt.setVisible(true);
-        this.sipTimer = this.time.addEvent({
-          delay: 1500, loop: true, callback: () => this.steam(this.mugX, this.mugY)
-        });
+        this.prompt.setPosition(this.player.x, this.floorY - 80).setVisible(true);
+        this.sipTimer = this.time.addEvent({ delay: 1500, loop: true, callback: () => this.steam(this.mugX, this.mugY) });
       });
     });
   }
@@ -258,17 +241,41 @@ export default class MorningScene extends Phaser.Scene {
     this.canMove = true;
   }
 
+  doCereal() {
+    if (this.done.cereal && this.done.milk) { this.thought.setText("breakfast's ready. good."); return; }
+    if (this.done.cereal) { this.thought.setText("cereal's in the bowl. just the milk now — from the fridge."); return; }
+    this.done.cereal = true;
+    this.thought.setText('cereal in the bowl. now the milk from the fridge.');
+  }
+
+  doFridge() {
+    if (this.done.milk) { this.thought.setText("breakfast's ready. good."); return; }
+    if (!this.done.cereal) { this.thought.setText('cereal in the bowl first, then the milk.'); this.openFridgeBriefly(); return; }
+    this.openFridgeBriefly();
+    this.thought.setText('milk in the bowl… there. breakfast.');
+    this.done.milk = true;
+  }
+
+  openFridgeBriefly() {
+    this.fridge.setTexture('cabin-fridge-open');
+    this.fridge.setScale(this.fitH('cabin-fridge-open', 155));
+    this.time.delayedCall(1100, () => {
+      this.fridge.setTexture('cabin-fridge-closed');
+      this.fridge.setScale(this.fitH('cabin-fridge-closed', 155));
+    });
+  }
+
   doLeave() {
-    const ready = this.done.teeth && this.done.coffee;
+    const ready = this.done.teeth && this.done.coffee && this.done.cereal && this.done.milk;
     if (!ready) {
       const left = [];
       if (!this.done.teeth) left.push('brush my teeth');
       if (!this.done.coffee) left.push('have my coffee');
-      this.thought.setText('not yet — i should ' + left.join(' and ') + ' first.');
+      if (!this.done.cereal || !this.done.milk) left.push('finish breakfast');
+      this.thought.setText('not yet — i should ' + left.join(', ') + ' first.');
       return;
     }
-    this.canMove = false;
-    this.busy = true;
+    this.canMove = false; this.busy = true;
     this.thought.setText('alright. time to go north.');
     this.prompt.setVisible(false);
     if (this.anims.exists('walk')) this.player.play('walk');
@@ -284,7 +291,7 @@ export default class MorningScene extends Phaser.Scene {
 
   chirp() {
     for (let i = 0; i < 2; i++) {
-      const note = this.add.text((this.birdX || this.W * 0.7) + i * 6, (this.birdY || 200), '♪', {
+      const note = this.add.text((this.birdX || this.W * 0.52) + i * 6, (this.birdY || 220), '♪', {
         fontFamily: 'sans-serif', fontSize: '15px', color: '#f4ead6'
       }).setOrigin(0.5).setDepth(40);
       this.tweens.add({ targets: note, y: note.y - 30, alpha: 0, duration: 1100, delay: i * 180, onComplete: () => note.destroy() });
@@ -305,26 +312,21 @@ export default class MorningScene extends Phaser.Scene {
 
   update() {
     if (!this.canMove || this.busy) return;
-
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     let moving = false;
-
     if (left) { this.player.x -= this.playerSpeed; this.player.setFlipX(true); moving = true; }
     else if (right) { this.player.x += this.playerSpeed; this.player.setFlipX(false); moving = true; }
     this.player.x = Phaser.Math.Clamp(this.player.x, 40, this.W - 40);
-
     if (moving) {
       if (this.anims.exists('walk') && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
     } else {
       if (this.anims.exists('idle') && this.player.anims.currentAnim?.key !== 'idle') this.player.play('idle');
     }
-
     const s = this.nearestStation();
     if (s) {
       this.prompt.setText('▸ e  ' + s.label);
-      this.prompt.setPosition(this.player.x, this.floorY - 80);
-      this.prompt.setVisible(true);
+      this.prompt.setPosition(this.player.x, this.floorY - 80).setVisible(true);
     } else {
       this.prompt.setVisible(false);
     }
