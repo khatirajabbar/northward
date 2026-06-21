@@ -7,135 +7,419 @@ export default class ForestScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    this.W = width;
+    this.H = height;
+    const worldWidth = 2800;
+    this.groundY = height - 60;
 
-    // Sky (cozy dusk blue-grey)
-    this.cameras.main.setBackgroundColor('#13191e');
+    this.makeTextures();
 
-    const worldWidth = 3000;
-    const groundTop = height - 80;
+    // ── landmark positions ──
+    this.bucketX = 620;
+    this.treeX = 1080;
+    this.lakeCenterX = 1980;
+    this.deerX = 1820;
+    this.lakeFillX = 1880;
 
-    // Distant trees (parallax background, slower)
-    for (let i = 0; i < 25; i++) {
-      const x = i * 130 + Phaser.Math.Between(-30, 30);
-      const tree = this.add.image(x, groundTop, 'tree');
-      tree.setOrigin(0.5, 1);
-      tree.setScale(0.7);
-      tree.setTint(0x0a1410);
-      tree.setAlpha(0.7);
-      tree.setScrollFactor(0.3);
-      tree.setDepth(-3);
-    }
+    // ── state ──
+    this.carrying = null;       // null | 'empty' | 'full'
+    this.bucketPicked = false;
+    this.treeWatered = false;
+    this.deerState = 'drinking'; // 'drinking' | 'scared' | 'done'
+    this.calmTimer = 0;
+    this.kindness = 0;
+    this.deerNoticed = false;
 
-    // Mid trees
-    for (let i = 0; i < 18; i++) {
-      const x = i * 180 + Phaser.Math.Between(-40, 40);
-      const tree = this.add.image(x, groundTop, 'tree');
-      tree.setOrigin(0.5, 1);
-      tree.setScale(0.9);
-      tree.setTint(0x152620);
-      tree.setScrollFactor(0.6);
-      tree.setDepth(-2);
-    }
+    // ── inventory (generic: holds any item by name) ──
+    this.inventory = {};
+    this.bagOpen = false;
+    this.carrotXs = [880, 1450, 1650];   // carrots scattered on the path
+    this.carrotSprites = [];
 
-    // Ground (grass on top + dirt below for depth)
+    // ── sky ──
+    this.cameras.main.setBackgroundColor('#10161c');
+    const skyBands = [0x10161c, 0x1a2630, 0x2b3d49, 0x415863, 0x6a8088];
+    const bandH = height / skyBands.length;
+    skyBands.forEach((c, i) => {
+      this.add.rectangle(0, i * bandH, width, bandH + 1, c)
+        .setOrigin(0, 0).setScrollFactor(0).setDepth(-30);
+    });
+
+    // ── parallax (same recolor as GameScene) ──
+    const dwScale = height / 272 * 1.05;
+    const dwH = 272 * dwScale;
+    const dwY = height - dwH;
+    this.bgLayers = [];
+    const addDW = (key, factor, depth, tint, alpha) => {
+      const ts = this.add.tileSprite(0, dwY, width, dwH, key);
+      ts.setOrigin(0, 0).setScrollFactor(0).setTileScale(dwScale, dwScale);
+      ts.setDepth(depth).setTint(tint).setAlpha(alpha);
+      ts.parallaxFactor = factor;
+      this.bgLayers.push(ts);
+    };
+    addDW('dw-bg', 0.05, -25, 0x2b4453, 1);
+    addDW('dw-far', 0.12, -24, 0x35525f, 0.9);
+    addDW('dw-mid', 0.25, -23, 0x223843, 1);
+    addDW('dw-close', 0.45, -22, 0x14242c, 1);
+
+    // ── ground ──
     this.platforms = this.physics.add.staticGroup();
-
-    // Grass top row
     for (let x = 0; x < worldWidth; x += 16) {
-      this.platforms.create(x, groundTop, 'grass').setOrigin(0, 0).refreshBody();
+      this.platforms.create(x, this.groundY, 'grass').setOrigin(0, 0).refreshBody();
     }
 
-    // Dirt rows below (decoration, not physics)
-    for (let y = groundTop + 16; y < height; y += 16) {
-      for (let x = 0; x < worldWidth; x += 16) {
-        this.add.image(x, y, 'dirt').setOrigin(0, 0).setDepth(-1);
-      }
-    }
+    // ── lake (visual pool on the shore) ──
+    this.add.ellipse(this.lakeCenterX, this.groundY + 12, 240, 44, 0x24414f, 0.9).setDepth(3);
+    this.add.ellipse(this.lakeCenterX, this.groundY + 8, 200, 30, 0x35586b, 0.85).setDepth(3);
+    const shimmer = this.add.ellipse(this.lakeCenterX - 30, this.groundY + 4, 70, 6, 0x9fd4e0, 0.45).setDepth(4);
+    this.tweens.add({ targets: shimmer, x: this.lakeCenterX + 40, alpha: 0.12,
+      duration: 2800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
-    // Floating grass platforms
-    this.makePlatform(400, height - 220, 4);
-    this.makePlatform(720, height - 320, 3);
-    this.makePlatform(1100, height - 260, 5);
-    this.makePlatform(1500, height - 380, 3);
+    // ── the weak tree ──
+    this.treeScale = 1.6;
+    this.treeSprite = this.add.image(this.treeX, this.groundY + 4, 'tree-weak')
+      .setOrigin(0.5, 1).setScale(this.treeScale).setDepth(2);
 
-    // Foreground trees (in front of player, faster parallax)
-    for (let i = 0; i < 10; i++) {
-      const x = i * 320 + Phaser.Math.Between(-60, 60);
-      const tree = this.add.image(x, groundTop + 8, 'tree');
-      tree.setOrigin(0.5, 1);
-      tree.setScale(1.1);
-      tree.setTint(0x081410);
-      tree.setScrollFactor(1.3);
-      tree.setDepth(10);
-    }
+    // ── the bucket (on the path) ──
+    this.groundBucket = this.add.image(this.bucketX, this.groundY + 2, 'bucket-empty')
+      .setOrigin(0.5, 1).setScale(1.4).setDepth(2);
 
-    // Player
-    this.player = this.physics.add.sprite(100, height - 200, 'player', 12);
-    this.player.setCollideWorldBounds(false);
+    // ── the deer (drinking at the lake) ──
+    this.deerSprite = this.add.image(this.deerX, this.groundY + 2, 'deer-drink')
+      .setOrigin(0.5, 1).setScale(1.5).setDepth(4).setFlipX(true);
+
+    // ── carrots on the path ──
+    this.carrotXs.forEach((cx) => {
+      const carrot = this.add.image(cx, this.groundY - 6, 'carrot').setOrigin(0.5, 1).setScale(1.4).setDepth(4);
+      carrot.itemX = cx;
+      this.tweens.add({ targets: carrot, y: this.groundY - 12, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.carrotSprites.push(carrot);
+    });
+    this.tweens.add({ targets: this.deerSprite, y: this.groundY + 6,
+      duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+
+    // ── player ──
+    this.player = this.physics.add.sprite(120, this.groundY - 40, 'player', 12);
+    this.player.setCollideWorldBounds(true);
     this.player.setDragX(800);
-    this.player.setMaxVelocity(200, 600);
+    this.player.setMaxVelocity(220, 700);
     this.player.setScale(1.5);
     this.player.setSize(20, 28);
     this.player.setOffset(14, 18);
     this.player.setDepth(5);
-
     this.physics.add.collider(this.player, this.platforms);
 
-    this.physics.world.setBounds(0, 0, worldWidth, height);
+    // invisible wall at the water's edge — you stop at the shore, can't walk on the lake
+    this.shoreX = this.lakeCenterX - 130;
+    const shoreWall = this.add.rectangle(this.shoreX, this.groundY - 300, 12, 640).setVisible(false);
+    this.physics.add.existing(shoreWall, true);
+    this.physics.add.collider(this.player, shoreWall);
+
+
+    this.physics.world.setBounds(0, 0, worldWidth, height + 200);
     this.cameras.main.setBounds(0, 0, worldWidth, height);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
+    // ── carried bucket (follows player) ──
+    this.heldBucket = this.add.image(0, 0, 'bucket-empty')
+      .setOrigin(0.5, 1).setScale(1.2).setDepth(6).setVisible(false);
+
+    // ── input ──
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
+    this.keyE = this.input.keyboard.addKey('E');
+    this.keyI = this.input.keyboard.addKey('I');
 
-    // HUD
-    this.add.text(20, 20, 'a quiet adventure', {
-      fontFamily: 'Helvetica Neue, sans-serif',
-      fontSize: '14px',
-      color: '#aaaaaa'
-    }).setScrollFactor(0).setDepth(100);
+    // ── prompt ──
+    this.prompt = this.add.text(0, 0, '', {
+      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '15px',
+      color: '#f0ece0', backgroundColor: '#00000066', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(150).setVisible(false);
 
-    this.add.text(20, 40, 'arrow keys or wasd  ·  space to jump', {
-      fontFamily: 'Helvetica Neue, sans-serif',
-      fontSize: '12px',
-      color: '#666666'
-    }).setScrollFactor(0).setDepth(100);
+    // ── faint kindness readout (TEST ONLY — we hide this later) ──
+    this.kindnessDebug = this.add.text(this.W - 20, 18, 'kindness: 0', {
+      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#cfe8d8'
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(200).setAlpha(0.3);
 
     this.player.play('idle');
+    this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
   }
 
-  makePlatform(x, y, length) {
-    for (let i = 0; i < length; i++) {
-      this.platforms.create(x + i * 16, y, 'grass').setOrigin(0, 0).refreshBody();
+  makeTextures() {
+    const make = (cb, w, h, key) => {
+      if (this.textures.exists(key)) return;
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      cb(g);
+      g.generateTexture(key, w, h);
+      g.destroy();
+    };
+
+    // weak tree — drooping, dull
+    make((g) => {
+      g.fillStyle(0x5a4632); g.fillRect(30, 74, 10, 66);
+      g.fillStyle(0x6b7a55);
+      g.fillEllipse(35, 64, 54, 36);
+      g.fillEllipse(20, 84, 32, 24);
+      g.fillEllipse(52, 86, 28, 22);
+    }, 70, 145, 'tree-weak');
+
+    // healthy tree — upright, fuller, brighter
+    make((g) => {
+      g.fillStyle(0x6b5236); g.fillRect(30, 62, 10, 78);
+      g.fillStyle(0x6f9f55);
+      g.fillEllipse(35, 42, 62, 52);
+      g.fillEllipse(18, 60, 38, 34);
+      g.fillEllipse(54, 60, 38, 34);
+      g.fillStyle(0x8cc06a);
+      g.fillEllipse(35, 34, 44, 34);
+    }, 70, 145, 'tree-healthy');
+
+    // bucket empty
+    make((g) => {
+      g.fillStyle(0x9aa0a6);
+      g.fillPoints([{ x: 4, y: 7 }, { x: 22, y: 7 }, { x: 19, y: 29 }, { x: 7, y: 29 }], true);
+      g.fillStyle(0x7c828a); g.fillRect(3, 5, 20, 4);
+      g.lineStyle(2, 0x7c828a); g.beginPath(); g.arc(13, 7, 9, Math.PI, 0); g.strokePath();
+    }, 26, 32, 'bucket-empty');
+
+    // bucket full
+    make((g) => {
+      g.fillStyle(0x9aa0a6);
+      g.fillPoints([{ x: 4, y: 7 }, { x: 22, y: 7 }, { x: 19, y: 29 }, { x: 7, y: 29 }], true);
+      g.fillStyle(0x4a90c2); g.fillRect(5, 9, 16, 5);
+      g.fillStyle(0x7c828a); g.fillRect(3, 5, 20, 4);
+      g.lineStyle(2, 0x7c828a); g.beginPath(); g.arc(13, 7, 9, Math.PI, 0); g.strokePath();
+    }, 26, 32, 'bucket-full');
+
+    // deer — simple silhouette
+    make((g) => {
+      g.fillStyle(0x5b4632);
+      g.fillEllipse(24, 22, 30, 14);
+      g.fillRect(11, 26, 4, 12); g.fillRect(33, 26, 4, 12);
+      g.fillRect(18, 26, 4, 12); g.fillRect(27, 26, 4, 12);
+      g.fillEllipse(38, 14, 13, 11);
+      g.fillRect(40, 4, 2, 9); g.fillRect(44, 5, 2, 8);
+    }, 50, 42, 'deer');
+
+    // deer drinking — head lowered toward the water (faces right)
+    make((g) => {
+      g.fillStyle(0x5b4632);
+      g.fillEllipse(22, 18, 30, 14);
+      g.fillRect(10, 22, 4, 14); g.fillRect(16, 22, 4, 14);
+      g.fillRect(28, 22, 4, 14); g.fillRect(33, 22, 4, 14);
+      g.fillEllipse(42, 30, 11, 9);          // head lowered to the ground/water
+      g.fillRect(38, 24, 4, 8);              // neck angled down
+      g.fillRect(44, 22, 2, 7); g.fillRect(47, 23, 2, 6);  // ears/antlers
+    }, 54, 44, 'deer-drink');
+
+    // carrot — simple item icon
+    make((g) => {
+      g.fillStyle(0xe8772e);
+      g.fillTriangle(9, 6, 14, 6, 11, 26);
+      g.fillStyle(0x6faa4b);
+      g.fillRect(8, 0, 2, 7); g.fillRect(11, 0, 2, 7); g.fillRect(14, 0, 2, 7);
+    }, 22, 28, 'carrot');
+  }
+
+  showThought(text, ms = 2800) {
+    if (this.thought) this.thought.destroy();
+    this.thought = this.add.text(this.W / 2, 92, text, {
+      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#ece8dc',
+      fontStyle: 'italic', stroke: '#12161a', strokeThickness: 4,
+      align: 'center', wordWrap: { width: this.W - 220 }
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(160).setAlpha(0);
+    this.tweens.add({ targets: this.thought, alpha: 1, duration: 400 });
+    this.time.delayedCall(ms, () => {
+      if (this.thought) this.tweens.add({ targets: this.thought, alpha: 0, duration: 700 });
+    });
+  }
+
+  sparkle(x, y) {
+    for (let i = 0; i < 9; i++) {
+      const s = this.add.circle(x, y, 3, 0xffe9a8).setDepth(70);
+      const a = Math.random() * Math.PI * 2;
+      this.tweens.add({
+        targets: s, x: x + Math.cos(a) * 42, y: y + Math.sin(a) * 42 - 22,
+        alpha: 0, duration: 900 + Math.random() * 500,
+        onComplete: () => s.destroy()
+      });
     }
+  }
+
+  addKindness(x, y) {
+    this.kindness++;
+    this.kindnessDebug.setText('kindness: ' + this.kindness);
+    this.sparkle(x, y);
   }
 
   update() {
-    const speed = 200;
-    const jumpSpeed = -480;
+    // ── bag toggle (I) ──
+    if (Phaser.Input.Keyboard.JustDown(this.keyI)) this.toggleBag();
 
+    const px = this.player.x;
+    const onGround = this.player.body.blocked.down;
+    const vx = Math.abs(this.player.body.velocity.x);
+
+    // ── parallax ──
+    const camX = this.cameras.main.scrollX;
+    this.bgLayers.forEach((l) => { l.tilePositionX = camX * l.parallaxFactor / l.tileScaleX; });
+
+    // ── movement ──
+    const speed = 220, jumpSpeed = -480;
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
-    const jump = this.cursors.up.isDown || this.wasd.W.isDown || this.cursors.space.isDown;
+    const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+                 Phaser.Input.Keyboard.JustDown(this.wasd.W) ||
+                 Phaser.Input.Keyboard.JustDown(this.cursors.space);
 
     if (left) {
-      this.player.setVelocityX(-speed);
-      this.player.setFlipX(true);
-      if (this.player.body.blocked.down && this.player.anims.currentAnim?.key !== 'walk') {
-        this.player.play('walk');
-      }
+      this.player.setVelocityX(-speed); this.player.setFlipX(true);
+      if (onGround && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
     } else if (right) {
-      this.player.setVelocityX(speed);
-      this.player.setFlipX(false);
-      if (this.player.body.blocked.down && this.player.anims.currentAnim?.key !== 'walk') {
-        this.player.play('walk');
-      }
-    } else if (this.player.body.blocked.down && this.player.anims.currentAnim?.key !== 'idle') {
+      this.player.setVelocityX(speed); this.player.setFlipX(false);
+      if (onGround && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
+    } else if (onGround && this.player.anims.currentAnim?.key !== 'idle') {
       this.player.play('idle');
     }
+    if (jump && onGround) this.player.setVelocityY(jumpSpeed);
 
-    if (jump && this.player.body.blocked.down) {
-      this.player.setVelocityY(jumpSpeed);
+    // ── carried bucket follows player ──
+    if (this.carrying) {
+      this.heldBucket.setVisible(true);
+      this.heldBucket.setTexture(this.carrying === 'full' ? 'bucket-full' : 'bucket-empty');
+      this.heldBucket.x = this.player.x + (this.player.flipX ? 16 : -16);
+      this.heldBucket.y = this.player.y + 14;
+    } else {
+      this.heldBucket.setVisible(false);
+    }
+
+    // ── deer behaviour ──
+    if (this.deerState === 'drinking') {
+      const d = Math.abs(px - this.deerX);
+      if (!this.deerNoticed && d < 300) {
+        this.deerNoticed = true;
+        this.showThought('a deer, drinking. maybe i should wait...');
+      }
+      if (d < 130 && (!onGround || vx > 150)) {
+        this.deerState = 'scared';
+        this.deerSprite.setFlipX(false);
+        this.tweens.add({ targets: this.deerSprite, x: this.deerX + 520, alpha: 0,
+          duration: 1100, ease: 'Quad.in' });
+        this.showThought('...it ran off.');
+      } else if (d < 270 && onGround && vx < 45) {
+        this.calmTimer += this.game.loop.delta;
+        if (this.calmTimer > 1500) {
+          this.deerState = 'done';
+          this.addKindness(this.deerX, this.groundY - 30);
+          this.showThought('it drank in peace.');
+          this.tweens.add({ targets: this.deerSprite, y: this.groundY - 8,
+            duration: 240, yoyo: true, repeat: 1, ease: 'Quad.out',
+            onComplete: () => this.tweens.add({ targets: this.deerSprite,
+              x: this.deerX + 440, alpha: 0, duration: 2400, ease: 'Sine.in' }) });
+        }
+      } else {
+        this.calmTimer = 0;
+      }
+    }
+
+    // ── interaction prompt + action ──
+    let label = null, action = null;
+    const near = (x, r = 75) => Math.abs(px - x) < r;
+    const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
+    if (nearCarrot) { label = 'pick up the carrot'; action = 'carrot'; this._nearCarrot = nearCarrot; }
+    else if (!this.bucketPicked && near(this.bucketX)) { label = 'pick up the bucket'; action = 'pickup'; }
+    else if (this.carrying === 'empty' && near(this.lakeFillX, 130)) { label = 'fill the bucket'; action = 'fill'; }
+    else if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
+
+    if (label) {
+      this.prompt.setText('▸ e  ' + label).setVisible(true);
+      this.prompt.setPosition(this.W / 2, this.H - 40);
+    } else {
+      this.prompt.setVisible(false);
+    }
+
+    if (action && Phaser.Input.Keyboard.JustDown(this.keyE)) this.doAction(action);
+  }
+
+  toggleBag() {
+    this.bagOpen = !this.bagOpen;
+    if (this.bagOpen) this.drawBag();
+    else if (this.bagPanel) { this.bagPanel.destroy(); this.bagPanel = null; }
+  }
+
+  drawBag() {
+    if (this.bagPanel) this.bagPanel.destroy();
+    const W = this.W, H = this.H;
+    const panel = this.add.container(0, 0).setScrollFactor(0).setDepth(300);
+
+    const box = this.add.rectangle(W / 2, H / 2, 360, 240, 0x12181c, 0.94)
+      .setStrokeStyle(2, 0x3a5a6e);
+    const title = this.add.text(W / 2, H / 2 - 92, 'bag', {
+      fontFamily: 'Georgia, serif', fontSize: '24px', color: '#ece8dc'
+    }).setOrigin(0.5);
+    panel.add([box, title]);
+
+    const items = Object.keys(this.inventory).filter((k) => this.inventory[k] > 0);
+    if (items.length === 0) {
+      const empty = this.add.text(W / 2, H / 2, 'empty for now.', {
+        fontFamily: 'Helvetica Neue, sans-serif', fontSize: '15px', color: '#7c8a8e', fontStyle: 'italic'
+      }).setOrigin(0.5);
+      panel.add(empty);
+    } else {
+      items.forEach((name, i) => {
+        const y = H / 2 - 50 + i * 36;
+        if (this.textures.exists(name.replace(/s$/, ''))) {
+          const icon = this.add.image(W / 2 - 110, y, name.replace(/s$/, '')).setOrigin(0.5).setScale(1.4);
+          panel.add(icon);
+        }
+        const label = this.add.text(W / 2 - 80, y, name + '  ×' + this.inventory[name], {
+          fontFamily: 'Helvetica Neue, sans-serif', fontSize: '16px', color: '#dce8e0'
+        }).setOrigin(0, 0.5);
+        panel.add(label);
+      });
+    }
+
+    const hint = this.add.text(W / 2, H / 2 + 96, 'press i to close', {
+      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#5a6a6e'
+    }).setOrigin(0.5);
+    panel.add(hint);
+
+    this.bagPanel = panel;
+  }
+
+  addItem(name) {
+    this.inventory[name] = (this.inventory[name] || 0) + 1;
+  }
+
+  doAction(action) {
+    if (action === 'carrot' && this._nearCarrot) {
+      this.addItem('carrots');
+      this.sparkle(this._nearCarrot.x, this._nearCarrot.y - 10);
+      this._nearCarrot.destroy();
+      this._nearCarrot = null;
+      this.showThought('a carrot. into the bag.');
+      return;
+    }
+    if (action === 'pickup') {
+      this.bucketPicked = true;
+      this.carrying = 'empty';
+      this.groundBucket.setVisible(false);
+      this.showThought('an old bucket. still good.');
+    } else if (action === 'fill') {
+      this.carrying = 'full';
+      this.showThought('cold lake water.');
+    } else if (action === 'water') {
+      this.treeWatered = true;
+      this.carrying = null;
+      this.heldBucket.setVisible(false);
+      this.add.image(this.treeX + 34, this.groundY + 2, 'bucket-empty')
+        .setOrigin(0.5, 1).setScale(1.3).setDepth(2);
+      this.treeSprite.setTexture('tree-healthy');
+      this.treeSprite.setScale(this.treeScale * 0.9, this.treeScale * 0.78);
+      this.tweens.add({ targets: this.treeSprite, scaleX: this.treeScale, scaleY: this.treeScale,
+        duration: 750, ease: 'Back.out' });
+      this.addKindness(this.treeX, this.groundY - 90);
+      this.time.delayedCall(700, () => this.showThought('there. i\'ll bring you water every day.'));
     }
   }
 }

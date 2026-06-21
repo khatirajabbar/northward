@@ -109,6 +109,7 @@ export default class LoginScene extends Phaser.Scene {
     vignette.fillRect(0, height - 60, width, 60);
     vignette.fillRect(0, 0, 60, height);
     vignette.fillRect(width - 60, 0, 60, height);
+
   }
 
   update() {
