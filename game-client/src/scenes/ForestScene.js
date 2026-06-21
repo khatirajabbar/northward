@@ -33,7 +33,13 @@ export default class ForestScene extends Phaser.Scene {
     // ── inventory (generic: holds any item by name) ──
     this.inventory = {};
     this.bagOpen = false;
-    this.carrotXs = [880, 1450, 1650];   // carrots scattered on the path
+    // a little carrot field — a cluster you can harvest
+    this.carrotXs = [820, 860, 900, 940, 980, 1020, 1060, 1100, 1140];
+    this.carrotSprites = [];
+
+    // ── the horse (a gate: hungry, won't let you pass until fed) ──
+    this.horseX = 2400;
+    this.horseFed = false;
     this.carrotSprites = [];
 
     // ── sky ──
@@ -69,8 +75,8 @@ export default class ForestScene extends Phaser.Scene {
     }
 
     // ── lake (visual pool on the shore) ──
-    this.add.ellipse(this.lakeCenterX, this.groundY + 12, 240, 44, 0x24414f, 0.9).setDepth(3);
-    this.add.ellipse(this.lakeCenterX, this.groundY + 8, 200, 30, 0x35586b, 0.85).setDepth(3);
+    this.add.ellipse(this.lakeCenterX, this.groundY + 30, 220, 40, 0x24414f, 0.9).setDepth(8);
+    this.add.ellipse(this.lakeCenterX, this.groundY + 28, 180, 28, 0x35586b, 0.85).setDepth(8);
     const shimmer = this.add.ellipse(this.lakeCenterX - 30, this.groundY + 4, 70, 6, 0x9fd4e0, 0.45).setDepth(4);
     this.tweens.add({ targets: shimmer, x: this.lakeCenterX + 40, alpha: 0.12,
       duration: 2800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
@@ -109,11 +115,19 @@ export default class ForestScene extends Phaser.Scene {
     this.player.setDepth(5);
     this.physics.add.collider(this.player, this.platforms);
 
+    // ── the horse + its gate ──
+    this.horseSprite = this.add.image(this.horseX, this.groundY + 2, 'horse')
+      .setOrigin(0.5, 1).setScale(2).setDepth(4);
+    this.tweens.add({ targets: this.horseSprite, y: this.groundY - 2,
+      duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    // invisible gate just past the horse — blocks you until it's fed
+    this.horseGate = this.add.rectangle(this.horseX + 70, this.groundY - 300, 12, 640).setVisible(false);
+    this.physics.add.existing(this.horseGate, true);
+    this.horseGateCollider = this.physics.add.collider(this.player, this.horseGate);
+
     // invisible wall at the water's edge — you stop at the shore, can't walk on the lake
+    // (lake is now a foreground pool beside the path — no full wall)
     this.shoreX = this.lakeCenterX - 130;
-    const shoreWall = this.add.rectangle(this.shoreX, this.groundY - 300, 12, 640).setVisible(false);
-    this.physics.add.existing(shoreWall, true);
-    this.physics.add.collider(this.player, shoreWall);
 
 
     this.physics.world.setBounds(0, 0, worldWidth, height + 200);
@@ -219,6 +233,19 @@ export default class ForestScene extends Phaser.Scene {
       g.fillStyle(0x6faa4b);
       g.fillRect(8, 0, 2, 7); g.fillRect(11, 0, 2, 7); g.fillRect(14, 0, 2, 7);
     }, 22, 28, 'carrot');
+
+    // horse — simple standing silhouette (faces left, toward you)
+    make((g) => {
+      g.fillStyle(0x6b4f3a);
+      g.fillEllipse(34, 30, 46, 22);                 // body
+      g.fillRect(16, 38, 5, 20); g.fillRect(26, 38, 5, 20);   // front legs
+      g.fillRect(44, 38, 5, 20); g.fillRect(54, 38, 5, 20);   // back legs
+      g.fillEllipse(14, 18, 16, 13);                 // head
+      g.fillRect(10, 8, 5, 12);                      // neck/face up
+      g.fillStyle(0x4a3526);
+      g.fillTriangle(8, 6, 12, 6, 10, 0);            // ear
+      g.fillRect(50, 14, 4, 18);                     // tail
+    }, 68, 60, 'horse');
   }
 
   showThought(text, ms = 2800) {
@@ -330,6 +357,8 @@ export default class ForestScene extends Phaser.Scene {
     else if (!this.bucketPicked && near(this.bucketX)) { label = 'pick up the bucket'; action = 'pickup'; }
     else if (this.carrying === 'empty' && near(this.lakeFillX, 130)) { label = 'fill the bucket'; action = 'fill'; }
     else if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
+    else if (!this.horseFed && near(this.horseX, 95) && (this.inventory.carrots || 0) > 0) { label = 'give the horse a carrot'; action = 'feedhorse'; }
+    else if (!this.horseFed && near(this.horseX, 95)) { label = null; this._horseHint = true; }
 
     if (label) {
       this.prompt.setText('▸ e  ' + label).setVisible(true);
@@ -392,6 +421,16 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
+    if (action === 'feedhorse') {
+      this.inventory.carrots -= 1;
+      this.horseFed = true;
+      this.physics.world.removeCollider(this.horseGateCollider);
+      this.addKindness(this.horseX, this.groundY - 60);
+      this.tweens.add({ targets: this.horseSprite, y: this.groundY - 14,
+        duration: 220, yoyo: true, repeat: 2, ease: 'Quad.out' });
+      this.showThought('the horse eats happily. the way is clear.');
+      return;
+    }
     if (action === 'carrot' && this._nearCarrot) {
       this.addItem('carrots');
       this.sparkle(this._nearCarrot.x, this._nearCarrot.y - 10);
