@@ -192,6 +192,7 @@ export default class MorningScene extends Phaser.Scene {
       case 'curtains': return this.doCurtains();
       case 'teeth': return this.doTeeth();
       case 'coffee': return this.doCoffee();
+      case 'drink': return this.sitWithCoffee();
       case 'cereal': return this.doCereal();
       case 'fridge': return this.doFridge();
       case 'leave': return this.doLeave();
@@ -219,7 +220,11 @@ export default class MorningScene extends Phaser.Scene {
   doCoffee() {
     if (this.done.coffee) { this.thought.setText("coffee's ready. warm."); return; }
     this.thought.setText('coffee brewing…');
-    this.setBusy(2600, () => { this.done.coffee = true; this.sitWithCoffee(); });
+    this.setBusy(2600, () => {
+      this.done.coffee = true;
+      this.stations.push({ name: 'drink', x: this.sofaX, label: 'sit and drink your coffee' });
+      this.thought.setText('a hot cup. i should sit and drink it.');
+    });
   }
 
   sitWithCoffee() {
@@ -245,6 +250,7 @@ export default class MorningScene extends Phaser.Scene {
 
   standUp() {
     this.sitting = false;
+    this.stations = this.stations.filter((s) => s.name !== 'drink');
     if (this.sipTimer) this.sipTimer.remove();
     this.prompt.setVisible(false);
     this.thought.setText('alright. onward.');
@@ -290,7 +296,11 @@ export default class MorningScene extends Phaser.Scene {
     this.canMove = false; this.busy = true;
     this.thought.setText('alright. time to go north.');
     this.prompt.setVisible(false);
-    if (this.anims.exists('walk')) this.player.play('walk');
+    // hand control to the tween: stop physics fighting the walk-to-door
+    this.player.body.setVelocity(0, 0);
+    this.player.body.setAllowGravity(false);
+    this.player.body.enable = false;
+    if (this.anims.exists(this.char?.walk || 'walk')) this.player.play(this.char?.walk || 'walk');
     this.player.setFlipX(false);
     this.tweens.add({
       targets: this.player, x: this.doorX, duration: 1500, ease: 'Sine.inOut',
