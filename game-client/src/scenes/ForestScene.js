@@ -9,7 +9,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 3800;
+    const worldWidth = 4600;
     this.groundY = height - 60;
 
     this.makeTextures();
@@ -41,6 +41,11 @@ export default class ForestScene extends Phaser.Scene {
     this.horseX = 2400;
     this.grassX = 2900;          // tall-grass gate (only passable on horseback)
     this.meadowX = 3450;         // where the other horses graze
+    this.crossX = 4200;          // stepping-stone water crossing (its own spot, past the meadow)
+    this.crossWidth = 460;       // gap in the ground (water)
+    this.stoneXs = [4020, 4110, 4200, 4290, 4380];  // 5 stones with real gaps to jump across
+    this.respawnX = 3940;        // near bank (by the torch), where you hop back if you fall in
+    this.torchX = 3940;          // torch checkpoint before the crossing
     this.saidGoodbye = false;
     this.grassWidth = 320;
     this.horseFed = false;
@@ -77,9 +82,33 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── ground ──
     this.platforms = this.physics.add.staticGroup();
+    const gapL = this.crossX - this.crossWidth / 2;
+    const gapR = this.crossX + this.crossWidth / 2;
     for (let x = 0; x < worldWidth; x += 16) {
+      if (x > gapL - 16 && x < gapR) continue;   // gap over the water (no tile bleed)
       this.platforms.create(x, this.groundY, 'grass').setOrigin(0, 0).refreshBody();
     }
+    // water filling the pit (visual) — sits below the ground line, deep
+    this.add.rectangle(this.crossX, this.groundY + 14, this.crossWidth + 20, 200, 0x24414f, 0.92).setOrigin(0.5, 0).setDepth(3);
+    this.add.rectangle(this.crossX, this.groundY + 16, this.crossWidth - 10, 8, 0x4a7286, 0.7).setOrigin(0.5, 0).setDepth(4);
+    // stepping stones — tops level with the ground, so you must JUMP between them
+    this.stones = this.physics.add.staticGroup();
+    this.stoneXs.forEach((sx) => {
+      const stone = this.add.ellipse(sx, this.groundY + 6, 44, 20, 0x6b7278).setDepth(6);
+      this.physics.add.existing(stone, true);
+      stone.body.setSize(40, 12).setOffset(2, 0);
+      this.stones.add(stone);
+    });
+
+    // ── torch checkpoint on the near bank — starts UNLIT, lights as you pass ──
+    this.torchSprite = this.add.image(this.torchX, this.groundY + 2, 'torch')
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
+    this.torchSprite.setTint(0x555555);   // dark/unlit look
+    // the flame sits at the top of the post, hidden until lit
+    this.torchFlame = this.add.image(this.torchX, this.groundY - 52, 'flame')
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(7).setVisible(false);
+    this.torchGlow = this.add.circle(this.torchX, this.groundY - 60, 34, 0xffb347, 0).setDepth(5);
+    this.torchLit = false;
 
     // ── lake (visual pool on the shore) ──
     this.add.ellipse(this.lakeCenterX, this.groundY + 30, 220, 40, 0x24414f, 0.9).setDepth(8);
@@ -119,8 +148,9 @@ export default class ForestScene extends Phaser.Scene {
     this.player.setScale(1.5);
     this.player.setSize(20, 28);
     this.player.setOffset(14, 18);
-    this.player.setDepth(5);
+    this.player.setDepth(10);
     this.physics.add.collider(this.player, this.platforms);
+    this.physics.add.collider(this.player, this.stones);
 
     // ── the meadow: other horses grazing (your horse's future friends) ──
     this.meadowHorses = [];
@@ -168,7 +198,7 @@ export default class ForestScene extends Phaser.Scene {
     this.shoreX = this.lakeCenterX - 130;
 
 
-    this.physics.world.setBounds(0, 0, worldWidth, height + 200);
+    this.physics.world.setBounds(0, 0, worldWidth, height + 400);
     this.cameras.main.setBounds(0, 0, worldWidth, height);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
@@ -272,6 +302,22 @@ export default class ForestScene extends Phaser.Scene {
       g.fillRect(8, 0, 2, 7); g.fillRect(11, 0, 2, 7); g.fillRect(14, 0, 2, 7);
     }, 22, 28, 'carrot');
 
+    // torch POST only (no flame — flame is its own sprite so it can dance)
+    make((g) => {
+      g.fillStyle(0x5a4632);
+      g.fillRect(7, 14, 4, 30);            // wooden post
+      g.fillStyle(0x3a2e20);
+      g.fillRect(5, 12, 8, 5);             // holder
+    }, 18, 44, 'torch');
+
+    // flame — its own little sprite, origin at the bottom so it sways from the base
+    make((g) => {
+      g.fillStyle(0xffb347);
+      g.fillTriangle(7, 0, 1, 16, 13, 16); // outer
+      g.fillStyle(0xffe08a);
+      g.fillTriangle(7, 5, 3, 15, 11, 15); // inner
+    }, 14, 16, 'flame');
+
     // horse — simple standing silhouette (faces left, toward you)
     make((g) => {
       g.fillStyle(0x6b4f3a);
@@ -362,6 +408,45 @@ export default class ForestScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.keyI)) this.toggleBag();
 
     const px = this.player.x;
+
+    // ── light the torch as you pass it (a warm point in the cold forest) ──
+    if (!this.torchLit && Math.abs(px - this.torchX) < 50) {
+      this.torchLit = true;
+      this.torchSprite.clearTint();   // post catches warm light
+      this.torchFlame.setVisible(true);
+      // the flame sways gently, like the grass — slow and soft
+      this.tweens.add({ targets: this.torchFlame, angle: { from: -4, to: 4 },
+        duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.torchFlame, scaleY: { from: 1.8, to: 1.95 },
+        duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.torchGlow, alpha: 0.18, duration: 600, ease: 'Sine.out',
+        onComplete: () => {
+          this.tweens.add({ targets: this.torchGlow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
+            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        } });
+      // a little whoosh of sparks
+      for (let i = 0; i < 10; i++) {
+        const sp = this.add.circle(this.torchX, this.groundY - 50, 2, 0xffd27a, 0.9).setDepth(7);
+        const a = Math.random() * Math.PI * 2;
+        this.tweens.add({ targets: sp, x: this.torchX + Math.cos(a) * 26, y: this.groundY - 50 + Math.sin(a) * 26 - 14,
+          alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
+      }
+    }
+
+    // ── stepping-stone water: fall in -> gentle splash, hop back to the bank ──
+    if (this.player.y > this.groundY + 24 && this.player.body.velocity.y >= 0 &&
+        px > this.crossX - this.crossWidth / 2 && px < this.crossX + this.crossWidth / 2) {
+      // little splash
+      for (let i = 0; i < 8; i++) {
+        const drop = this.add.circle(this.player.x, this.groundY + 30, 3, 0x9fd4e0, 0.8).setDepth(60);
+        const a = Math.random() * Math.PI - Math.PI / 2;
+        this.tweens.add({ targets: drop, x: drop.x + Math.cos(a) * 30, y: drop.y - Math.abs(Math.sin(a)) * 30,
+          alpha: 0, duration: 600, onComplete: () => drop.destroy() });
+      }
+      this.player.setVelocity(0, 0);
+      this.player.setPosition(this.respawnX, this.groundY - 40);
+      this.showThought('cold! ... try again.', 1600);
+    }
     const onGround = this.player.body.blocked.down;
     const vx = Math.abs(this.player.body.velocity.x);
 
@@ -386,7 +471,7 @@ export default class ForestScene extends Phaser.Scene {
     } else if (onGround && this.player.anims.currentAnim?.key !== 'idle') {
       this.player.play('idle');
     }
-    if (jump && onGround) this.player.setVelocityY(this.riding ? -540 : jumpSpeed);
+    if (jump && onGround) this.player.setVelocityY(this.riding ? -540 : -340);
 
     // ── riding: horse moves under the player ──
     // ── tall-grass gate ──
