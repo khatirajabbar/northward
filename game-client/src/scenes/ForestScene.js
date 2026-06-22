@@ -40,6 +40,8 @@ export default class ForestScene extends Phaser.Scene {
     // ── the horse (a gate: hungry, won't let you pass until fed) ──
     this.horseX = 2400;
     this.grassX = 2900;          // tall-grass gate (only passable on horseback)
+    this.meadowX = 3450;         // where the other horses graze
+    this.saidGoodbye = false;
     this.grassWidth = 320;
     this.horseFed = false;
     this.riding = false;
@@ -119,6 +121,21 @@ export default class ForestScene extends Phaser.Scene {
     this.player.setOffset(14, 18);
     this.player.setDepth(5);
     this.physics.add.collider(this.player, this.platforms);
+
+    // ── the meadow: other horses grazing (your horse's future friends) ──
+    this.meadowHorses = [];
+    const meadowData = [
+      { x: this.meadowX - 80, key: 'horse-grey', scale: 2 },
+      { x: this.meadowX + 90, key: 'horse-dark', scale: 2 },
+      { x: this.meadowX + 30, key: 'foal', scale: 1.8 }
+    ];
+    meadowData.forEach((h) => {
+      const m = this.add.image(h.x, this.groundY + 2, h.key).setOrigin(0.5, 1).setScale(h.scale).setDepth(4);
+      this.tweens.add({ targets: m, y: this.groundY - 2, duration: 1500 + Math.random() * 600,
+        yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      m.baseX = h.x;
+      this.meadowHorses.push(m);
+    });
 
     // ── tall-grass gate (only passable on horseback) ──
     this.grassBlades = [];
@@ -266,6 +283,34 @@ export default class ForestScene extends Phaser.Scene {
       g.fillRect(50, 14, 4, 18);                     // tail
     }, 68, 60, 'horse');
 
+    // meadow horses — same shape, different colors
+    const horseBody = (g, main, dark) => {
+      g.fillStyle(main);
+      g.fillEllipse(34, 30, 46, 22);
+      g.fillRect(16, 38, 5, 20); g.fillRect(26, 38, 5, 20);
+      g.fillRect(44, 38, 5, 20); g.fillRect(54, 38, 5, 20);
+      g.fillEllipse(14, 18, 16, 13);
+      g.fillRect(10, 8, 5, 12);
+      g.fillStyle(dark);
+      g.fillTriangle(8, 6, 12, 6, 10, 0);
+      g.fillRect(50, 14, 4, 18);
+    };
+    make((g) => horseBody(g, 0x8a7a5c, 0x6b5d44), 68, 60, 'horse-grey');
+    make((g) => horseBody(g, 0x4a3a2c, 0x33271d), 68, 60, 'horse-dark');
+
+    // a baby foal — same shape, just smaller drawing
+    make((g) => {
+      g.fillStyle(0x9a7a52);
+      g.fillEllipse(22, 20, 30, 15);
+      g.fillRect(11, 26, 3, 13); g.fillRect(17, 26, 3, 13);
+      g.fillRect(28, 26, 3, 13); g.fillRect(34, 26, 3, 13);
+      g.fillEllipse(9, 12, 11, 9);
+      g.fillRect(6, 5, 4, 9);
+      g.fillStyle(0x7a5d3c);
+      g.fillTriangle(5, 4, 8, 4, 6, 0);
+      g.fillRect(32, 10, 3, 12);
+    }, 44, 40, 'foal');
+
     // tall grass tuft — a blade cluster
     make((g) => {
       g.fillStyle(0x4a6b42);
@@ -375,7 +420,7 @@ export default class ForestScene extends Phaser.Scene {
       this.horseSprite.setFlipX(!this.player.flipX);
       // horse sits just below the player and follows the full jump arc
       this.horseSprite.y = this.player.y + 22;
-    } else if (this.horseFed) {
+    } else if (this.horseFed && !this.saidGoodbye) {
       // dismounted companion — the horse gently trails behind you
       const behind = this.player.x - (this.player.flipX ? -70 : 70);
       this.horseSprite.x += (behind - this.horseSprite.x) * 0.04;
@@ -430,8 +475,13 @@ export default class ForestScene extends Phaser.Scene {
     else if (this.carrying === 'empty' && near(this.lakeFillX, 130)) { label = 'fill the bucket'; action = 'fill'; }
     else if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
     else if (!this.horseFed && near(this.horseX, 95) && (this.inventory.carrots || 0) > 0) { label = 'give the horse a carrot'; action = 'feedhorse'; }
-    else if (this.horseFed && !this.riding && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
+    else if (this.horseFed && !this.saidGoodbye && Math.abs(px - this.meadowX) < 160) { label = 'say goodbye'; action = 'farewell'; }
+    else if (this.horseFed && !this.riding && !this.saidGoodbye && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
     else if (!this.horseFed && near(this.horseX, 95)) { label = null; this._horseHint = true; }
+    else {
+      const mh = this.meadowHorses && this.meadowHorses.find((m) => !m.fed && Math.abs(px - m.baseX) < 70);
+      if (mh && (this.inventory.carrots || 0) > 0) { label = 'give a carrot'; action = 'feedmeadow'; this._nearMeadow = mh; }
+    }
 
     if (label) {
       this.prompt.setText('▸ e  ' + label).setVisible(true);
@@ -505,6 +555,26 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
+    if (action === 'farewell') {
+      this.saidGoodbye = true;
+      this.riding = false;
+      // a heart floats up between you and the horse
+      const hx = (this.player.x + this.horseSprite.x) / 2;
+      const heart = this.add.text(hx, this.groundY - 70, '❤', {
+        fontSize: '28px', color: '#e58a9a'
+      }).setOrigin(0.5).setDepth(80);
+      this.tweens.add({ targets: heart, y: this.groundY - 140, alpha: 0,
+        duration: 2200, ease: 'Sine.out', onComplete: () => heart.destroy() });
+      this.showThought("go on. i'll be alright. you found them.", 4000);
+      this.addKindness(this.horseSprite.x, this.groundY - 60);
+      // the horse trots off to join the meadow
+      this.tweens.add({ targets: this.horseSprite, x: this.meadowX - 30, duration: 2600,
+        ease: 'Sine.inOut', onComplete: () => {
+          this.tweens.add({ targets: this.horseSprite, y: this.groundY - 6,
+            duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        } });
+      return;
+    }
     if (action === 'mount') {
       this.riding = true;
       this.horseX = this.player.x;   // track from here
@@ -519,6 +589,16 @@ export default class ForestScene extends Phaser.Scene {
       this.tweens.add({ targets: this.horseSprite, y: this.groundY - 14,
         duration: 220, yoyo: true, repeat: 2, ease: 'Quad.out' });
       this.showThought('the horse eats happily. the way is clear.');
+      return;
+    }
+    if (action === 'feedmeadow' && this._nearMeadow) {
+      this.inventory.carrots -= 1;
+      this._nearMeadow.fed = true;
+      this.sparkle(this._nearMeadow.x, this.groundY - 30);
+      this.tweens.add({ targets: this._nearMeadow, y: this.groundY - 16,
+        duration: 200, yoyo: true, repeat: 1, ease: 'Quad.out' });
+      this.addKindness(this._nearMeadow.x, this.groundY - 40);
+      this._nearMeadow = null;
       return;
     }
     if (action === 'carrot' && this._nearCarrot) {
