@@ -150,6 +150,8 @@ export default class ForestScene extends Phaser.Scene {
     }
     // wall at the grass — blocks on foot, removed while riding
     this.grassNoticed = false;
+    this.grassLearned = false;
+    this.grassLearnedShown = false;
 
     // ── the horse + its gate ──
     this.horseSprite = this.add.image(this.horseX, this.groundY + 2, 'horse')
@@ -387,11 +389,13 @@ export default class ForestScene extends Phaser.Scene {
     if (jump && onGround) this.player.setVelocityY(this.riding ? -540 : jumpSpeed);
 
     // ── riding: horse moves under the player ──
-    // ── tall-grass gate: on foot the whole zone is off-limits (from either side) ──
+    // ── tall-grass gate ──
     const grassL = this.grassX - this.grassWidth / 2;
     const grassR = this.grassX + this.grassWidth / 2;
-    if (!this.riding) {
-      const inGrass = px > grassL - 18 && px < grassR + 18;
+    const inGrass = px > grassL - 18 && px < grassR + 18;
+    // riding through the grass teaches you it's safe
+    if (this.riding && inGrass) this.grassLearned = true;
+    if (!this.riding && !this.grassLearned) {
       if (inGrass) {
         // push the player back to whichever edge they came from
         const cameFromLeft = this.player.body.velocity.x > 0 || px < this.grassX;
@@ -404,6 +408,11 @@ export default class ForestScene extends Phaser.Scene {
       } else {
         this.grassNoticed = false;
       }
+    }
+    // first gentle walk-through after learning — the grass is safe now
+    if (this.grassLearned && !this.riding && inGrass && !this.grassLearnedShown) {
+      this.grassLearnedShown = true;
+      this.showThought('now i know the grass is safe, thanks to my friend.', 4000);
     }
     // grass parts as you pass through it
     this.grassBlades.forEach((b) => {
