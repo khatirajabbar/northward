@@ -9,7 +9,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 2800;
+    const worldWidth = 3800;
     this.groundY = height - 60;
 
     this.makeTextures();
@@ -39,6 +39,8 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── the horse (a gate: hungry, won't let you pass until fed) ──
     this.horseX = 2400;
+    this.grassX = 2900;          // tall-grass gate (only passable on horseback)
+    this.grassWidth = 320;
     this.horseFed = false;
     this.riding = false;
     this.walkSpeed = 220;
@@ -117,6 +119,20 @@ export default class ForestScene extends Phaser.Scene {
     this.player.setOffset(14, 18);
     this.player.setDepth(5);
     this.physics.add.collider(this.player, this.platforms);
+
+    // ── tall-grass gate (only passable on horseback) ──
+    this.grassBlades = [];
+    for (let gx = this.grassX - this.grassWidth / 2; gx <= this.grassX + this.grassWidth / 2; gx += 22) {
+      const blade = this.add.image(gx, this.groundY + 4, 'tallgrass')
+        .setOrigin(0.5, 1).setScale(1.5 + Math.random() * 0.3).setDepth(7);
+      blade.baseX = gx;
+      // gentle idle sway
+      this.tweens.add({ targets: blade, angle: { from: -3, to: 3 },
+        duration: 1600 + Math.random() * 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.grassBlades.push(blade);
+    }
+    // wall at the grass — blocks on foot, removed while riding
+    this.grassNoticed = false;
 
     // ── the horse + its gate ──
     this.horseSprite = this.add.image(this.horseX, this.groundY + 2, 'horse')
@@ -249,6 +265,18 @@ export default class ForestScene extends Phaser.Scene {
       g.fillTriangle(8, 6, 12, 6, 10, 0);            // ear
       g.fillRect(50, 14, 4, 18);                     // tail
     }, 68, 60, 'horse');
+
+    // tall grass tuft — a blade cluster
+    make((g) => {
+      g.fillStyle(0x4a6b42);
+      g.fillTriangle(2, 60, 6, 10, 10, 60);
+      g.fillTriangle(10, 60, 15, 2, 20, 60);
+      g.fillTriangle(18, 60, 24, 14, 30, 60);
+      g.fillTriangle(26, 60, 31, 6, 36, 60);
+      g.fillStyle(0x5c7d4f);
+      g.fillTriangle(6, 60, 11, 20, 16, 60);
+      g.fillTriangle(20, 60, 26, 10, 32, 60);
+    }, 38, 62, 'tallgrass');
   }
 
   showThought(text, ms = 2800) {
@@ -311,14 +339,42 @@ export default class ForestScene extends Phaser.Scene {
     } else if (onGround && this.player.anims.currentAnim?.key !== 'idle') {
       this.player.play('idle');
     }
-    if (jump && onGround) this.player.setVelocityY(jumpSpeed);
+    if (jump && onGround) this.player.setVelocityY(this.riding ? -540 : jumpSpeed);
 
     // ── riding: horse moves under the player ──
+    // ── tall-grass gate: on foot the whole zone is off-limits (from either side) ──
+    const grassL = this.grassX - this.grassWidth / 2;
+    const grassR = this.grassX + this.grassWidth / 2;
+    if (!this.riding) {
+      const inGrass = px > grassL - 18 && px < grassR + 18;
+      if (inGrass) {
+        // push the player back to whichever edge they came from
+        const cameFromLeft = this.player.body.velocity.x > 0 || px < this.grassX;
+        this.player.x = cameFromLeft ? grassL - 20 : grassR + 20;
+        this.player.setVelocityX(0);
+        if (!this.grassNoticed) {
+          this.grassNoticed = true;
+          this.showThought('the grass is too tall — it could be dangerous on foot.');
+        }
+      } else {
+        this.grassNoticed = false;
+      }
+    }
+    // grass parts as you pass through it
+    this.grassBlades.forEach((b) => {
+      const dx = this.player.x - b.baseX;
+      if (Math.abs(dx) < 60) {
+        b.x = b.baseX + (dx > 0 ? -10 : 10);
+      } else {
+        b.x += (b.baseX - b.x) * 0.1;
+      }
+    });
+
     if (this.riding) {
       this.horseSprite.x = this.player.x + 4;
       this.horseSprite.setFlipX(!this.player.flipX);
-      // sit the player on the horse's back
-      this.player.y = Math.min(this.player.y, this.groundY - 64);
+      // horse sits just below the player and follows the full jump arc
+      this.horseSprite.y = this.player.y + 22;
     } else if (this.horseFed) {
       // dismounted companion — the horse gently trails behind you
       const behind = this.player.x - (this.player.flipX ? -70 : 70);
@@ -385,8 +441,14 @@ export default class ForestScene extends Phaser.Scene {
     }
 
     if (this.riding && Phaser.Input.Keyboard.JustDown(this.keyE)) {
-      this.riding = false;
-      this.showThought('back on your feet.');
+      const inGrassNow = this.player.x > (this.grassX - this.grassWidth / 2) - 18 &&
+                         this.player.x < (this.grassX + this.grassWidth / 2) + 18;
+      if (inGrassNow) {
+        this.showThought("the grass is too tall — i shouldn't get down here.");
+      } else {
+        this.riding = false;
+        this.showThought('back on your feet.');
+      }
     } else if (action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
       this.doAction(action);
     }
