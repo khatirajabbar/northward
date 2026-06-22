@@ -40,6 +40,9 @@ export default class ForestScene extends Phaser.Scene {
     // ── the horse (a gate: hungry, won't let you pass until fed) ──
     this.horseX = 2400;
     this.horseFed = false;
+    this.riding = false;
+    this.walkSpeed = 220;
+    this.rideSpeed = 380;
     this.carrotSprites = [];
 
     // ── sky ──
@@ -292,7 +295,7 @@ export default class ForestScene extends Phaser.Scene {
     this.bgLayers.forEach((l) => { l.tilePositionX = camX * l.parallaxFactor / l.tileScaleX; });
 
     // ── movement ──
-    const speed = 220, jumpSpeed = -480;
+    const speed = this.riding ? this.rideSpeed : this.walkSpeed, jumpSpeed = -480;
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
@@ -309,6 +312,19 @@ export default class ForestScene extends Phaser.Scene {
       this.player.play('idle');
     }
     if (jump && onGround) this.player.setVelocityY(jumpSpeed);
+
+    // ── riding: horse moves under the player ──
+    if (this.riding) {
+      this.horseSprite.x = this.player.x + 4;
+      this.horseSprite.setFlipX(!this.player.flipX);
+      // sit the player on the horse's back
+      this.player.y = Math.min(this.player.y, this.groundY - 64);
+    } else if (this.horseFed) {
+      // dismounted companion — the horse gently trails behind you
+      const behind = this.player.x - (this.player.flipX ? -70 : 70);
+      this.horseSprite.x += (behind - this.horseSprite.x) * 0.04;
+      this.horseSprite.setFlipX(this.horseSprite.x < this.player.x);
+    }
 
     // ── carried bucket follows player ──
     if (this.carrying) {
@@ -358,6 +374,7 @@ export default class ForestScene extends Phaser.Scene {
     else if (this.carrying === 'empty' && near(this.lakeFillX, 130)) { label = 'fill the bucket'; action = 'fill'; }
     else if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
     else if (!this.horseFed && near(this.horseX, 95) && (this.inventory.carrots || 0) > 0) { label = 'give the horse a carrot'; action = 'feedhorse'; }
+    else if (this.horseFed && !this.riding && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
     else if (!this.horseFed && near(this.horseX, 95)) { label = null; this._horseHint = true; }
 
     if (label) {
@@ -367,7 +384,12 @@ export default class ForestScene extends Phaser.Scene {
       this.prompt.setVisible(false);
     }
 
-    if (action && Phaser.Input.Keyboard.JustDown(this.keyE)) this.doAction(action);
+    if (this.riding && Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      this.riding = false;
+      this.showThought('back on your feet.');
+    } else if (action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      this.doAction(action);
+    }
   }
 
   toggleBag() {
@@ -421,6 +443,12 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
+    if (action === 'mount') {
+      this.riding = true;
+      this.horseX = this.player.x;   // track from here
+      this.showThought('up you go.');
+      return;
+    }
     if (action === 'feedhorse') {
       this.inventory.carrots -= 1;
       this.horseFed = true;
