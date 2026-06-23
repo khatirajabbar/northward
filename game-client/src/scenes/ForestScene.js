@@ -51,6 +51,8 @@ export default class ForestScene extends Phaser.Scene {
     this.horseFed = false;
     this.riding = false;
     this.carryingCat = false;
+    this.catFollowing = false;
+    this.catStopTimer = 0;
     this.groundBucketState = null;
     this.walkSpeed = 220;
     this.rideSpeed = 380;
@@ -425,6 +427,20 @@ export default class ForestScene extends Phaser.Scene {
       g.fillRect(4, 8, 2, 2); g.fillRect(9, 8, 2, 2);      // eyes
     }, 34, 30, 'cat-stand');
 
+    // cat (sitting) — settled and calm, tail curled round, facing left
+    make((g) => {
+      g.fillStyle(0x8a7a66);
+      g.fillEllipse(16, 18, 20, 16);              // body, upright haunches
+      g.fillEllipse(8, 9, 11, 10);                // head
+      g.fillTriangle(3, 6, 7, 6, 4, 0);           // ear
+      g.fillTriangle(9, 6, 13, 6, 12, 0);         // ear
+      g.fillRect(6, 20, 4, 6); g.fillRect(22, 20, 4, 6);   // front paws down
+      g.fillStyle(0x6b5d4d);
+      g.fillEllipse(24, 22, 12, 5);               // tail curled round the side
+      g.fillStyle(0x2b2620);
+      g.fillRect(5, 8, 2, 2); g.fillRect(10, 8, 2, 2);     // eyes
+    }, 32, 28, 'cat-sit');
+
     // horse — simple standing silhouette (faces left, toward you)
     make((g) => {
       g.fillStyle(0x6b4f3a);
@@ -632,6 +648,28 @@ export default class ForestScene extends Phaser.Scene {
       this.catSprite.x = this.player.x + (this.player.flipX ? -6 : 6);
       this.catSprite.y = this.player.y + 20;
       this.catSprite.setFlipX(!this.player.flipX);
+    } else if (this.catFollowing) {
+      // a little companion now — trails behind you on foot, sits when you rest.
+      // it keeps a gap on whichever side it's already on, so turning in place
+      // doesn't make it snap across you — it only closes a gap that's too wide
+      const gap = this.catSprite.x - this.player.x;     // + = cat is to your right
+      const followGap = 100;
+      let target = this.catSprite.x;
+      if (gap > followGap) target = this.player.x + followGap;        // too far right -> ease in
+      else if (gap < -followGap) target = this.player.x - followGap;  // too far left -> ease in
+      this.catSprite.x += (target - this.catSprite.x) * 0.05;
+      this.catSprite.y = this.groundY;
+      const moving = vx > 20;
+      if (moving) {
+        this.catStopTimer = 0;
+        if (this.catSprite.texture.key !== 'cat-stand') this.catSprite.setTexture('cat-stand');
+        this.catSprite.setFlipX(this.catSprite.x < this.player.x);
+      } else {
+        this.catStopTimer += this.game.loop.delta;
+        if (this.catStopTimer > 3000 && this.catSprite.texture.key !== 'cat-sit') {
+          this.catSprite.setTexture('cat-sit');   // settled down to wait for you
+        }
+      }
     }
 
     if (this.riding) {
@@ -829,6 +867,7 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (action === 'pickupcat') {
       this.carryingCat = true;
+      this.catFollowing = false;
       this.catSprite.setTexture('cat');   // curls up, safe in your arms
       this.catSprite.setScale(1.4);
       if (this.catBreathe) { this.catBreathe.stop(); this.catBreathe = null; }
@@ -844,6 +883,8 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (action === 'putdowncat') {
       this.carryingCat = false;
+      this.catFollowing = true;
+      this.catStopTimer = 0;
       this.catSprite.setTexture('cat-stand');   // back on its own feet
       this.catSprite.setPosition(Math.round(this.player.x) + (this.player.flipX ? -20 : 20), this.groundY);
       this.catSprite.setFlipX(false);
