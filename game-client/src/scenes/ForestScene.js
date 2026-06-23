@@ -50,6 +50,8 @@ export default class ForestScene extends Phaser.Scene {
     this.grassWidth = 320;
     this.horseFed = false;
     this.riding = false;
+    this.carryingCat = false;
+    this.groundBucketState = null;
     this.walkSpeed = 220;
     this.rideSpeed = 380;
     this.carrotSprites = [];
@@ -154,10 +156,12 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── cat-on-cliff: the final cliff top (reached by climbing mushrooms) ──
     this.ledges = this.physics.add.staticGroup();
-    const makeLedge = (x, topY, w) => {
-      const h = 320;
+    const makeLedge = (x, topY, w, h = 320) => {
       const ledge = this.add.rectangle(x, topY + h / 2, w, h, 0x2b2620).setDepth(5);
       this.physics.add.existing(ledge, true);
+      ledge.body.checkCollision.down = false;   // one-way: only land on top
+      ledge.body.checkCollision.left = false;   // walk past/under it on the ground
+      ledge.body.checkCollision.right = false;
       this.ledges.add(ledge);
       this.add.rectangle(x, topY, w, 5, 0x3f5240).setDepth(6);  // mossy top edge
     };
@@ -176,7 +180,7 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── bounce mushrooms: one on the ground, then one on each step, climbing to the cliff ──
     this.mushrooms = this.physics.add.staticGroup();
-    const makeBounce = (x, groundTopY, scale, power) => {
+    const makeBounce = (x, groundTopY, scale, power, solid = true) => {
       const capY = groundTopY - 12;
       const m = this.add.image(x, capY, 'mushroom').setOrigin(0.5, 1).setScale(scale).setDepth(7);
       this.tweens.add({ targets: m, scaleX: { from: scale, to: scale + 0.08 }, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
@@ -184,10 +188,20 @@ export default class ForestScene extends Phaser.Scene {
       this.physics.add.existing(pad, true);
       pad.bounceMush = m;
       pad.bouncePower = power;
-      this.mushrooms.add(pad);
+      if (solid) {
+        this.mushrooms.add(pad);
+      } else {
+        // ground spring: walk straight past it; hop and drop onto it to start the climb
+        this.physics.add.overlap(this.player, pad, () => {
+          if (this.player.body.velocity.y > 40) {
+            this.player.setVelocityY(power);
+            this.tweens.add({ targets: m, scaleY: { from: m.scaleY, to: m.scaleY * 0.65 }, duration: 90, yoyo: true });
+          }
+        });
+      }
     };
     // sitting ON the ground, then ON each rock step — climbing up
-    makeBounce(4660, this.groundY,        1.0, -420);  // on the ground
+    makeBounce(4660, this.groundY,        1.0, -420, false);  // on the ground — walk past, or drop on it to climb
     makeBounce(4780, this.groundY - 70,   1.2, -460);  // on step 1
     makeBounce(4910, this.groundY - 140,  1.4, -500);  // on step 2
     makeBounce(5040, this.groundY - 210,  1.6, -560);  // on step 3 -> up to the cliff
@@ -197,6 +211,13 @@ export default class ForestScene extends Phaser.Scene {
         this.tweens.add({ targets: pad.bounceMush, scaleY: { from: pad.bounceMush.scaleY, to: pad.bounceMush.scaleY * 0.65 }, duration: 90, yoyo: true });
       }
     });
+
+    // ── the scared cat, stranded on the cliff top — too afraid to climb down ──
+    this.catSprite = this.add.image(this.cliffTopX, this.cliffTopY, 'cat-stand')
+      .setOrigin(0.5, 1).setScale(1.4).setDepth(9);
+    this.catRescued = false;
+    this.catBreathe = this.tweens.add({ targets: this.catSprite, y: this.cliffTopY - 4,
+      duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.inOut' });   // anxious little breathing
 
     // ── the meadow: other horses grazing (your horse's future friends) ──
     this.meadowHorses = [];
@@ -374,6 +395,36 @@ export default class ForestScene extends Phaser.Scene {
       g.fillCircle(13, 16, 3); g.fillCircle(27, 15, 3); g.fillCircle(20, 21, 2);  // spots
     }, 40, 40, 'mushroom');
 
+    // cat — a small frightened tabby, curled and facing left
+    make((g) => {
+      g.fillStyle(0x8a7a66);
+      g.fillEllipse(16, 20, 22, 12);              // body curled
+      g.fillEllipse(9, 14, 11, 10);               // head
+      g.fillTriangle(4, 10, 8, 10, 5, 4);         // ear
+      g.fillTriangle(10, 10, 14, 10, 13, 4);      // ear
+      g.fillRect(24, 12, 4, 12);                  // tail up, anxious
+      g.fillStyle(0x6b5d4d);
+      g.fillRect(14, 16, 3, 6); g.fillRect(19, 16, 3, 6);  // stripes
+      g.fillStyle(0x2b2620);
+      g.fillRect(6, 13, 2, 2); g.fillRect(11, 13, 2, 2);   // eyes
+    }, 32, 28, 'cat');
+
+    // cat (standing) — alert and anxious, on its own feet, facing left
+    make((g) => {
+      g.fillStyle(0x8a7a66);
+      g.fillEllipse(17, 14, 24, 10);              // body
+      g.fillRect(8, 18, 3, 8); g.fillRect(13, 18, 3, 8);   // front legs
+      g.fillRect(20, 18, 3, 8); g.fillRect(25, 18, 3, 8);  // back legs
+      g.fillEllipse(7, 9, 11, 10);                // head, up
+      g.fillTriangle(2, 6, 6, 6, 3, 0);           // ear
+      g.fillTriangle(8, 6, 12, 6, 11, 0);         // ear
+      g.fillRect(28, 6, 3, 12);                   // tail up, anxious
+      g.fillStyle(0x6b5d4d);
+      g.fillRect(14, 11, 3, 5); g.fillRect(20, 11, 3, 5);  // stripes
+      g.fillStyle(0x2b2620);
+      g.fillRect(4, 8, 2, 2); g.fillRect(9, 8, 2, 2);      // eyes
+    }, 34, 30, 'cat-stand');
+
     // horse — simple standing silhouette (faces left, toward you)
     make((g) => {
       g.fillStyle(0x6b4f3a);
@@ -489,12 +540,12 @@ export default class ForestScene extends Phaser.Scene {
       }
     }
 
-    // ── cliff climb: fall back down between the steps -> back to the torch ──
-    // the climbing zone is BETWEEN the first step and the cliff; if you're back
-    // on the ground in that middle stretch, you fell — return to the torch.
-    if (this.player.body.blocked.down &&
-        px > 4720 && px < this.cliffTopX - 40 &&
-        this.player.y > this.groundY - 60) {
+    // ── fall off the climb -> a real drop sends you back to the torch checkpoint ──
+    // walking the ground past the cliff is fine; only a fast fall in the climb
+    // zone counts, so the path stays walkable
+    if (px > 4720 && px < this.cliffTopX - 40 &&
+        this.player.body.velocity.y > 600 &&
+        this.player.y > this.groundY - 50) {
       this.player.setVelocity(0, 0);
       this.player.setPosition(this.torchX, this.groundY - 40);
       this.showThought('back to the torch. try again.', 1600);
@@ -576,6 +627,13 @@ export default class ForestScene extends Phaser.Scene {
       }
     });
 
+    if (this.carryingCat) {
+      // held in the arms, facing the way you walk — follows you down the climb
+      this.catSprite.x = this.player.x + (this.player.flipX ? -6 : 6);
+      this.catSprite.y = this.player.y + 20;
+      this.catSprite.setFlipX(!this.player.flipX);
+    }
+
     if (this.riding) {
       this.horseSprite.x = this.player.x + 4;
       this.horseSprite.setFlipX(!this.player.flipX);
@@ -601,17 +659,19 @@ export default class ForestScene extends Phaser.Scene {
     // ── deer behaviour ──
     if (this.deerState === 'drinking') {
       const d = Math.abs(px - this.deerX);
-      if (!this.deerNoticed && d < 300) {
+      if (!this.deerNoticed && d < 420) {
         this.deerNoticed = true;
         this.showThought('a deer, drinking. maybe i should wait...');
       }
-      if (d < 130 && (!onGround || vx > 150)) {
+      // get too close — even creeping up slowly — and it bolts. keeping a
+      // respectful distance and waiting is what lets it drink in peace.
+      if (d < 130) {
         this.deerState = 'scared';
         this.deerSprite.setFlipX(false);
         this.tweens.add({ targets: this.deerSprite, x: this.deerX + 520, alpha: 0,
           duration: 1100, ease: 'Quad.in' });
         this.showThought('...it ran off.');
-      } else if (d < 270 && onGround && vx < 45) {
+      } else if (this.deerNoticed && d < 300 && onGround && vx < 160) {
         this.calmTimer += this.game.loop.delta;
         if (this.calmTimer > 1500) {
           this.deerState = 'done';
@@ -636,6 +696,7 @@ export default class ForestScene extends Phaser.Scene {
     else if (this.carrying === 'empty' && near(this.lakeFillX, 130)) { label = 'fill the bucket'; action = 'fill'; }
     else if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
     else if (!this.horseFed && near(this.horseX, 95) && (this.inventory.carrots || 0) > 0) { label = 'give the horse a carrot'; action = 'feedhorse'; }
+    else if (!this.carryingCat && Math.abs(px - this.catSprite.x) < 70 && Math.abs(this.player.y - this.catSprite.y) < 80) { label = 'pick up the cat'; action = 'pickupcat'; }
     else if (this.horseFed && !this.saidGoodbye && Math.abs(px - this.meadowX) < 160) { label = 'say goodbye'; action = 'farewell'; }
     else if (this.horseFed && !this.riding && !this.saidGoodbye && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
     else if (!this.horseFed && near(this.horseX, 95)) { label = null; this._horseHint = true; }
@@ -643,6 +704,10 @@ export default class ForestScene extends Phaser.Scene {
       const mh = this.meadowHorses && this.meadowHorses.find((m) => !m.fed && Math.abs(px - m.baseX) < 70);
       if (mh && (this.inventory.carrots || 0) > 0) { label = 'give a carrot'; action = 'feedmeadow'; this._nearMeadow = mh; }
     }
+
+    // nothing else to do here? then you can set down whatever you're carrying
+    if (!label && this.carryingCat && onGround && this.player.y > this.groundY - 60) { label = 'put down the cat'; action = 'putdowncat'; }
+    else if (!label && this.carrying && onGround) { label = 'put down the bucket'; action = 'putdownbucket'; }
 
     if (label) {
       this.prompt.setText('▸ e  ' + label).setVisible(true);
@@ -762,6 +827,43 @@ export default class ForestScene extends Phaser.Scene {
       this._nearMeadow = null;
       return;
     }
+    if (action === 'pickupcat') {
+      this.carryingCat = true;
+      this.catSprite.setTexture('cat');   // curls up, safe in your arms
+      this.catSprite.setScale(1.4);
+      if (this.catBreathe) { this.catBreathe.stop(); this.catBreathe = null; }
+      if (!this.catRescued) {
+        this.catRescued = true;
+        this.sparkle(this.catSprite.x, this.catSprite.y - 10);
+        this.addKindness(this.catSprite.x, this.catSprite.y - 20);
+        this.showThought("there you are. i've got you.", 3200);
+      } else {
+        this.showThought('up you come.', 2000);
+      }
+      return;
+    }
+    if (action === 'putdowncat') {
+      this.carryingCat = false;
+      this.catSprite.setTexture('cat-stand');   // back on its own feet
+      this.catSprite.setPosition(Math.round(this.player.x) + (this.player.flipX ? -20 : 20), this.groundY);
+      this.catSprite.setFlipX(false);
+      if (!this.catSetDown) {
+        this.catSetDown = true;
+        this.showThought('there. safe on the ground.', 2400);
+      }
+      return;
+    }
+    if (action === 'putdownbucket') {
+      this.groundBucketState = this.carrying;
+      this.carrying = null;
+      this.bucketPicked = false;
+      this.bucketX = Math.round(this.player.x);
+      this.groundBucket.setTexture(this.groundBucketState === 'full' ? 'bucket-full' : 'bucket-empty');
+      this.groundBucket.setPosition(this.bucketX, this.groundY + 2);
+      this.groundBucket.setVisible(true);
+      this.showThought('set it down for now.', 2200);
+      return;
+    }
     if (action === 'carrot' && this._nearCarrot) {
       this.addItem('carrots');
       this.sparkle(this._nearCarrot.x, this._nearCarrot.y - 10);
@@ -772,7 +874,7 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (action === 'pickup') {
       this.bucketPicked = true;
-      this.carrying = 'empty';
+      this.carrying = this.groundBucketState || 'empty';
       this.groundBucket.setVisible(false);
       this.showThought('an old bucket. still good.');
     } else if (action === 'fill') {
