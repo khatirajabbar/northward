@@ -9,7 +9,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 4600;
+    const worldWidth = 5600;
     this.groundY = height - 60;
 
     this.makeTextures();
@@ -151,6 +151,52 @@ export default class ForestScene extends Phaser.Scene {
     this.player.setDepth(10);
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.player, this.stones);
+
+    // ── cat-on-cliff: the final cliff top (reached by climbing mushrooms) ──
+    this.ledges = this.physics.add.staticGroup();
+    const makeLedge = (x, topY, w) => {
+      const h = 320;
+      const ledge = this.add.rectangle(x, topY + h / 2, w, h, 0x2b2620).setDepth(5);
+      this.physics.add.existing(ledge, true);
+      this.ledges.add(ledge);
+      this.add.rectangle(x, topY, w, 5, 0x3f5240).setDepth(6);  // mossy top edge
+    };
+    this.cliffTopX = 5260;
+    this.cliffTopY = this.groundY - 300;
+    makeLedge(this.cliffTopX, this.cliffTopY, 240);   // the cat's cliff
+
+    // ── ascending rock steps, each holding a bounce mushroom ──
+    const stepData = [
+      { x: 4780, topY: this.groundY - 70,  w: 90 },
+      { x: 4910, topY: this.groundY - 140, w: 90 },
+      { x: 5040, topY: this.groundY - 210, w: 90 },
+    ];
+    stepData.forEach((s) => makeLedge(s.x, s.topY, s.w));
+    this.physics.add.collider(this.player, this.ledges);
+
+    // ── bounce mushrooms: one on the ground, then one on each step, climbing to the cliff ──
+    this.mushrooms = this.physics.add.staticGroup();
+    const makeBounce = (x, groundTopY, scale, power) => {
+      const capY = groundTopY - 12;
+      const m = this.add.image(x, capY, 'mushroom').setOrigin(0.5, 1).setScale(scale).setDepth(7);
+      this.tweens.add({ targets: m, scaleX: { from: scale, to: scale + 0.08 }, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      const pad = this.add.rectangle(x, capY - scale * 18, 34 * scale, 10, 0xff0000, 0).setDepth(7);
+      this.physics.add.existing(pad, true);
+      pad.bounceMush = m;
+      pad.bouncePower = power;
+      this.mushrooms.add(pad);
+    };
+    // sitting ON the ground, then ON each rock step — climbing up
+    makeBounce(4660, this.groundY,        1.0, -420);  // on the ground
+    makeBounce(4780, this.groundY - 70,   1.2, -460);  // on step 1
+    makeBounce(4910, this.groundY - 140,  1.4, -500);  // on step 2
+    makeBounce(5040, this.groundY - 210,  1.6, -560);  // on step 3 -> up to the cliff
+    this.physics.add.collider(this.player, this.mushrooms, (player, pad) => {
+      if (player.body.velocity.y >= 0) {
+        player.setVelocityY(pad.bouncePower);
+        this.tweens.add({ targets: pad.bounceMush, scaleY: { from: pad.bounceMush.scaleY, to: pad.bounceMush.scaleY * 0.65 }, duration: 90, yoyo: true });
+      }
+    });
 
     // ── the meadow: other horses grazing (your horse's future friends) ──
     this.meadowHorses = [];
@@ -318,6 +364,16 @@ export default class ForestScene extends Phaser.Scene {
       g.fillTriangle(7, 5, 3, 15, 11, 15); // inner
     }, 14, 16, 'flame');
 
+    // bounce mushroom — a springy toadstool
+    make((g) => {
+      g.fillStyle(0xe8dcc0);
+      g.fillRect(15, 20, 10, 18);            // stem
+      g.fillStyle(0xb5524a);
+      g.fillEllipse(20, 18, 38, 22);         // cap
+      g.fillStyle(0xf0e6d2);
+      g.fillCircle(13, 16, 3); g.fillCircle(27, 15, 3); g.fillCircle(20, 21, 2);  // spots
+    }, 40, 40, 'mushroom');
+
     // horse — simple standing silhouette (faces left, toward you)
     make((g) => {
       g.fillStyle(0x6b4f3a);
@@ -431,6 +487,17 @@ export default class ForestScene extends Phaser.Scene {
         this.tweens.add({ targets: sp, x: this.torchX + Math.cos(a) * 26, y: this.groundY - 50 + Math.sin(a) * 26 - 14,
           alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
       }
+    }
+
+    // ── cliff climb: fall back down between the steps -> back to the torch ──
+    // the climbing zone is BETWEEN the first step and the cliff; if you're back
+    // on the ground in that middle stretch, you fell — return to the torch.
+    if (this.player.body.blocked.down &&
+        px > 4720 && px < this.cliffTopX - 40 &&
+        this.player.y > this.groundY - 60) {
+      this.player.setVelocity(0, 0);
+      this.player.setPosition(this.torchX, this.groundY - 40);
+      this.showThought('back to the torch. try again.', 1600);
     }
 
     // ── stepping-stone water: fall in -> gentle splash, hop back to the bank ──
