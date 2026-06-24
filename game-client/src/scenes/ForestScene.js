@@ -18,17 +18,13 @@ export default class ForestScene extends Phaser.Scene {
     this.bucketX = 620;
     this.treeX = 1080;
     this.lakeCenterX = 1980;
-    this.deerX = 1820;
     this.lakeFillX = 1880;
 
     // ── state ──
     this.carrying = null;       // null | 'empty' | 'full'
     this.bucketPicked = false;
     this.treeWatered = false;
-    this.deerState = 'drinking'; // 'drinking' | 'scared' | 'done'
-    this.calmTimer = 0;
     this.kindness = 0;
-    this.deerNoticed = false;
 
     // ── inventory (generic: holds any item by name) ──
     this.inventory = {};
@@ -130,10 +126,6 @@ export default class ForestScene extends Phaser.Scene {
     this.groundBucket = this.add.image(this.bucketX, this.groundY + 2, 'bucket-empty')
       .setOrigin(0.5, 1).setScale(1.4).setDepth(2);
 
-    // ── the deer (drinking at the lake) ──
-    this.deerSprite = this.add.image(this.deerX, this.groundY + 2, 'deer-drink')
-      .setOrigin(0.5, 1).setScale(1.5).setDepth(4).setFlipX(true);
-
     // ── carrots on the path ──
     this.carrotXs.forEach((cx) => {
       const carrot = this.add.image(cx, this.groundY - 6, 'carrot').setOrigin(0.5, 1).setScale(1.4).setDepth(4);
@@ -141,8 +133,6 @@ export default class ForestScene extends Phaser.Scene {
       this.tweens.add({ targets: carrot, y: this.groundY - 12, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       this.carrotSprites.push(carrot);
     });
-    this.tweens.add({ targets: this.deerSprite, y: this.groundY + 6,
-      duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     // ── player ──
     this.player = this.physics.add.sprite(120, this.groundY - 40, 'player', 12);
@@ -341,27 +331,6 @@ export default class ForestScene extends Phaser.Scene {
       g.fillStyle(0x7c828a); g.fillRect(3, 5, 20, 4);
       g.lineStyle(2, 0x7c828a); g.beginPath(); g.arc(13, 7, 9, Math.PI, 0); g.strokePath();
     }, 26, 32, 'bucket-full');
-
-    // deer — simple silhouette
-    make((g) => {
-      g.fillStyle(0x5b4632);
-      g.fillEllipse(24, 22, 30, 14);
-      g.fillRect(11, 26, 4, 12); g.fillRect(33, 26, 4, 12);
-      g.fillRect(18, 26, 4, 12); g.fillRect(27, 26, 4, 12);
-      g.fillEllipse(38, 14, 13, 11);
-      g.fillRect(40, 4, 2, 9); g.fillRect(44, 5, 2, 8);
-    }, 50, 42, 'deer');
-
-    // deer drinking — head lowered toward the water (faces right)
-    make((g) => {
-      g.fillStyle(0x5b4632);
-      g.fillEllipse(22, 18, 30, 14);
-      g.fillRect(10, 22, 4, 14); g.fillRect(16, 22, 4, 14);
-      g.fillRect(28, 22, 4, 14); g.fillRect(33, 22, 4, 14);
-      g.fillEllipse(42, 30, 11, 9);          // head lowered to the ground/water
-      g.fillRect(38, 24, 4, 8);              // neck angled down
-      g.fillRect(44, 22, 2, 7); g.fillRect(47, 23, 2, 6);  // ears/antlers
-    }, 54, 44, 'deer-drink');
 
     // carrot — simple item icon
     make((g) => {
@@ -694,36 +663,6 @@ export default class ForestScene extends Phaser.Scene {
       this.heldBucket.setVisible(false);
     }
 
-    // ── deer behaviour ──
-    if (this.deerState === 'drinking') {
-      const d = Math.abs(px - this.deerX);
-      if (!this.deerNoticed && d < 420) {
-        this.deerNoticed = true;
-        this.showThought('a deer, drinking. maybe i should wait...');
-      }
-      // get too close — even creeping up slowly — and it bolts. keeping a
-      // respectful distance and waiting is what lets it drink in peace.
-      if (d < 130) {
-        this.deerState = 'scared';
-        this.deerSprite.setFlipX(false);
-        this.tweens.add({ targets: this.deerSprite, x: this.deerX + 520, alpha: 0,
-          duration: 1100, ease: 'Quad.in' });
-        this.showThought('...it ran off.');
-      } else if (this.deerNoticed && d < 300 && onGround && vx < 160) {
-        this.calmTimer += this.game.loop.delta;
-        if (this.calmTimer > 1500) {
-          this.deerState = 'done';
-          this.addKindness(this.deerX, this.groundY - 30);
-          this.showThought('it drank in peace.');
-          this.tweens.add({ targets: this.deerSprite, y: this.groundY - 8,
-            duration: 240, yoyo: true, repeat: 1, ease: 'Quad.out',
-            onComplete: () => this.tweens.add({ targets: this.deerSprite,
-              x: this.deerX + 440, alpha: 0, duration: 2400, ease: 'Sine.in' }) });
-        }
-      } else {
-        this.calmTimer = 0;
-      }
-    }
 
     // ── interaction prompt + action ──
     let label = null, action = null;
