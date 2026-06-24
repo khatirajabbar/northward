@@ -40,7 +40,8 @@ export default class ForestScene extends Phaser.Scene {
     this.crossX = 4200;          // stepping-stone water crossing (its own spot, past the meadow)
     this.crossWidth = 460;       // gap in the ground (water)
     this.stoneXs = [4020, 4110, 4200, 4290, 4380];  // 5 stones with real gaps to jump across
-    this.respawnX = 3940;        // near bank (by the torch), where you hop back if you fall in
+    this.respawnX = 3940;        // your latest checkpoint — updates each torch you light
+    this.respawnY = this.groundY - 40;
     this.torchX = 3940;          // torch checkpoint before the crossing
     this.saidGoodbye = false;
     this.grassWidth = 320;
@@ -110,6 +111,7 @@ export default class ForestScene extends Phaser.Scene {
     this.torchGlow = this.add.circle(this.torchX, this.groundY - 60, 34, 0xffb347, 0).setDepth(5);
     this.torchLit = false;
 
+
     // ── lake (visual pool on the shore) ──
     this.add.ellipse(this.lakeCenterX, this.groundY + 30, 220, 40, 0x24414f, 0.9).setDepth(8);
     this.add.ellipse(this.lakeCenterX, this.groundY + 28, 180, 28, 0x35586b, 0.85).setDepth(8);
@@ -160,6 +162,16 @@ export default class ForestScene extends Phaser.Scene {
     this.cliffTopX = 5260;
     this.cliffTopY = this.groundY - 300;
     makeLedge(this.cliffTopX, this.cliffTopY, 240);   // the cat's cliff
+
+    // ── second torch up on the cliff top — your checkpoint once you've climbed ──
+    this.cliffTorchX = 5200;
+    this.cliffTorchSprite = this.add.image(this.cliffTorchX, this.cliffTopY + 2, 'torch')
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
+    this.cliffTorchSprite.setTint(0x555555);   // dark/unlit look
+    this.cliffTorchFlame = this.add.image(this.cliffTorchX, this.cliffTopY - 52, 'flame')
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(7).setVisible(false);
+    this.cliffTorchGlow = this.add.circle(this.cliffTorchX, this.cliffTopY - 60, 34, 0xffb347, 0).setDepth(5);
+    this.cliffTorchLit = false;
 
     // ── ascending rock steps, each holding a bounce mushroom ──
     const stepData = [
@@ -504,6 +516,8 @@ export default class ForestScene extends Phaser.Scene {
     // ── light the torch as you pass it (a warm point in the cold forest) ──
     if (!this.torchLit && Math.abs(px - this.torchX) < 50) {
       this.torchLit = true;
+      this.respawnX = this.torchX;            // this is your checkpoint now
+      this.respawnY = this.groundY - 40;
       this.torchSprite.clearTint();   // post catches warm light
       this.torchFlame.setVisible(true);
       // the flame sways gently, like the grass — slow and soft
@@ -525,15 +539,39 @@ export default class ForestScene extends Phaser.Scene {
       }
     }
 
-    // ── fall off the climb -> a real drop sends you back to the torch checkpoint ──
-    // walking the ground past the cliff is fine; only a fast fall in the climb
-    // zone counts, so the path stays walkable
-    if (px > 4720 && px < this.cliffTopX - 40 &&
-        this.player.body.velocity.y > 600 &&
-        this.player.y > this.groundY - 50) {
+    // light the cliff-top torch when you reach it (only counts when you're up top)
+    if (!this.cliffTorchLit && Math.abs(px - this.cliffTorchX) < 50 &&
+        this.player.y < this.cliffTopY + 30) {
+      this.cliffTorchLit = true;
+      this.respawnX = this.cliffTorchX;       // this is your checkpoint now
+      this.respawnY = this.cliffTopY - 40;
+      this.cliffTorchSprite.clearTint();
+      this.cliffTorchFlame.setVisible(true);
+      this.tweens.add({ targets: this.cliffTorchFlame, angle: { from: -4, to: 4 },
+        duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.cliffTorchFlame, scaleY: { from: 1.8, to: 1.95 },
+        duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.cliffTorchGlow, alpha: 0.18, duration: 600, ease: 'Sine.out',
+        onComplete: () => {
+          this.tweens.add({ targets: this.cliffTorchGlow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
+            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        } });
+      for (let i = 0; i < 10; i++) {
+        const sp = this.add.circle(this.cliffTorchX, this.cliffTopY - 50, 2, 0xffd27a, 0.9).setDepth(7);
+        const a = Math.random() * Math.PI * 2;
+        this.tweens.add({ targets: sp, x: this.cliffTorchX + Math.cos(a) * 26, y: this.cliffTopY - 50 + Math.sin(a) * 26 - 14,
+          alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
+      }
+    }
+
+    // ── fall off either side of the cliff -> back to your last lit torch.
+    // the checkpoint updates as you light torches, so you always return to
+    // the last safe place you reached ──
+    if (px > 4720 && px < this.cliffTopX + 260 &&
+        this.player.body.velocity.y > 300 &&
+        this.player.y > this.groundY - 120) {
       this.player.setVelocity(0, 0);
-      this.player.setPosition(this.torchX, this.groundY - 40);
-      this.showThought('back to the torch. try again.', 1600);
+      this.player.setPosition(this.respawnX, this.respawnY);
     }
 
     // ── stepping-stone water: fall in -> gentle splash, hop back to the bank ──
