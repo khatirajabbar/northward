@@ -25,19 +25,6 @@ export default class BootScene extends Phaser.Scene {
       frameHeight: 48
     });
 
-    // Blind Huntress (Escape Pixel, Shadow Series) — separate sheets, 240x128 frames
-    this.load.spritesheet('huntress-idle', 'assets/characters/huntress/idle.png', {
-      frameWidth: 240,
-      frameHeight: 128
-    });
-    this.load.spritesheet('huntress-run', 'assets/characters/huntress/run.png', {
-      frameWidth: 240,
-      frameHeight: 128
-    });
-    this.load.spritesheet('huntress-jump', 'assets/characters/huntress/jump.png', {
-      frameWidth: 240,
-      frameHeight: 128
-    });
 
     this.load.image('grass', 'assets/tiles/grass.png');
 
@@ -152,26 +139,6 @@ export default class BootScene extends Phaser.Scene {
       repeat: -1
     });
 
-    this.anims.create({
-      key: 'huntress-idle',
-      frames: this.anims.generateFrameNumbers('huntress-idle', { start: 0, end: 11 }),
-      frameRate: 8,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: 'huntress-run',
-      frames: this.anims.generateFrameNumbers('huntress-run', { start: 0, end: 7 }),
-      frameRate: 12,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: 'huntress-jump',
-      frames: this.anims.generateFrameNumbers('huntress-jump', { start: 0, end: 3 }),
-      frameRate: 10,
-      repeat: 0
-    });
 
     this.time.delayedCall(800, () => {
       this.scene.start('LoginScene');
