@@ -279,6 +279,8 @@ export default class ForestScene extends Phaser.Scene {
     // the trapped bird, low in the thorns near the far side
     this.birdX = 6180;
     this.birdFreed = false;
+    this.birdHintShown = false;
+    this.birdPanicking = false;
     this.birdSprite = this.add.image(this.birdX, this.groundY - 28, 'bird')
       .setOrigin(0.5, 1).setScale(1.6).setDepth(8);
     // an anxious little flutter — it's struggling to get free
@@ -752,6 +754,45 @@ export default class ForestScene extends Phaser.Scene {
       }
     });
 
+    // ── bramble: thorns part as you pass, and the bird reacts to how you move ──
+    const brambleL = this.brambleX - this.brambleWidth / 2;
+    const brambleR = this.brambleX + this.brambleWidth / 2;
+    this.brambleBlades.forEach((b) => {
+      const dx = this.player.x - b.baseX;
+      if (Math.abs(dx) < 50) {
+        b.x = b.baseX + (dx > 0 ? -8 : 8);
+      } else {
+        b.x += (b.baseX - b.x) * 0.1;
+      }
+    });
+    // teaching hint the first time you near the thorns
+    if (!this.birdFreed && !this.birdHintShown && px > brambleL - 120 && px < brambleL) {
+      this.birdHintShown = true;
+      this.showThought('thorns — and something trapped inside. move gently. (hold shift)', 4000);
+    }
+    // panic: moving fast through the bramble (not slow) startles the bird
+    if (!this.birdFreed && !this.birdPanicking &&
+        px > brambleL && px < brambleR &&
+        onGround && Math.abs(this.player.body.velocity.x) > 130) {
+      this.birdPanicking = true;
+      this.showThought('too fast — it panicked.', 2200);
+      this.tweens.killTweensOf(this.birdSprite);
+      // the bird bolts up and away into the dark
+      this.tweens.add({ targets: this.birdSprite, y: this.birdSprite.y - 180, alpha: 0,
+        duration: 900, ease: 'Quad.in' });
+      // send you back to the checkpoint, then the bird returns to try again
+      this.time.delayedCall(700, () => {
+        this.player.setVelocity(0, 0);
+        this.player.setPosition(this.respawnX, this.respawnY);
+      });
+      this.time.delayedCall(1600, () => {
+        this.birdSprite.setPosition(this.birdX, this.groundY - 28).setAlpha(1);
+        this.tweens.add({ targets: this.birdSprite, angle: { from: -6, to: 6 },
+          duration: 220, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        this.birdPanicking = false;
+      });
+    }
+
     if (this.carryingCat) {
       // held in the arms, facing the way you walk — follows you down the climb
       this.catSprite.x = this.player.x + (this.player.flipX ? -6 : 6);
@@ -814,6 +855,7 @@ export default class ForestScene extends Phaser.Scene {
     else if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
     else if (!this.horseFed && near(this.horseX, 95) && (this.inventory.carrots || 0) > 0) { label = 'give the horse a carrot'; action = 'feedhorse'; }
     else if (!this.carryingCat && Math.abs(px - this.catSprite.x) < 70 && Math.abs(this.player.y - this.catSprite.y) < 80) { label = 'pick up the cat'; action = 'pickupcat'; }
+    else if (!this.birdFreed && !this.birdPanicking && this.movingSlow && Math.abs(px - this.birdX) < 60) { label = 'free the bird'; action = 'freebird'; }
     else if (this.horseFed && !this.saidGoodbye && Math.abs(px - this.meadowX) < 160) { label = 'say goodbye'; action = 'farewell'; }
     else if (this.horseFed && !this.riding && !this.saidGoodbye && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
     else if (!this.horseFed && near(this.horseX, 95)) { label = null; this._horseHint = true; }
@@ -898,6 +940,23 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
+    if (action === 'freebird') {
+      this.birdFreed = true;
+      this.tweens.killTweensOf(this.birdSprite);
+      this.addKindness(this.birdX, this.groundY - 60);
+      this.showThought('there you go. carefully now.', 3200);
+      // a gentle lift — perch a beat, then rise and fly off into the canopy
+      this.tweens.add({ targets: this.birdSprite, y: this.groundY - 70, duration: 600, ease: 'Quad.out',
+        onComplete: () => {
+          this.tweens.add({ targets: this.birdSprite, y: this.groundY - 90, duration: 500, yoyo: true,
+            onComplete: () => {
+              this.tweens.add({ targets: this.birdSprite, x: this.birdX + 900, y: this.groundY - 520,
+                duration: 3200, ease: 'Sine.in',
+                onComplete: () => this.birdSprite.setVisible(false) });
+            } });
+        } });
+      return;
+    }
     if (action === 'farewell') {
       this.saidGoodbye = true;
       this.riding = false;
