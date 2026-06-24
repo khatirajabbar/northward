@@ -27,7 +27,8 @@ export default class ForestScene extends Phaser.Scene {
     this.kindness = 0;
 
     // ── inventory (generic: holds any item by name) ──
-    this.inventory = {};
+    // you packed a bag before leaving home — a few things are already in it
+    this.inventory = { rope: 1, water: 1, bread: 1 };
     this.bagOpen = false;
     // a little carrot field — a cluster you can harvest
     this.carrotXs = [820, 860, 900, 940, 980, 1020, 1060, 1100, 1140];
@@ -388,6 +389,39 @@ export default class ForestScene extends Phaser.Scene {
       g.fillStyle(0x6faa4b);
       g.fillRect(8, 0, 2, 7); g.fillRect(11, 0, 2, 7); g.fillRect(14, 0, 2, 7);
     }, 22, 28, 'carrot');
+
+    // rope — a coiled loop of rope
+    make((g) => {
+      g.fillStyle(0xb08850);
+      g.fillEllipse(13, 14, 22, 18);            // outer coil
+      g.fillStyle(0x2b2620);
+      g.fillEllipse(13, 14, 10, 8);             // hole in the middle
+      g.fillStyle(0x8a6a3c);
+      g.fillRect(6, 7, 3, 3); g.fillRect(18, 9, 3, 3);   // little strand marks
+      g.fillRect(9, 19, 3, 3); g.fillRect(16, 18, 3, 3);
+    }, 26, 28, 'rope');
+
+    // water — a little flask/bottle
+    make((g) => {
+      g.fillStyle(0x6b5d4d);
+      g.fillRect(8, 0, 6, 4);                   // cork
+      g.fillStyle(0x9aa6ae);
+      g.fillRect(7, 4, 8, 3);                   // neck
+      g.fillStyle(0x4a90c2);
+      g.fillEllipse(11, 18, 16, 18);            // rounded bottle body, water-blue
+      g.fillStyle(0x7fb8dc);
+      g.fillEllipse(8, 15, 4, 6);               // shine
+    }, 22, 30, 'water');
+
+    // bread — a small loaf
+    make((g) => {
+      g.fillStyle(0xc79a5b);
+      g.fillEllipse(13, 15, 24, 14);            // loaf body
+      g.fillStyle(0xa87d42);
+      g.fillRect(6, 9, 2, 8); g.fillRect(11, 8, 2, 9); g.fillRect(16, 9, 2, 8);  // score marks
+      g.fillStyle(0xe0c089);
+      g.fillEllipse(13, 12, 18, 5);             // floury top
+    }, 26, 26, 'bread');
 
     // torch POST only (no flame — flame is its own sprite so it can dance)
     make((g) => {
