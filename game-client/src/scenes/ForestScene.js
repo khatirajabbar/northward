@@ -9,7 +9,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 5600;
+    const worldWidth = 6800;
     this.groundY = height - 60;
 
     this.makeTextures();
@@ -173,6 +173,16 @@ export default class ForestScene extends Phaser.Scene {
     this.cliffTorchGlow = this.add.circle(this.cliffTorchX, this.cliffTopY - 60, 34, 0xffb347, 0).setDepth(5);
     this.cliffTorchLit = false;
 
+    // ── third torch on the ground past the cliff — checkpoint before the bramble ──
+    this.brambleTorchX = 5800;
+    this.brambleTorchSprite = this.add.image(this.brambleTorchX, this.groundY + 2, 'torch')
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
+    this.brambleTorchSprite.setTint(0x555555);   // dark/unlit look
+    this.brambleTorchFlame = this.add.image(this.brambleTorchX, this.groundY - 52, 'flame')
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(7).setVisible(false);
+    this.brambleTorchGlow = this.add.circle(this.brambleTorchX, this.groundY - 60, 34, 0xffb347, 0).setDepth(5);
+    this.brambleTorchLit = false;
+
     // ── ascending rock steps, each holding a bounce mushroom ──
     const stepData = [
       { x: 4780, topY: this.groundY - 70,  w: 90 },
@@ -254,6 +264,27 @@ export default class ForestScene extends Phaser.Scene {
     this.grassLearned = false;
     this.grassLearnedShown = false;
 
+    // ── bramble thicket past the cliff — a frightened bird is tangled inside ──
+    this.brambleX = 6100;
+    this.brambleWidth = 280;
+    this.brambleBlades = [];
+    for (let bx = this.brambleX - this.brambleWidth / 2; bx <= this.brambleX + this.brambleWidth / 2; bx += 20) {
+      const thorn = this.add.image(bx, this.groundY + 4, 'bramble')
+        .setOrigin(0.5, 1).setScale(1.5 + Math.random() * 0.3).setDepth(7);
+      thorn.baseX = bx;
+      this.tweens.add({ targets: thorn, angle: { from: -2, to: 2 },
+        duration: 1800 + Math.random() * 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.brambleBlades.push(thorn);
+    }
+    // the trapped bird, low in the thorns near the far side
+    this.birdX = 6180;
+    this.birdFreed = false;
+    this.birdSprite = this.add.image(this.birdX, this.groundY - 28, 'bird')
+      .setOrigin(0.5, 1).setScale(1.6).setDepth(8);
+    // an anxious little flutter — it's struggling to get free
+    this.tweens.add({ targets: this.birdSprite, angle: { from: -6, to: 6 },
+      duration: 220, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+
     // ── the horse + its gate ──
     this.horseSprite = this.add.image(this.horseX, this.groundY + 2, 'horse')
       .setOrigin(0.5, 1).setScale(2).setDepth(4);
@@ -282,6 +313,10 @@ export default class ForestScene extends Phaser.Scene {
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.keyE = this.input.keyboard.addKey('E');
     this.keyI = this.input.keyboard.addKey('I');
+    // ── DEBUG teleport keys (harmless in normal play — just don't press them) ──
+    this.debugKeys = this.input.keyboard.addKeys('ONE,TWO,THREE,FOUR');
+    // hold to walk slowly and gently — matters most in the bramble
+    this.keyShift = this.input.keyboard.addKey('SHIFT');
 
     // ── prompt ──
     this.prompt = this.add.text(0, 0, '', {
@@ -474,6 +509,39 @@ export default class ForestScene extends Phaser.Scene {
       g.fillTriangle(6, 60, 11, 20, 16, 60);
       g.fillTriangle(20, 60, 26, 10, 32, 60);
     }, 38, 62, 'tallgrass');
+
+    // bramble — dark thorny cluster, a harsher cousin of the grass
+    make((g) => {
+      g.fillStyle(0x2e3a2b);
+      g.fillTriangle(2, 60, 6, 8, 10, 60);
+      g.fillTriangle(10, 60, 15, 0, 20, 60);
+      g.fillTriangle(18, 60, 24, 12, 30, 60);
+      g.fillTriangle(26, 60, 31, 4, 36, 60);
+      g.fillStyle(0x3f4f3a);
+      g.fillTriangle(6, 60, 11, 18, 16, 60);
+      g.fillTriangle(20, 60, 26, 8, 32, 60);
+      // little thorns poking off the stems
+      g.fillStyle(0x55402f);
+      g.fillTriangle(12, 30, 16, 28, 12, 34);
+      g.fillTriangle(24, 24, 28, 22, 24, 28);
+      g.fillTriangle(8, 44, 4, 42, 8, 48);
+      // two tiny dark-red berries
+      g.fillStyle(0x7a2e2e);
+      g.fillCircle(18, 38, 3); g.fillCircle(27, 46, 2);
+    }, 38, 62, 'bramble');
+
+    // bird — small and brown, tucked low and frightened, facing left
+    make((g) => {
+      g.fillStyle(0x6b5135);
+      g.fillEllipse(13, 13, 18, 12);              // body
+      g.fillEllipse(6, 9, 9, 8);                  // head
+      g.fillTriangle(0, 9, 5, 7, 5, 11);          // beak
+      g.fillStyle(0x52402c);
+      g.fillEllipse(16, 13, 9, 7);                // folded wing
+      g.fillRect(20, 12, 5, 3);                   // short tail
+      g.fillStyle(0x2b2620);
+      g.fillRect(4, 7, 2, 2);                     // eye
+    }, 26, 22, 'bird');
   }
 
   showThought(text, ms = 2800) {
@@ -511,6 +579,12 @@ export default class ForestScene extends Phaser.Scene {
     // ── bag toggle (I) ──
     if (Phaser.Input.Keyboard.JustDown(this.keyI)) this.toggleBag();
 
+    // ── DEBUG: jump to a section to test it (1 start, 2 horse, 3 cliff, 4 bramble) ──
+    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.ONE)) this.player.setPosition(120, this.groundY - 40);
+    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.TWO)) this.player.setPosition(2700, this.groundY - 40);
+    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.THREE)) this.player.setPosition(4600, this.groundY - 40);
+    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.FOUR)) this.player.setPosition(5750, this.groundY - 40);
+
     const px = this.player.x;
 
     // ── light the torch as you pass it (a warm point in the cold forest) ──
@@ -535,6 +609,31 @@ export default class ForestScene extends Phaser.Scene {
         const sp = this.add.circle(this.torchX, this.groundY - 50, 2, 0xffd27a, 0.9).setDepth(7);
         const a = Math.random() * Math.PI * 2;
         this.tweens.add({ targets: sp, x: this.torchX + Math.cos(a) * 26, y: this.groundY - 50 + Math.sin(a) * 26 - 14,
+          alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
+      }
+    }
+
+    // light the bramble checkpoint torch as you pass it on the ground
+    if (!this.brambleTorchLit && Math.abs(px - this.brambleTorchX) < 50 &&
+        this.player.y > this.groundY - 60) {
+      this.brambleTorchLit = true;
+      this.respawnX = this.brambleTorchX;      // this is your checkpoint now
+      this.respawnY = this.groundY - 40;
+      this.brambleTorchSprite.clearTint();
+      this.brambleTorchFlame.setVisible(true);
+      this.tweens.add({ targets: this.brambleTorchFlame, angle: { from: -4, to: 4 },
+        duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.brambleTorchFlame, scaleY: { from: 1.8, to: 1.95 },
+        duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.brambleTorchGlow, alpha: 0.18, duration: 600, ease: 'Sine.out',
+        onComplete: () => {
+          this.tweens.add({ targets: this.brambleTorchGlow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
+            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        } });
+      for (let i = 0; i < 10; i++) {
+        const sp = this.add.circle(this.brambleTorchX, this.groundY - 50, 2, 0xffd27a, 0.9).setDepth(7);
+        const a = Math.random() * Math.PI * 2;
+        this.tweens.add({ targets: sp, x: this.brambleTorchX + Math.cos(a) * 26, y: this.groundY - 50 + Math.sin(a) * 26 - 14,
           alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
       }
     }
@@ -596,7 +695,10 @@ export default class ForestScene extends Phaser.Scene {
     this.bgLayers.forEach((l) => { l.tilePositionX = camX * l.parallaxFactor / l.tileScaleX; });
 
     // ── movement ──
-    const speed = this.riding ? this.rideSpeed : this.walkSpeed, jumpSpeed = -480;
+    // hold Shift to move slowly and gently (only on foot, not riding)
+    this.movingSlow = this.keyShift.isDown && !this.riding;
+    const baseSpeed = this.riding ? this.rideSpeed : this.walkSpeed;
+    const speed = this.movingSlow ? 90 : baseSpeed, jumpSpeed = -480;
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
