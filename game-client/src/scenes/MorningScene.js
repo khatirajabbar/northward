@@ -306,7 +306,7 @@ export default class MorningScene extends Phaser.Scene {
       targets: this.player, x: this.doorX, duration: 1500, ease: 'Sine.inOut',
       onComplete: () => {
         this.cameras.main.fadeOut(1300, 21, 17, 12);
-        this.time.delayedCall(1400, () => this.scene.start('GameScene'));
+        this.time.delayedCall(1400, () => this.scene.start('ForestScene'));
       }
     });
   }

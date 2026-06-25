@@ -253,14 +253,18 @@ export default class ForestScene extends Phaser.Scene {
     this.grassBlades = [];
     for (let gx = this.grassX - this.grassWidth / 2; gx <= this.grassX + this.grassWidth / 2; gx += 22) {
       const blade = this.add.image(gx, this.groundY + 4, 'tallgrass')
-        .setOrigin(0.5, 1).setScale(1.5 + Math.random() * 0.3).setDepth(7);
+        .setOrigin(0.5, 1).setScale(1.5 + Math.random() * 0.3).setDepth(11);
       blade.baseX = gx;
       // gentle idle sway
       this.tweens.add({ targets: blade, angle: { from: -3, to: 3 },
         duration: 1600 + Math.random() * 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       this.grassBlades.push(blade);
     }
-    // wall at the grass — blocks on foot, removed while riding
+    // wall at the grass — a real physics wall (can't be pushed through),
+    // removed once you've learned the grass is safe by riding through it
+    this.grassWall = this.add.rectangle(this.grassX - this.grassWidth / 2, this.groundY - 300, 12, 640).setVisible(false);
+    this.physics.add.existing(this.grassWall, true);
+    this.grassWallCollider = this.physics.add.collider(this.player, this.grassWall);
     this.grassNoticed = false;
     this.grassLearned = false;
     this.grassLearnedShown = false;
@@ -757,14 +761,17 @@ export default class ForestScene extends Phaser.Scene {
     const grassL = this.grassX - this.grassWidth / 2;
     const grassR = this.grassX + this.grassWidth / 2;
     const inGrass = px > grassL - 18 && px < grassR + 18;
-    // riding through the grass teaches you it's safe
-    if (this.riding && inGrass) this.grassLearned = true;
+    // riding through the grass teaches you it's safe — then the wall comes down
+    if (this.riding && inGrass && !this.grassLearned) {
+      this.grassLearned = true;
+      if (this.grassWallCollider) {
+        this.physics.world.removeCollider(this.grassWallCollider);
+        this.grassWallCollider = null;
+      }
+    }
+    // on foot before learning: the wall blocks you, just show the hint once when near
     if (!this.riding && !this.grassLearned) {
-      if (inGrass) {
-        // push the player back to whichever edge they came from
-        const cameFromLeft = this.player.body.velocity.x > 0 || px < this.grassX;
-        this.player.x = cameFromLeft ? grassL - 20 : grassR + 20;
-        this.player.setVelocityX(0);
+      if (inGrass || Math.abs(px - grassL) < 40) {
         if (!this.grassNoticed) {
           this.grassNoticed = true;
           this.showThought('the grass is too tall — it could be dangerous on foot.');
