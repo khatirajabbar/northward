@@ -874,11 +874,17 @@ export default class ForestScene extends Phaser.Scene {
         b.x += (b.baseX - b.x) * 0.1;
       }
     });
-    // teaching hint the first time you near the thorns
+    // teaching hint as you near the thorns — re-arms when you walk away, so a
+    // player who missed it the first time gets it again on their next approach.
     if (!this.birdFreed && !this.birdHintShown && px > brambleL - 120 && px < brambleL) {
       this.birdHintShown = true;
-      this.showThought('thorns — and something trapped inside. move gently. (hold shift)', 4000);
+      this.showThought('thorns — and something trapped inside. move gently. (hold shift)', 7000);
     }
+    if (px < brambleL - 140) this.birdHintShown = false;   // re-arm as soon as you step out — shows on every approach
+    // a steady reminder while you're at the thorns on foot and haven't freed the
+    // bird yet — so even if you missed the message, you always see what to do.
+    this.atBrambleOnFoot = !this.birdFreed && !this.birdPanicking && !this.riding &&
+                           !this.movingSlow && px > brambleL - 60 && px < brambleR;
     // panic: moving fast through the bramble (not slow) startles the bird
     if (!this.birdFreed && !this.birdPanicking &&
         px > brambleL && px < brambleR &&
@@ -979,6 +985,10 @@ export default class ForestScene extends Phaser.Scene {
 
     if (label) {
       this.prompt.setText('▸ e  ' + label).setVisible(true);
+      this.prompt.setPosition(this.W / 2, this.H - 40);
+    } else if (this.atBrambleOnFoot) {
+      // stuck at the thorns without holding shift? always show the full reminder.
+      this.prompt.setText('▸ hold shift to move gently').setVisible(true);
       this.prompt.setPosition(this.W / 2, this.H - 40);
     } else {
       this.prompt.setVisible(false);
