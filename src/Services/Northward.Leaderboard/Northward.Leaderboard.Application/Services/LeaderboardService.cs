@@ -14,11 +14,11 @@ public class LeaderboardService : ILeaderboardService
         _leaderboardRepository = leaderboardRepository;
     }
 
-    public async Task<LeaderboardEntryDto> SubmitAsync(Guid userId, SubmitEntryRequestDto request)
+    public async Task<LeaderboardEntryDto> SubmitAsync(Guid userId, string username, SubmitEntryRequestDto request)
     {
         var entry = LeaderboardEntry.Create(
             userId,
-            request.Username,
+            username,
             request.CharacterType,
             request.Season,
             request.Score,
