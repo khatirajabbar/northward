@@ -152,27 +152,21 @@ export default class ForestScene extends Phaser.Scene {
     // ── cat-on-cliff: the final cliff top (reached by climbing mushrooms) ──
     this.ledges = this.physics.add.staticGroup();
     const makeLedge = (x, topY, w, h = 320) => {
-      const ledge = this.add.rectangle(x, topY + h / 2, w, h, 0x2b2620).setDepth(5);
+      // invisible collision strip only — the green polygon slope draws the visuals.
+      // (a visible rectangle here used to stick out past the slope and make a lip.)
+      const ledge = this.add.rectangle(x, topY + h / 2, w, h, 0x3f6d4e).setVisible(false);
       this.physics.add.existing(ledge, true);
       ledge.body.checkCollision.down = false;   // one-way: only land on top
       ledge.body.checkCollision.left = false;   // walk past/under it on the ground
       ledge.body.checkCollision.right = false;
       this.ledges.add(ledge);
-      this.add.rectangle(x, topY, w, 5, 0x3f5240).setDepth(6);  // mossy top edge
     };
     this.cliffTopX = 5260;
     this.cliffTopY = this.groundY - 300;
-    makeLedge(this.cliffTopX, this.cliffTopY, 240);   // the cat's cliff
+    makeLedge(this.cliffTopX + 10, this.cliffTopY, 240, 16);   // collision strip — only under the visible flat green
 
-    // ── second torch up on the cliff top — your checkpoint once you've climbed ──
-    this.cliffTorchX = 5200;
-    this.cliffTorchSprite = this.add.image(this.cliffTorchX, this.cliffTopY + 2, 'torch')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
-    this.cliffTorchSprite.setTint(0x555555);   // dark/unlit look
-    this.cliffTorchFlame = this.add.image(this.cliffTorchX, this.cliffTopY - 52, 'flame')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(7).setVisible(false);
-    this.cliffTorchGlow = this.add.circle(this.cliffTorchX, this.cliffTopY - 60, 34, 0xffb347, 0).setDepth(5);
-    this.cliffTorchLit = false;
+    // (no torch on the cliff top — there's nothing to fall into here, so no
+    // checkpoint is needed; the mushroom hill is a gentle, no-death section.)
 
     // ── third torch on the ground past the cliff — checkpoint before the bramble ──
     this.brambleTorchX = 5800;
@@ -184,14 +178,15 @@ export default class ForestScene extends Phaser.Scene {
     this.brambleTorchGlow = this.add.circle(this.brambleTorchX, this.groundY - 60, 34, 0xffb347, 0).setDepth(5);
     this.brambleTorchLit = false;
 
-    // ── ascending rock steps, each holding a bounce mushroom ──
-    const stepData = [
-      { x: 4780, topY: this.groundY - 70,  w: 90 },
-      { x: 4910, topY: this.groundY - 140, w: 90 },
-      { x: 5040, topY: this.groundY - 210, w: 90 },
-    ];
-    stepData.forEach((s) => makeLedge(s.x, s.topY, s.w));
     this.physics.add.collider(this.player, this.ledges);
+
+    // ── stone wall behind the cat — grounded on the cliff top, blocks the
+    // right edge so the mushrooms are the only way down ──
+    this.rockWall = this.add.image(this.cliffTopX + 100, this.cliffTopY + 6, 'rock')
+      .setOrigin(0.5, 1).setScale(2.2).setDepth(8);
+    const rockBody = this.add.rectangle(this.cliffTopX + 108, this.cliffTopY - 45, 24, 100).setVisible(false);
+    this.physics.add.existing(rockBody, true);
+    this.physics.add.collider(this.player, rockBody);
 
     // ── bounce mushrooms: one on the ground, then one on each step, climbing to the cliff ──
     this.mushrooms = this.physics.add.staticGroup();
@@ -215,16 +210,84 @@ export default class ForestScene extends Phaser.Scene {
         });
       }
     };
-    // sitting ON the ground, then ON each rock step — climbing up
-    makeBounce(4660, this.groundY,        1.0, -420, false);  // on the ground — walk past, or drop on it to climb
-    makeBounce(4780, this.groundY - 70,   1.2, -460);  // on step 1
-    makeBounce(4910, this.groundY - 140,  1.4, -500);  // on step 2
-    makeBounce(5040, this.groundY - 210,  1.6, -560);  // on step 3 -> up to the cliff
+
+    // ── a green mountain SLOPE rising to the cliff, with bounce mushrooms and
+    // little flowers growing on it. the slope is the look; the mushrooms on top
+    // are what you bounce up. ──
+    const mtnLeft = 4560, peakX = 5240;
+    const peakTop = this.cliffTopY;                 // slope meets the cliff height
+
+    // the green surface height at a given x — a smooth diagonal rising left->right
+    const surfaceTopY = (x) => {
+      const t = Phaser.Math.Clamp((x - mtnLeft) / (peakX - mtnLeft), 0, 1);
+      const eased = t * t * (3 - 2 * t);            // smoothstep, a soft curve
+      return this.groundY - (this.groundY - peakTop) * eased;
+    };
+
+    // draw the filled green slope: a ramp rising left->right that levels into a
+    // flat top at the peak (no overhang), ending just past the rock so the rock
+    // sits on the ground with no orphan green behind it. one continuous shape.
+    // draw the whole hill as ONE filled polygon: ground-left, up the curve, across
+    // the flat top, down the right edge. one shape = no seams, no lips possible.
+    const platRight = this.cliffTopX + 230;          // extends under the whole rock
+    const pts = [{ x: mtnLeft, y: this.groundY + 6 }];
+    for (let x = mtnLeft; x <= platRight; x += 4) {
+      const curve = surfaceTopY(x);
+      const top = curve <= this.cliffTopY + 14 ? this.cliffTopY : curve;
+      pts.push({ x, y: top });
+    }
+    // clean top-right corner, then a single straight vertical drop to the ground
+    pts.push({ x: platRight, y: this.cliffTopY });
+    pts.push({ x: platRight, y: this.groundY + 6 });
+    const slopeG = this.add.graphics().setDepth(3);
+    slopeG.fillStyle(0x3f6d4e);                      // grass green body
+    slopeG.fillPoints(pts, true);
+    // a single light edge stroke along the top surface only (not the sides)
+    slopeG.lineStyle(5, 0x5a8f63);
+    slopeG.beginPath();
+    for (let i = 1; i < pts.length - 1; i++) {
+      if (i === 1) slopeG.moveTo(pts[i].x, pts[i].y);
+      else slopeG.lineTo(pts[i].x, pts[i].y);
+    }
+    slopeG.strokePath();
+
+    // scatter little flowers ALONG the whole green — up the slope, across the cliff
+    // top by the cat, and behind the rock — so it's lush but never looks like a
+    // bounce mushroom (only the real bounce mushrooms are mushrooms now).
+    const plantFlower = (x) => {
+      const top = surfaceTopY(x) + 2;   // returns the flat cliff height past the peak
+      const key = Math.random() < 0.5 ? 'flower-white' : 'flower-yellow';
+      this.add.image(x + (Math.random() - 0.5) * 14, top, key)
+        .setOrigin(0.5, 1).setScale(0.85 + Math.random() * 0.4).setDepth(4);
+    };
+    // denser flowers up the slope
+    for (let x = mtnLeft + 20; x < peakX - 60; x += 22) {
+      if (Math.random() < 0.7) plantFlower(x);
+    }
+    // flowers across the cliff top (by the cat) and behind the rock
+    for (let x = peakX - 40; x <= platRight - 10; x += 24) {
+      if (Math.random() < 0.7) plantFlower(x);
+    }
+
+    // the green slope is decoration — you climb by bouncing up the mushrooms,
+    // which sit flush on the slope surface as the path up to the cat.
+    for (let x = mtnLeft + 90; x <= peakX - 230; x += 90) {
+      const top = surfaceTopY(x);
+      const power = -440 - (this.groundY - top) * 0.30;
+      makeBounce(x, top + 10, 1.3, power, true);   // +10 sinks the base into the grass
+    }
+
     this.physics.add.collider(this.player, this.mushrooms, (player, pad) => {
-      if (player.body.velocity.y >= 0) {
+      // only bounce when coming DOWN onto the cap (player above it, falling).
+      // hitting from below or the side just passes — no flatten, no fall-through.
+      const fromAbove = player.body.velocity.y >= 0 && player.body.bottom <= pad.body.top + 24;
+      if (fromAbove) {
         player.setVelocityY(pad.bouncePower);
         this.tweens.add({ targets: pad.bounceMush, scaleY: { from: pad.bounceMush.scaleY, to: pad.bounceMush.scaleY * 0.65 }, duration: 90, yoyo: true });
       }
+    }, (player, pad) => {
+      // process callback: only treat as a collision when landing on top
+      return player.body.velocity.y >= 0 && player.body.bottom <= pad.body.top + 24;
     });
 
     // ── the scared cat, stranded on the cliff top — too afraid to climb down ──
@@ -304,7 +367,6 @@ export default class ForestScene extends Phaser.Scene {
 
     // invisible wall at the water's edge — you stop at the shore, can't walk on the lake
     // (lake is now a foreground pool beside the path — no full wall)
-    this.shoreX = this.lakeCenterX - 130;
 
 
     this.physics.world.setBounds(0, 0, worldWidth, height + 400);
@@ -442,6 +504,44 @@ export default class ForestScene extends Phaser.Scene {
       g.fillStyle(0xffe08a);
       g.fillTriangle(7, 5, 3, 15, 11, 15); // inner
     }, 14, 16, 'flame');
+
+    // flower — a tiny five-petal bloom (white or yellow), for the green slope
+    const makeFlower = (key, petal) => make((g) => {
+      g.fillStyle(petal);
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        g.fillCircle(8 + Math.cos(a) * 4, 8 + Math.sin(a) * 4, 3);   // petals
+      }
+      g.fillStyle(0xffd23f);
+      g.fillCircle(8, 8, 2.4);                                       // golden center
+    }, 16, 16, key);
+    makeFlower('flower-white', 0xf4f4ee);
+    makeFlower('flower-yellow', 0xffe680);
+
+    // rock — angular grey boulders with facets and cracks, sitting on the ground
+    make((g) => {
+      // big main boulder — an angular polygon, not a soft blob
+      g.fillStyle(0x7c828b);
+      g.fillPoints([{x:6,y:46},{x:2,y:30},{x:14,y:14},{x:30,y:10},{x:40,y:22},{x:38,y:46}], true);
+      // lit top-left facet
+      g.fillStyle(0x969ca4);
+      g.fillPoints([{x:14,y:14},{x:30,y:10},{x:28,y:24},{x:12,y:28}], true);
+      // shadowed right facet
+      g.fillStyle(0x646a72);
+      g.fillPoints([{x:40,y:22},{x:38,y:46},{x:28,y:46},{x:28,y:24}], true);
+      // a second smaller boulder on the right
+      g.fillStyle(0x868d96);
+      g.fillPoints([{x:36,y:46},{x:34,y:30},{x:44,y:24},{x:52,y:34},{x:50,y:46}], true);
+      g.fillStyle(0x646a72);
+      g.fillPoints([{x:44,y:24},{x:52,y:34},{x:50,y:46},{x:44,y:46}], true);
+      // dark cracks
+      g.lineStyle(1.5, 0x4c525a);
+      g.beginPath(); g.moveTo(20,12); g.lineTo(24,30); g.lineTo(18,44); g.strokePath();
+      g.beginPath(); g.moveTo(30,11); g.lineTo(34,26); g.strokePath();
+      // tiny moss tufts on top
+      g.fillStyle(0x5a8f63);
+      g.fillEllipse(22, 11, 12, 4); g.fillEllipse(42, 25, 8, 3);
+    }, 56, 48, 'rock');
 
     // bounce mushroom — a springy toadstool
     make((g) => {
@@ -678,40 +778,8 @@ export default class ForestScene extends Phaser.Scene {
       }
     }
 
-    // light the cliff-top torch when you reach it (only counts when you're up top)
-    if (!this.cliffTorchLit && Math.abs(px - this.cliffTorchX) < 50 &&
-        this.player.y < this.cliffTopY + 30) {
-      this.cliffTorchLit = true;
-      this.respawnX = this.cliffTorchX;       // this is your checkpoint now
-      this.respawnY = this.cliffTopY - 40;
-      this.cliffTorchSprite.clearTint();
-      this.cliffTorchFlame.setVisible(true);
-      this.tweens.add({ targets: this.cliffTorchFlame, angle: { from: -4, to: 4 },
-        duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.cliffTorchFlame, scaleY: { from: 1.8, to: 1.95 },
-        duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.cliffTorchGlow, alpha: 0.18, duration: 600, ease: 'Sine.out',
-        onComplete: () => {
-          this.tweens.add({ targets: this.cliffTorchGlow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
-            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-        } });
-      for (let i = 0; i < 10; i++) {
-        const sp = this.add.circle(this.cliffTorchX, this.cliffTopY - 50, 2, 0xffd27a, 0.9).setDepth(7);
-        const a = Math.random() * Math.PI * 2;
-        this.tweens.add({ targets: sp, x: this.cliffTorchX + Math.cos(a) * 26, y: this.cliffTopY - 50 + Math.sin(a) * 26 - 14,
-          alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
-      }
-    }
-
-    // ── fall off either side of the cliff -> back to your last lit torch.
-    // the checkpoint updates as you light torches, so you always return to
-    // the last safe place you reached ──
-    if (px > 4720 && px < this.cliffTopX + 260 &&
-        this.player.body.velocity.y > 300 &&
-        this.player.y > this.groundY - 120) {
-      this.player.setVelocity(0, 0);
-      this.player.setPosition(this.respawnX, this.respawnY);
-    }
+    // the cliff is a mushroom hill now — bounce up to the cat, bounce back down,
+    // steer with left/right. there's no pit to fall into, so no respawn needed.
 
     // ── stepping-stone water: fall in -> gentle splash, hop back to the bank ──
     if (this.player.y > this.groundY + 24 && this.player.body.velocity.y >= 0 &&
@@ -899,7 +967,7 @@ export default class ForestScene extends Phaser.Scene {
     else if (!this.birdFreed && !this.birdPanicking && this.movingSlow && Math.abs(px - this.birdX) < 60) { label = 'free the bird'; action = 'freebird'; }
     else if (this.horseFed && !this.saidGoodbye && Math.abs(px - this.meadowX) < 160) { label = 'say goodbye'; action = 'farewell'; }
     else if (this.horseFed && !this.riding && !this.saidGoodbye && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
-    else if (!this.horseFed && near(this.horseX, 95)) { label = null; this._horseHint = true; }
+    else if (!this.horseFed && near(this.horseX, 95)) { label = null; }
     else {
       const mh = this.meadowHorses && this.meadowHorses.find((m) => !m.fed && Math.abs(px - m.baseX) < 70);
       if (mh && (this.inventory.carrots || 0) > 0) { label = 'give a carrot'; action = 'feedmeadow'; this._nearMeadow = mh; }
