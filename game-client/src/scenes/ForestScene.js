@@ -28,7 +28,7 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── inventory (generic: holds any item by name) ──
     // you packed a bag before leaving home — a few things are already in it
-    this.inventory = { rope: 1, water: 1, bread: 1 };
+    this.inventory = this.registry.get('inventory') || {};
     this.bagOpen = false;
     // a little carrot field — a cluster you can harvest
     this.carrotXs = [820, 860, 900, 940, 980, 1020, 1060, 1100, 1140];
