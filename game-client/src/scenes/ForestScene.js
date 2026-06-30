@@ -37,7 +37,7 @@ export default class ForestScene extends Phaser.Scene {
     // ── the horse (a gate: hungry, won't let you pass until fed) ──
     this.horseX = 2400;
     this.grassX = 2900;          // tall-grass gate (only passable on horseback)
-    this.meadowX = 3450;         // where the other horses graze
+    this.meadowX = 3400;         // where the other horses graze — the goodbye, after the grass and before the water
     this.crossX = 4200;          // stepping-stone water crossing (its own spot, past the meadow)
     this.crossWidth = 460;       // gap in the ground (water)
     this.stoneXs = [4020, 4110, 4200, 4290, 4380];  // 5 stones with real gaps to jump across
@@ -332,22 +332,6 @@ export default class ForestScene extends Phaser.Scene {
     this.grassLearned = false;
     this.grassLearnedShown = false;
 
-    // ── fallen log across the path (drag it aside with the rope, on horseback) ──
-    this.logX = 3200;
-    this.logCleared = false;
-    this.logSprite = this.add.graphics().setDepth(11);
-    this.logSprite.fillStyle(0x6b4a2b, 1);
-    this.logSprite.fillRoundedRect(this.logX - 70, this.groundY - 26, 140, 26, 12);
-    this.logSprite.fillStyle(0x53371f, 1);
-    this.logSprite.fillRoundedRect(this.logX - 70, this.groundY - 16, 140, 12, 8);
-    this.logSprite.fillStyle(0x7d5836, 1);
-    this.logSprite.fillCircle(this.logX - 70, this.groundY - 13, 13);
-    this.logSprite.fillStyle(0x6b4a2b, 1);
-    this.logSprite.fillCircle(this.logX - 70, this.groundY - 13, 8);
-    // real physics wall behind the log — removed once it's dragged aside
-    this.logWall = this.add.rectangle(this.logX, this.groundY - 300, 12, 640).setVisible(false);
-    this.physics.add.existing(this.logWall, true);
-    this.logWallCollider = this.physics.add.collider(this.player, this.logWall);
 
     // ── bramble thicket past the cliff — a frightened bird is tangled inside ──
     this.brambleX = 6100;
@@ -903,7 +887,6 @@ export default class ForestScene extends Phaser.Scene {
     // bird yet — so even if you missed the message, you always see what to do.
     this.atBrambleOnFoot = !this.birdFreed && !this.birdPanicking && !this.riding &&
                            !this.movingSlow && px > brambleL - 60 && px < brambleR;
-    this.atLogOnFoot = !this.logCleared && !this.riding && Math.abs(px - this.logX) < 90;
     // panic: moving fast through the bramble (not slow) startles the bird
     if (!this.birdFreed && !this.birdPanicking &&
         px > brambleL && px < brambleR &&
@@ -990,8 +973,6 @@ export default class ForestScene extends Phaser.Scene {
     else if (!this.horseFed && near(this.horseX, 95) && (this.inventory.carrots || 0) > 0) { label = 'give the horse a carrot'; action = 'feedhorse'; }
     else if (!this.carryingCat && Math.abs(px - this.catSprite.x) < 70 && Math.abs(this.player.y - this.catSprite.y) < 80) { label = 'pick up the cat'; action = 'pickupcat'; }
     else if (!this.birdFreed && !this.birdPanicking && this.movingSlow && Math.abs(px - this.birdX) < 60) { label = 'free the bird'; action = 'freebird'; }
-    else if (!this.logCleared && this.riding && (this.inventory.rope || 0) > 0 && Math.abs(px - this.logX) < 110) { label = 'tie the rope to the log'; action = 'tielog'; }
-    else if (!this.logCleared && !this.riding && Math.abs(px - this.logX) < 90) { label = null; }
     else if (this.horseFed && !this.saidGoodbye && Math.abs(px - this.meadowX) < 160) { label = 'say goodbye'; action = 'farewell'; }
     else if (this.horseFed && !this.riding && !this.saidGoodbye && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
     else if (!this.horseFed && near(this.horseX, 95)) { label = null; }
@@ -1011,16 +992,12 @@ export default class ForestScene extends Phaser.Scene {
       // stuck at the thorns without holding shift? always show the full reminder.
       this.prompt.setText('▸ hold shift to move gently').setVisible(true);
       this.prompt.setPosition(this.W / 2, this.H - 40);
-    } else if (this.atLogOnFoot) {
-      // at the log on foot — too heavy to shift without the horse's help.
-      this.prompt.setText('too heavy to move alone.').setVisible(true);
-      this.prompt.setPosition(this.W / 2, this.H - 40);
     } else {
       this.prompt.setVisible(false);
     }
 
     if (this.riding && action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
-      // a mounted action (like tying the rope to the log) takes priority over dismounting
+      // a mounted action takes priority over dismounting, so E does the action instead of getting off
       this.doAction(action);
     } else if (this.riding && Phaser.Input.Keyboard.JustDown(this.keyE)) {
       const inGrassNow = this.player.x > (this.grassX - this.grassWidth / 2) - 18 &&
@@ -1087,27 +1064,6 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
-    if (action === 'tielog') {
-      this.logCleared = true;
-      this.inventory.rope -= 1;
-      this.physics.world.removeCollider(this.logWallCollider);
-      // a rope line stretches from the horse to the log, then strains taut
-      const ropeLine = this.add.graphics().setDepth(12);
-      const drawRope = () => {
-        ropeLine.clear();
-        ropeLine.lineStyle(3, 0x8a5a2b, 1);
-        ropeLine.lineBetween(this.horseSprite.x + 20, this.groundY - 24, this.logX - 60, this.groundY - 14);
-      };
-      drawRope();
-      // the horse strains, then the log drags aside and the rope follows
-      this.tweens.add({ targets: this.horseSprite, x: this.horseSprite.x - 14, duration: 220,
-        yoyo: true, repeat: 2, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.logSprite, x: -180, duration: 1600, delay: 300,
-        ease: 'Sine.in', onUpdate: drawRope, onComplete: () => ropeLine.destroy() });
-      this.addKindness(this.logX, this.groundY - 60);
-      this.showThought('together, then.', 3200);
-      return;
-    }
     if (action === 'freebird') {
       this.birdFreed = true;
       this.tweens.killTweensOf(this.birdSprite);

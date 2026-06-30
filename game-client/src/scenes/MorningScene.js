@@ -34,7 +34,6 @@ export default class MorningScene extends Phaser.Scene {
 
     this.done = { curtains: false, teeth: false, coffee: false, cereal: false, milk: false };
     this.inventory = {};
-    this.tookRope = false;
     this.busy = false;
     this.sitting = false;
 
@@ -114,15 +113,6 @@ export default class MorningScene extends Phaser.Scene {
     this.tableX = tableX;
     this.add.image(tableX, floorY + 2, 'cabin-coffee-table').setOrigin(0.5, 1).setScale(this.px).setDepth(2);
 
-    // ── a coil of rope resting on the table (placeholder art — swap for a sprite later) ──
-    const ropeY = floorY + 2 - this.px * 9;
-    this.ropeCoil = this.add.graphics().setDepth(3);
-    this.ropeCoil.lineStyle(3, 0x8a5a2b, 1);
-    this.ropeCoil.strokeEllipse(tableX, ropeY, 26, 14);
-    this.ropeCoil.strokeEllipse(tableX, ropeY, 16, 9);
-    this.ropeCoil.lineStyle(2, 0x6b4420, 1);
-    this.ropeCoil.strokeEllipse(tableX, ropeY - 3, 21, 11);
-    this.stations.push({ name: 'rope', x: tableX, label: 'take the coil of rope' });
     this.mugX = tableX; this.mugY = floorY + 2 - this.px * 8;
     this.mug = this.add.image(tableX, this.mugY, 'cabin-mug').setOrigin(0.5, 1).setScale(this.px).setDepth(3).setVisible(false);
 
@@ -208,18 +198,8 @@ export default class MorningScene extends Phaser.Scene {
       case 'drink': return this.sitWithCoffee();
       case 'cereal': return this.doCereal();
       case 'fridge': return this.doFridge();
-      case 'rope': return this.doRope();
       case 'leave': return this.doLeave();
     }
-  }
-
-  doRope() {
-    if (this.tookRope) { this.thought.setText('the rope is already in my bag.'); return; }
-    this.tookRope = true;
-    this.inventory.rope = (this.inventory.rope || 0) + 1;
-    this.stations = this.stations.filter((s) => s.name !== 'rope');
-    if (this.ropeCoil) this.ropeCoil.setVisible(false);
-    this.thought.setText('a coil of rope. might be useful out there.');
   }
 
   setBusy(ms, cb) {
@@ -307,13 +287,12 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   doLeave() {
-    const ready = this.done.teeth && this.done.coffee && this.done.cereal && this.done.milk && this.tookRope;
+    const ready = this.done.teeth && this.done.coffee && this.done.cereal && this.done.milk;
     if (!ready) {
       const left = [];
       if (!this.done.teeth) left.push('brush my teeth');
       if (!this.done.coffee) left.push('have my coffee');
       if (!this.done.cereal || !this.done.milk) left.push('finish breakfast');
-      if (!this.tookRope) left.push('take the rope by the sofa');
       this.thought.setText('not yet — i should ' + left.join(', ') + ' first.');
       return;
     }
