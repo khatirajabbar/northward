@@ -9,7 +9,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 6800;
+    const worldWidth = 7600;
     this.groundY = height - 60;
 
     this.makeTextures();
@@ -37,15 +37,18 @@ export default class ForestScene extends Phaser.Scene {
     // ── the horse (a gate: hungry, won't let you pass until fed) ──
     this.horseX = 2400;
     this.grassX = 2900;          // tall-grass gate (only passable on horseback)
-    this.meadowX = 3400;         // where the other horses graze — the goodbye, after the grass and before the water
-    this.crossX = 4200;          // stepping-stone water crossing (its own spot, past the meadow)
+    this.meadowX = 4700;         // where the other horses graze — the goodbye, a little after the river
+    this.crossX = 5200;          // stepping-stone water crossing (crossed alone, after the goodbye)
     this.crossWidth = 460;       // gap in the ground (water)
-    this.stoneXs = [4020, 4110, 4200, 4290, 4380];  // 5 stones with real gaps to jump across
-    this.respawnX = 3940;        // your latest checkpoint — updates each torch you light
+    this.riverX = 3900;          // the river — the horse carries you across, together, before goodbye
+    this.riverWidth = 420;       // a real river — too wide and deep to cross on foot
+    this.riverTorchX = 3680;     // checkpoint torch on the near bank of the river
+    this.stoneXs = [5020, 5110, 5200, 5290, 5380];  // 5 stones with real gaps to jump across
+    this.respawnX = 3680;        // default checkpoint — updates to each torch you light
     this.respawnY = this.groundY - 40;
-    this.torchX = 3940;          // torch checkpoint before the crossing
+    this.torchX = 4940;          // torch checkpoint before the crossing
     this.saidGoodbye = false;
-    this.grassWidth = 320;
+    this.grassWidth = 440;
     this.horseFed = false;
     this.riding = false;
     this.carryingCat = false;
@@ -86,10 +89,19 @@ export default class ForestScene extends Phaser.Scene {
     this.platforms = this.physics.add.staticGroup();
     const gapL = this.crossX - this.crossWidth / 2;
     const gapR = this.crossX + this.crossWidth / 2;
+    const rivL = this.riverX - this.riverWidth / 2;
+    const rivR = this.riverX + this.riverWidth / 2;
     for (let x = 0; x < worldWidth; x += 16) {
-      if (x > gapL - 16 && x < gapR) continue;   // gap over the water (no tile bleed)
+      if (x > gapL - 16 && x < gapR) continue;   // gap over the stepping-stone water
+      if (x > rivL - 16 && x < rivR) continue;   // gap over the river
       this.platforms.create(x, this.groundY, 'grass').setOrigin(0, 0).refreshBody();
     }
+    // river water filling its pit (same deep look as the crossing)
+    this.add.rectangle(this.riverX, this.groundY + 14, this.riverWidth + 20, 200, 0x24414f, 0.92).setOrigin(0.5, 0).setDepth(3);
+    // a waterline strip drawn ABOVE the horse — its legs sink behind this, so it reads as in the water
+    this.add.rectangle(this.riverX, this.groundY + 18, this.riverWidth + 20, 26, 0x2c4d5c, 0.95).setOrigin(0.5, 0).setDepth(11);
+    this.add.rectangle(this.riverX, this.groundY + 18, this.riverWidth + 20, 5, 0x4a7286, 0.55).setOrigin(0.5, 0).setDepth(12);
+
     // water filling the pit (visual) — sits below the ground line, deep
     this.add.rectangle(this.crossX, this.groundY + 14, this.crossWidth + 20, 200, 0x24414f, 0.92).setOrigin(0.5, 0).setDepth(3);
     this.add.rectangle(this.crossX, this.groundY + 16, this.crossWidth - 10, 8, 0x4a7286, 0.7).setOrigin(0.5, 0).setDepth(4);
@@ -111,6 +123,15 @@ export default class ForestScene extends Phaser.Scene {
       .setOrigin(0.5, 1).setScale(1.8).setDepth(7).setVisible(false);
     this.torchGlow = this.add.circle(this.torchX, this.groundY - 60, 34, 0xffb347, 0).setDepth(5);
     this.torchLit = false;
+
+    // ── river torch checkpoint on the near bank — starts UNLIT, lights as you pass ──
+    this.riverTorchSprite = this.add.image(this.riverTorchX, this.groundY + 2, 'torch')
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
+    this.riverTorchSprite.setTint(0x555555);
+    this.riverTorchFlame = this.add.image(this.riverTorchX, this.groundY - 52, 'flame')
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(7).setVisible(false);
+    this.riverTorchGlow = this.add.circle(this.riverTorchX, this.groundY - 60, 34, 0xffb347, 0).setDepth(5);
+    this.riverTorchLit = false;
 
 
     // ── lake (visual pool on the shore) ──
@@ -149,6 +170,12 @@ export default class ForestScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.player, this.stones);
 
+    // ── river crossing: an invisible floor across the gap, solid ONLY while riding ──
+    // ride over it and the horse carries you across the surface; on foot it passes and you fall in
+    this.riverBridge = this.add.rectangle(this.riverX, this.groundY + 30, this.riverWidth + 8, 12).setVisible(false);
+    this.physics.add.existing(this.riverBridge, true);
+    this.physics.add.collider(this.player, this.riverBridge, null, () => this.riding, this);
+
     // ── cat-on-cliff: the final cliff top (reached by climbing mushrooms) ──
     this.ledges = this.physics.add.staticGroup();
     const makeLedge = (x, topY, w, h = 320) => {
@@ -161,7 +188,7 @@ export default class ForestScene extends Phaser.Scene {
       ledge.body.checkCollision.right = false;
       this.ledges.add(ledge);
     };
-    this.cliffTopX = 5260;
+    this.cliffTopX = 5960;
     this.cliffTopY = this.groundY - 300;
     makeLedge(this.cliffTopX + 10, this.cliffTopY, 240, 16);   // collision strip — only under the visible flat green
 
@@ -169,7 +196,7 @@ export default class ForestScene extends Phaser.Scene {
     // checkpoint is needed; the mushroom hill is a gentle, no-death section.)
 
     // ── third torch on the ground past the cliff — checkpoint before the bramble ──
-    this.brambleTorchX = 5800;
+    this.brambleTorchX = 6500;
     this.brambleTorchSprite = this.add.image(this.brambleTorchX, this.groundY + 2, 'torch')
       .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
     this.brambleTorchSprite.setTint(0x555555);   // dark/unlit look
@@ -214,7 +241,7 @@ export default class ForestScene extends Phaser.Scene {
     // ── a green mountain SLOPE rising to the cliff, with bounce mushrooms and
     // little flowers growing on it. the slope is the look; the mushrooms on top
     // are what you bounce up. ──
-    const mtnLeft = 4560, peakX = 5240;
+    const mtnLeft = 5260, peakX = 5940;
     const peakTop = this.cliffTopY;                 // slope meets the cliff height
 
     // the green surface height at a given x — a smooth diagonal rising left->right
@@ -334,7 +361,7 @@ export default class ForestScene extends Phaser.Scene {
 
 
     // ── bramble thicket past the cliff — a frightened bird is tangled inside ──
-    this.brambleX = 6100;
+    this.brambleX = 6800;
     this.brambleWidth = 280;
     this.brambleBlades = [];
     for (let bx = this.brambleX - this.brambleWidth / 2; bx <= this.brambleX + this.brambleWidth / 2; bx += 20) {
@@ -346,7 +373,7 @@ export default class ForestScene extends Phaser.Scene {
       this.brambleBlades.push(thorn);
     }
     // the trapped bird, low in the thorns near the far side
-    this.birdX = 6180;
+    this.birdX = 6880;
     this.birdFreed = false;
     this.birdHintShown = false;
     this.birdPanicking = false;
@@ -728,6 +755,30 @@ export default class ForestScene extends Phaser.Scene {
 
     const px = this.player.x;
 
+    // ── light the river torch as you approach the near bank ──
+    if (!this.riverTorchLit && Math.abs(px - this.riverTorchX) < 50) {
+      this.riverTorchLit = true;
+      this.respawnX = this.riverTorchX;       // this is your checkpoint now
+      this.respawnY = this.groundY - 40;
+      this.riverTorchSprite.clearTint();
+      this.riverTorchFlame.setVisible(true);
+      this.tweens.add({ targets: this.riverTorchFlame, angle: { from: -4, to: 4 },
+        duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.riverTorchFlame, scaleY: { from: 1.8, to: 1.95 },
+        duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.riverTorchGlow, alpha: 0.18, duration: 600, ease: 'Sine.out',
+        onComplete: () => {
+          this.tweens.add({ targets: this.riverTorchGlow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
+            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        } });
+      for (let i = 0; i < 10; i++) {
+        const sp = this.add.circle(this.riverTorchX, this.groundY - 50, 2, 0xffd27a, 0.9).setDepth(7);
+        const a = Math.random() * Math.PI * 2;
+        this.tweens.add({ targets: sp, x: this.riverTorchX + Math.cos(a) * 26, y: this.groundY - 50 + Math.sin(a) * 26 - 14,
+          alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
+      }
+    }
+
     // ── light the torch as you pass it (a warm point in the cold forest) ──
     if (!this.torchLit && Math.abs(px - this.torchX) < 50) {
       this.torchLit = true;
@@ -783,8 +834,9 @@ export default class ForestScene extends Phaser.Scene {
     // steer with left/right. there's no pit to fall into, so no respawn needed.
 
     // ── stepping-stone water: fall in -> gentle splash, hop back to the bank ──
-    if (this.player.y > this.groundY + 24 && this.player.body.velocity.y >= 0 &&
-        px > this.crossX - this.crossWidth / 2 && px < this.crossX + this.crossWidth / 2) {
+    const inCrossGap = px > this.crossX - this.crossWidth / 2 && px < this.crossX + this.crossWidth / 2;
+    const inRiverGap = px > this.riverX - this.riverWidth / 2 && px < this.riverX + this.riverWidth / 2;
+    if (this.player.y > this.groundY + 24 && this.player.body.velocity.y >= 0 && (inCrossGap || inRiverGap)) {
       // little splash
       for (let i = 0; i < 8; i++) {
         const drop = this.add.circle(this.player.x, this.groundY + 30, 3, 0x9fd4e0, 0.8).setDepth(60);
@@ -807,7 +859,10 @@ export default class ForestScene extends Phaser.Scene {
     // hold Shift to move slowly and gently (only on foot, not riding)
     this.movingSlow = this.keyShift.isDown && !this.riding;
     const baseSpeed = this.riding ? this.rideSpeed : this.walkSpeed;
-    const speed = this.movingSlow ? 90 : baseSpeed, jumpSpeed = -480;
+    const inRiver = px > this.riverX - this.riverWidth / 2 && px < this.riverX + this.riverWidth / 2;
+    const wading = this.riding && inRiver;
+    let speed = this.movingSlow ? 90 : baseSpeed, jumpSpeed = -480;
+    if (wading) speed = 150;   // the horse slows to wade through the deep water
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
@@ -942,8 +997,23 @@ export default class ForestScene extends Phaser.Scene {
     if (this.riding) {
       this.horseSprite.x = this.player.x + 4;
       this.horseSprite.setFlipX(!this.player.flipX);
-      // horse sits just below the player and follows the full jump arc
+      // normal riding — horse sits just below the player, as it always did
       this.horseSprite.y = this.player.y + 22;
+      if (wading) {
+        // wading the river ONLY — the horse sinks chest-deep and bobs, water hiding its legs
+        const bob = Math.sin(this.time.now / 200) * 3;
+        this.horseSprite.y = this.player.y + 50 + bob;   // sinks lower into the water while crossing
+        // ripples trailing at the waterline as the horse moves
+        if (Math.abs(this.player.body.velocity.x) > 20 && this.time.now % 6 < 1) {
+          const rip = this.add.ellipse(this.horseSprite.x, this.groundY + 8, 20, 5, 0x9fd4e0, 0.5).setDepth(5);
+          this.tweens.add({ targets: rip, scaleX: 2.4, scaleY: 1.4, alpha: 0,
+            duration: 900, ease: 'Sine.out', onComplete: () => rip.destroy() });
+        }
+        if (!this.riverThoughtShown) {
+          this.riverThoughtShown = true;
+          this.showThought("steady. i've got you.", 3000);
+        }
+      }
     } else if (this.horseFed && !this.saidGoodbye) {
       // dismounted companion — the horse gently trails behind you
       const behind = this.player.x - (this.player.flipX ? -70 : 70);
