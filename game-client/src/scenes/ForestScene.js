@@ -9,7 +9,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 7600;
+    const worldWidth = 8600;
     this.groundY = height - 60;
 
     this.makeTextures();
@@ -168,6 +168,7 @@ export default class ForestScene extends Phaser.Scene {
     this.player.setOffset(14, 18);
     this.player.setDepth(10);
     this.physics.add.collider(this.player, this.platforms);
+
     this.physics.add.collider(this.player, this.stones);
 
     // ── river crossing: an invisible floor across the gap, solid ONLY while riding ──
@@ -188,7 +189,7 @@ export default class ForestScene extends Phaser.Scene {
       ledge.body.checkCollision.right = false;
       this.ledges.add(ledge);
     };
-    this.cliffTopX = 5960;
+    this.cliffTopX = 6460;
     this.cliffTopY = this.groundY - 300;
     makeLedge(this.cliffTopX + 10, this.cliffTopY, 240, 16);   // collision strip — only under the visible flat green
 
@@ -196,7 +197,7 @@ export default class ForestScene extends Phaser.Scene {
     // checkpoint is needed; the mushroom hill is a gentle, no-death section.)
 
     // ── third torch on the ground past the cliff — checkpoint before the bramble ──
-    this.brambleTorchX = 6500;
+    this.brambleTorchX = 6900;
     this.brambleTorchSprite = this.add.image(this.brambleTorchX, this.groundY + 2, 'torch')
       .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
     this.brambleTorchSprite.setTint(0x555555);   // dark/unlit look
@@ -241,7 +242,7 @@ export default class ForestScene extends Phaser.Scene {
     // ── a green mountain SLOPE rising to the cliff, with bounce mushrooms and
     // little flowers growing on it. the slope is the look; the mushrooms on top
     // are what you bounce up. ──
-    const mtnLeft = 5260, peakX = 5940;
+    const mtnLeft = 5760, peakX = 6440;
     const peakTop = this.cliffTopY;                 // slope meets the cliff height
 
     // the green surface height at a given x — a smooth diagonal rising left->right
@@ -361,7 +362,7 @@ export default class ForestScene extends Phaser.Scene {
 
 
     // ── bramble thicket past the cliff — a frightened bird is tangled inside ──
-    this.brambleX = 6800;
+    this.brambleX = 7200;
     this.brambleWidth = 280;
     this.brambleBlades = [];
     for (let bx = this.brambleX - this.brambleWidth / 2; bx <= this.brambleX + this.brambleWidth / 2; bx += 20) {
@@ -373,7 +374,7 @@ export default class ForestScene extends Phaser.Scene {
       this.brambleBlades.push(thorn);
     }
     // the trapped bird, low in the thorns near the far side
-    this.birdX = 6880;
+    this.birdX = 7280;
     this.birdFreed = false;
     this.birdHintShown = false;
     this.birdPanicking = false;
@@ -382,6 +383,40 @@ export default class ForestScene extends Phaser.Scene {
     // an anxious little flutter — it's struggling to get free
     this.tweens.add({ targets: this.birdSprite, angle: { from: -6, to: 6 },
       duration: 220, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+
+    // ── resting field — trees, bushes, grass, and flowers, a wide quiet place after the bird ──
+    this.restTreeX = 8000;
+    // a smaller tree close beside the big one, slightly behind — a natural pair, not a row
+    this.add.image(this.restTreeX - 75, this.groundY + 4, 'tree-healthy')
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(4).setTint(0xc9d9c2);
+    this.add.image(this.restTreeX, this.groundY + 4, 'tree-healthy')
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
+    // bushes scattered at a few points, mid-height texture between flowers and trees
+    const restBushXs = [-300, -210, -50, 90, 190, 300];
+    restBushXs.forEach((dx) => {
+      this.add.image(this.restTreeX + dx + (Math.random() * 20 - 10), this.groundY + 4, 'bush')
+        .setOrigin(0.5, 1).setScale(0.9 + Math.random() * 0.4).setDepth(5);
+    });
+    // tufts of grass scattered through the field, uneven and low
+    const restGrassXs = [-320, -270, -220, -170, -120, -70, -20, 30, 80, 130, 180, 230, 280, 320];
+    restGrassXs.forEach((dx) => {
+      this.add.image(this.restTreeX + dx + (Math.random() * 14 - 7), this.groundY + 4, 'tallgrass')
+        .setOrigin(0.5, 1).setScale(0.5 + Math.random() * 0.25).setDepth(5).setAlpha(0.9);
+    });
+    // flowers scattered unevenly through the field — not a neat row
+    const restFlowerXs = [-330, -300, -260, -230, -195, -160, -130, -95, -65, -30, 5, 40,
+                           75, 110, 145, 180, 215, 250, 285, 315];
+    restFlowerXs.forEach((dx) => {
+      const key = Math.random() < 0.5 ? 'flower-white' : 'flower-yellow';
+      const fx = this.restTreeX + dx + (Math.random() * 16 - 8);
+      const scale = 1.0 + Math.random() * 0.5;
+      this.add.image(fx, this.groundY + 4, key).setOrigin(0.5, 1).setScale(scale).setDepth(5);
+    });
+    this.restEntryShown = false;
+    this.resting = false;
+    this.restTimer = 0;
+    this.restBirdVisited = false;
+    this.restRabbitsVisited = false;
 
     // ── the horse + its gate ──
     this.horseSprite = this.add.image(this.horseX, this.groundY + 2, 'horse')
@@ -411,7 +446,7 @@ export default class ForestScene extends Phaser.Scene {
     this.keyE = this.input.keyboard.addKey('E');
     this.keyI = this.input.keyboard.addKey('I');
     // ── DEBUG teleport keys (harmless in normal play — just don't press them) ──
-    this.debugKeys = this.input.keyboard.addKeys('ONE,TWO,THREE,FOUR');
+    this.debugKeys = this.input.keyboard.addKeys('ONE,TWO,THREE,FOUR,FIVE');
     // hold to walk slowly and gently — matters most in the bramble
     this.keyShift = this.input.keyboard.addKey('SHIFT');
 
@@ -625,6 +660,50 @@ export default class ForestScene extends Phaser.Scene {
       g.fillRect(5, 8, 2, 2); g.fillRect(10, 8, 2, 2);     // eyes
     }, 32, 28, 'cat-sit');
 
+    // rabbit (sitting) — calm, ears up, front paws down, haunches tucked
+    make((g) => {
+      g.fillStyle(0xc9bba5);
+      g.fillEllipse(11, 13, 16, 11);                // body
+      g.fillEllipse(5, 7, 8, 7);                    // head
+      g.fillRect(1, -1, 2, 8);                      // ear
+      g.fillRect(5, -1, 2, 8);                      // ear
+      g.fillRect(4, 16, 3, 5);                      // front paw, down and visible
+      g.fillRect(9, 16, 3, 5);                      // front paw, down and visible
+      g.fillEllipse(15, 14, 4, 3);                  // tail, small round
+      g.fillStyle(0xa89a82);
+      g.fillEllipse(16, 17, 8, 5);                  // back haunch, tucked and rounded
+      g.fillStyle(0x2b2620);
+      g.fillRect(2, 6, 2, 2);                       // eye
+    }, 20, 22, 'rabbit-sit');
+
+    // rabbit (hop) — mid-leap, body stretched low, all four legs visible
+    make((g) => {
+      g.fillStyle(0xc9bba5);
+      g.fillEllipse(12, 10, 18, 9);                 // body, stretched
+      g.fillEllipse(4, 6, 7, 6);                    // head, low and forward
+      g.fillRect(0, 0, 2, 6);                       // ear, swept back
+      g.fillRect(3, -1, 2, 7);                      // ear, swept back
+      g.fillRect(2, 14, 3, 5);                      // front leg, extended forward
+      g.fillRect(8, 14, 3, 4);                      // front leg, trailing
+      g.fillRect(16, 13, 3, 6);                     // back leg, pushing off, bent
+      g.fillRect(20, 12, 3, 5);                     // back leg, pushing off, bent
+      g.fillEllipse(21, 9, 4, 3);                   // tail
+      g.fillStyle(0x2b2620);
+      g.fillRect(1, 5, 2, 2);                       // eye
+    }, 24, 20, 'rabbit-hop');
+
+    // bush — a low flowering shrub, a few overlapping rounded clusters
+    make((g) => {
+      g.fillStyle(0x5c8a4a);
+      g.fillEllipse(16, 18, 30, 22);
+      g.fillEllipse(6, 14, 18, 16);
+      g.fillEllipse(26, 14, 18, 16);
+      g.fillStyle(0x6f9f55);
+      g.fillEllipse(16, 10, 22, 16);
+      g.fillStyle(0xf4f4ee);
+      g.fillCircle(9, 12, 2); g.fillCircle(22, 9, 2); g.fillCircle(16, 16, 2);
+    }, 32, 26, 'bush');
+
     // horse — simple standing silhouette (faces left, toward you)
     make((g) => {
       g.fillStyle(0x6b4f3a);
@@ -752,8 +831,15 @@ export default class ForestScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.debugKeys.TWO)) this.player.setPosition(2700, this.groundY - 40);
     if (Phaser.Input.Keyboard.JustDown(this.debugKeys.THREE)) this.player.setPosition(4600, this.groundY - 40);
     if (Phaser.Input.Keyboard.JustDown(this.debugKeys.FOUR)) this.player.setPosition(5750, this.groundY - 40);
+    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.FIVE)) this.player.setPosition(this.restTreeX - 100, this.groundY - 40);
 
     const px = this.player.x;
+
+    // ── arriving at the resting field ──
+    if (!this.restEntryShown && Math.abs(px - this.restTreeX) < 220) {
+      this.restEntryShown = true;
+      this.showThought('what a lovely place to rest.', 3200);
+    }
 
     // ── light the river torch as you approach the near bank ──
     if (!this.riverTorchLit && Math.abs(px - this.riverTorchX) < 50) {
@@ -869,7 +955,55 @@ export default class ForestScene extends Phaser.Scene {
                  Phaser.Input.Keyboard.JustDown(this.wasd.W) ||
                  Phaser.Input.Keyboard.JustDown(this.cursors.space);
 
-    if (left) {
+    if (this.resting) {
+      this.player.setVelocity(0, 0);
+      this.restTimer += this.game.loop.delta;
+
+      // ── the bird you freed comes to visit, quickly enough not to be missed ──
+      if (this.birdFreed && !this.restBirdVisited && this.restTimer > 1200) {
+        this.restBirdVisited = true;
+        const bx = this.player.x + (this.player.flipX ? -60 : 60);
+        this.birdSprite.setPosition(bx + 40, this.groundY - 220).setAlpha(1).setVisible(true).setAngle(0);
+        this.tweens.add({ targets: this.birdSprite, x: bx, y: this.groundY - 28,
+          duration: 900, ease: 'Sine.out',
+          onComplete: () => {
+            this.showThought('you again.', 2600);
+            this.tweens.add({ targets: this.birdSprite, angle: { from: -4, to: 4 },
+              duration: 260, yoyo: true, repeat: 4,
+              onComplete: () => {
+                // a little grateful hop, then off into the trees
+                this.tweens.add({ targets: this.birdSprite, y: this.groundY - 60, duration: 300, yoyo: true,
+                  onComplete: () => {
+                    this.tweens.add({ targets: this.birdSprite, x: bx + 700, y: this.groundY - 480,
+                      duration: 2000, ease: 'Sine.in', onComplete: () => this.birdSprite.setVisible(false) });
+                  } });
+              } });
+          } });
+      }
+
+      // ── two rabbits pass through, unhurried, because the forest trusts stillness ──
+      if (!this.restRabbitsVisited && this.restTimer > 3400) {
+        this.restRabbitsVisited = true;
+        const startX = this.player.x - 220, pauseX = this.player.x - 20, exitX = this.player.x + 600;
+        [0, 500].forEach((delay) => {
+          this.time.delayedCall(delay, () => {
+            const rb = this.add.image(startX, this.groundY - 2, 'rabbit-hop')
+              .setOrigin(0.5, 1).setScale(1.1).setDepth(9);
+            const hopY = this.groundY - 2;
+            const hopBounce = this.tweens.add({ targets: rb, y: hopY - 10, duration: 220,
+              yoyo: true, repeat: -1, ease: 'Sine.out' });
+            // hop in, pause a moment nearby, then hop off-screen and away
+            this.tweens.add({ targets: rb, x: pauseX, duration: 1400, ease: 'Sine.inOut',
+              onComplete: () => {
+                this.time.delayedCall(1000, () => {
+                  this.tweens.add({ targets: rb, x: exitX, duration: 2400, ease: 'Sine.in',
+                    onComplete: () => { hopBounce.stop(); rb.destroy(); } });
+                });
+              } });
+          });
+        });
+      }
+    } else if (left) {
       this.player.setVelocityX(-speed); this.player.setFlipX(true);
       if (onGround && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
     } else if (right) {
@@ -878,7 +1012,7 @@ export default class ForestScene extends Phaser.Scene {
     } else if (onGround && this.player.anims.currentAnim?.key !== 'idle') {
       this.player.play('idle');
     }
-    if (jump && onGround) this.player.setVelocityY(this.riding ? -540 : -340);
+    if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -540 : -340);
 
     // ── riding: horse moves under the player ──
     // ── tall-grass gate ──
@@ -1045,7 +1179,15 @@ export default class ForestScene extends Phaser.Scene {
     else if (!this.birdFreed && !this.birdPanicking && this.movingSlow && Math.abs(px - this.birdX) < 60) { label = 'free the bird'; action = 'freebird'; }
     else if (this.horseFed && !this.saidGoodbye && Math.abs(px - this.meadowX) < 160) { label = 'say goodbye'; action = 'farewell'; }
     else if (this.horseFed && !this.riding && !this.saidGoodbye && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
-    else if (!this.horseFed && near(this.horseX, 95)) { label = null; }
+    else if (!this.resting && !this.riding && onGround && Math.abs(px - this.restTreeX) < 90) { label = 'lay down to rest'; action = 'restdown'; }
+    else if (this.resting) { label = 'get up'; action = 'restup'; }
+    else if (!this.horseFed && near(this.horseX, 95)) {
+      label = null;
+      if (!this.horseHungryHintShown) {
+        this.horseHungryHintShown = true;
+        this.showThought('the horse looks hungry.', 3200);
+      }
+    }
     else {
       const mh = this.meadowHorses && this.meadowHorses.find((m) => !m.fed && Math.abs(px - m.baseX) < 70);
       if (mh && (this.inventory.carrots || 0) > 0) { label = 'give a carrot'; action = 'feedmeadow'; this._nearMeadow = mh; }
@@ -1134,6 +1276,20 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
+    if (action === 'restdown') {
+      this.resting = true;
+      this.restTimer = 0;
+      this.player.setVelocity(0, 0);
+      this.player.body.setAllowGravity(false);   // stay put on the ground while resting
+      this.player.play('idle');
+      // TODO: swap for a real lay-down sprite in the art pass
+      return;
+    }
+    if (action === 'restup') {
+      this.resting = false;
+      this.player.body.setAllowGravity(true);
+      return;
+    }
     if (action === 'freebird') {
       this.birdFreed = true;
       this.tweens.killTweensOf(this.birdSprite);
