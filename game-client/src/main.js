@@ -4,6 +4,7 @@ import LoginScene from './scenes/LoginScene.js';
 import GameScene from './scenes/GameScene.js';
 import MorningScene from './scenes/MorningScene.js';
 import ForestScene from './scenes/ForestScene.js';
+import EndingScene from './scenes/EndingScene.js';
 import { auth } from './services/auth.js';
 
 const config = {
@@ -24,7 +25,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [BootScene, LoginScene, MorningScene, GameScene, ForestScene]
+  scene: [BootScene, LoginScene, MorningScene, GameScene, ForestScene, EndingScene]
 };
 
 const game = new Phaser.Game(config);

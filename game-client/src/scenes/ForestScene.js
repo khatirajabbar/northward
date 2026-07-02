@@ -861,6 +861,17 @@ export default class ForestScene extends Phaser.Scene {
       this.showThought('someone is crying out there. maybe they need help.', 3800);
     }
 
+    // ── arriving — fade to black and hand off to the ending ──
+    this.endingTransitionX = this.restTreeX + 1500;
+    if (!this.endingTriggered && this.cryingHeard && px > this.endingTransitionX) {
+      this.endingTriggered = true;
+      this.player.setVelocity(0, 0);
+      this.cameras.main.fadeOut(1400, 0, 0, 0);
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        this.scene.start('EndingScene');
+      });
+    }
+
     // ── light the river torch as you approach the near bank ──
     if (!this.riverTorchLit && Math.abs(px - this.riverTorchX) < 50) {
       this.riverTorchLit = true;
