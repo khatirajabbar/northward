@@ -9,7 +9,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 8600;
+    const worldWidth = 10200;
     this.groundY = height - 60;
 
     this.makeTextures();
@@ -392,20 +392,23 @@ export default class ForestScene extends Phaser.Scene {
     this.add.image(this.restTreeX, this.groundY + 4, 'tree-healthy')
       .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
     // bushes scattered at a few points, mid-height texture between flowers and trees
-    const restBushXs = [-300, -210, -50, 90, 190, 300];
+    const restBushXs = [-300, -210, -50, 90, 190, 300, 480, 680, 900, 1150];
     restBushXs.forEach((dx) => {
       this.add.image(this.restTreeX + dx + (Math.random() * 20 - 10), this.groundY + 4, 'bush')
         .setOrigin(0.5, 1).setScale(0.9 + Math.random() * 0.4).setDepth(5);
     });
     // tufts of grass scattered through the field, uneven and low
-    const restGrassXs = [-320, -270, -220, -170, -120, -70, -20, 30, 80, 130, 180, 230, 280, 320];
+    const restGrassXs = [-320, -270, -220, -170, -120, -70, -20, 30, 80, 130, 180, 230, 280, 320,
+                          360, 400, 440, 490, 540, 590, 650, 700, 760, 820, 880, 940,
+                          1000, 1070, 1140, 1200, 1265, 1330];
     restGrassXs.forEach((dx) => {
       this.add.image(this.restTreeX + dx + (Math.random() * 14 - 7), this.groundY + 4, 'tallgrass')
         .setOrigin(0.5, 1).setScale(0.5 + Math.random() * 0.25).setDepth(5).setAlpha(0.9);
     });
     // flowers scattered unevenly through the field — not a neat row
     const restFlowerXs = [-330, -300, -260, -230, -195, -160, -130, -95, -65, -30, 5, 40,
-                           75, 110, 145, 180, 215, 250, 285, 315];
+                           75, 110, 145, 180, 215, 250, 285, 315,
+                           380, 460, 550, 650, 760, 870, 990, 1120, 1260, 1390];
     restFlowerXs.forEach((dx) => {
       const key = Math.random() < 0.5 ? 'flower-white' : 'flower-yellow';
       const fx = this.restTreeX + dx + (Math.random() * 16 - 8);
@@ -839,6 +842,23 @@ export default class ForestScene extends Phaser.Scene {
     if (!this.restEntryShown && Math.abs(px - this.restTreeX) < 220) {
       this.restEntryShown = true;
       this.showThought('what a lovely place to rest.', 3200);
+    }
+
+    // ── a scream, far off. something has happened ──
+    this.screamX = this.restTreeX + 500;
+    if (!this.screamHeard && px > this.screamX) {
+      this.screamHeard = true;
+      // a beat of stillness before the thought lands — the character pausing to listen
+      this.time.delayedCall(400, () => {
+        this.showThought('someone is screaming.', 3200);
+      });
+    }
+
+    // ── the crying settles in, after more walking, further along ──
+    this.cryingCueX = this.restTreeX + 1150;
+    if (!this.cryingHeard && this.screamHeard && px > this.cryingCueX) {
+      this.cryingHeard = true;
+      this.showThought('someone is crying out there. maybe they need help.', 3800);
     }
 
     // ── light the river torch as you approach the near bank ──
