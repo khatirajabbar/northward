@@ -14,7 +14,12 @@ export default class EndingScene extends Phaser.Scene {
       frameWidth: 48,
       frameHeight: 48
     });
+    this.load.spritesheet('player-oliver', 'assets/characters/player-oliver.png', {
+      frameWidth: 48,
+      frameHeight: 48
+    });
   }
+  
 
   create() {
     const { width, height } = this.scale;
@@ -186,7 +191,7 @@ export default class EndingScene extends Phaser.Scene {
 
     // ── the crying figure, hunched under the tree ──
     // TODO: audio — thin wind and a soft crying loop, very quiet (sound pass)
-  this.figure = this.add.image(this.figureHomeX, this.groundY + 2, 'player-khatira', 7)
+  this.figure = this.add.image(this.figureHomeX, this.groundY + 2, 'player-oliver', 7)
       .setOrigin(0.5, 1).setScale(1.5).setDepth(9);
     // small tremble in the shoulders
     this.cryTween = this.tweens.add({ targets: this.figure, y: this.groundY + 0.5,
@@ -725,7 +730,7 @@ export default class EndingScene extends Phaser.Scene {
       // partway through the quiet, their head lifts — no words for it
       if (!this.figureEased && this.sitTimer > 4000) {
         this.figureEased = true;
-        this.figure.setTexture('player-khatira', 8);
+        this.figure.setTexture('player-oliver', 8);
       }
       // and far off, a small bird crosses the warm sky
       if (!this.skyBirdFlown && this.sitTimer > 6500) {
@@ -782,10 +787,10 @@ export default class EndingScene extends Phaser.Scene {
       // TODO: swap for real kneeling/digging sprites in the art pass
       // TODO: audio — no music here, just wind and the soft sound of earth (sound pass)
       this.cryTween.stop();
-      this.figure.setTexture('player-khatira', 9);
+      this.figure.setTexture('player-oliver', 9);
       this.figure.y = this.groundY + 2;
       this.tweens.add({ targets: this.figure, x: this.birdX + 36, duration: 1700, ease: 'Sine.inOut',
-        onComplete: () => this.figure.setTexture('player-khatira', 10) });
+        onComplete: () => this.figure.setTexture('player-oliver', 10) });
       // six small handfuls of earth, taking turns — no hurry
       for (let i = 0; i < 6; i++) {
         this.time.delayedCall(2100 + i * 420, () => {
@@ -813,10 +818,10 @@ export default class EndingScene extends Phaser.Scene {
       });
       // then they go back to their place and sit — quieter than before
       this.time.delayedCall(5900, () => {
-        this.figure.setTexture('player-khatira', 9);
+        this.figure.setTexture('player-oliver', 9);
         this.tweens.add({ targets: this.figure, x: this.figureHomeX - 10, duration: 1500, ease: 'Sine.inOut',
           onComplete: () => {
-            this.figure.setTexture('player-khatira', 7);
+            this.figure.setTexture('player-oliver', 7);
             this.cryTween = this.tweens.add({ targets: this.figure, y: this.groundY + 1,
               duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
           } });
@@ -836,11 +841,11 @@ export default class EndingScene extends Phaser.Scene {
       // and they get up to help — the fire is built together
       this.time.delayedCall(1300, () => {
         this.cryTween.stop();
-        this.figure.setTexture('player-khatira', 9);
+        this.figure.setTexture('player-oliver', 9);
         this.figure.y = this.groundY + 2;
         this.tweens.add({ targets: this.figure, x: this.figureFireX, duration: 2200, ease: 'Sine.inOut',
           onComplete: () => {
-            this.figure.setTexture('player-khatira', 7);
+            this.figure.setTexture('player-oliver', 7);
             // they add a branch of their own, and the spark takes
             const stick = this.add.image(this.figure.x - 10, this.groundY - 30, 'stick')
               .setOrigin(0.5).setScale(1.4).setDepth(8);
