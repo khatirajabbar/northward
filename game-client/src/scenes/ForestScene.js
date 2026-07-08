@@ -261,13 +261,13 @@ export default class ForestScene extends Phaser.Scene {
     });
 
     // ── player ──
-    this.player = this.physics.add.sprite(120, this.groundY - 40, 'player', 12);
+    this.player = this.physics.add.sprite(120, this.groundY - 40, 'lpc-khatira-idle', 39);
     this.player.setCollideWorldBounds(true);
     this.player.setDragX(800);
     this.player.setMaxVelocity(220, 700);
-    this.player.setScale(1.5);
-    this.player.setSize(20, 28);
-    this.player.setOffset(14, 18);
+    this.player.setScale(1);
+    this.player.setSize(20, 34);
+    this.player.setOffset(22, 26);
     this.player.setDepth(10);
     this.physics.add.collider(this.player, this.platforms);
 
@@ -580,7 +580,7 @@ export default class ForestScene extends Phaser.Scene {
       fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#cfe8d8'
     }).setOrigin(1, 0).setScrollFactor(0).setDepth(200).setAlpha(0.3);
 
-    this.player.play('idle');
+    this.player.play('lpc-idle');
     this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
   }
 
@@ -1358,12 +1358,12 @@ export default class ForestScene extends Phaser.Scene {
       }
     } else if (left) {
       this.player.setVelocityX(-speed); this.player.setFlipX(true);
-      if (onGround && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
+      if (onGround && this.player.anims.currentAnim?.key !== 'lpc-walk') this.player.play('lpc-walk');
     } else if (right) {
       this.player.setVelocityX(speed); this.player.setFlipX(false);
-      if (onGround && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
-    } else if (onGround && this.player.anims.currentAnim?.key !== 'idle') {
-      this.player.play('idle');
+      if (onGround && this.player.anims.currentAnim?.key !== 'lpc-walk') this.player.play('lpc-walk');
+    } else if (onGround && this.player.anims.currentAnim?.key !== 'lpc-idle') {
+      this.player.play('lpc-idle');
     }
     if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -540 : -340);
 
@@ -1634,7 +1634,7 @@ export default class ForestScene extends Phaser.Scene {
       this.restTimer = 0;
       this.player.setVelocity(0, 0);
       this.player.body.setAllowGravity(false);   // stay put on the ground while resting
-      this.player.play('idle');
+      this.player.play('lpc-idle');
       // TODO: swap for a real lay-down sprite in the art pass
       return;
     }

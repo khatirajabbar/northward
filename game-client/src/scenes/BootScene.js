@@ -25,6 +25,19 @@ export default class BootScene extends Phaser.Scene {
       frameHeight: 48
     });
 
+    this.load.spritesheet('lpc-khatira-idle', 'assets/characters/lpc-khatira/standard/idle.png', {
+      frameWidth: 64,
+      frameHeight: 64
+    });
+    this.load.spritesheet('lpc-khatira-walk', 'assets/characters/lpc-khatira/standard/walk.png', {
+      frameWidth: 64,
+      frameHeight: 64
+    });
+    this.load.spritesheet('lpc-khatira-sit', 'assets/characters/lpc-khatira/standard/sit.png', {
+      frameWidth: 64,
+      frameHeight: 64
+    });
+
 
     this.load.image('grass', 'assets/tiles/grass.png');
 
@@ -139,6 +152,27 @@ export default class BootScene extends Phaser.Scene {
       repeat: -1
     });
 
+
+    this.anims.create({
+      key: 'lpc-idle',
+      frames: this.anims.generateFrameNumbers('lpc-khatira-idle', { start: 39, end: 40 }),
+      frameRate: 2,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'lpc-walk',
+      frames: this.anims.generateFrameNumbers('lpc-khatira-walk', { start: 40, end: 47 }),
+      frameRate: 10,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'lpc-sit',
+      frames: [{ key: 'lpc-khatira-sit', frame: 41 }],
+      frameRate: 1,
+      repeat: -1
+    });
 
     this.time.delayedCall(800, () => {
       this.scene.start('LoginScene');
