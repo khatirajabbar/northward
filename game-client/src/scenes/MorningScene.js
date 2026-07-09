@@ -122,7 +122,10 @@ export default class MorningScene extends Phaser.Scene {
 
   buildPlayer() {
     // physics player — arcade body + global gravity (matches GameScene)
-    this.player = this.physics.add.sprite(this.bedX + 70, this.floorY - 40, 'player', 12).setScale(3).setDepth(10);
+    // LPC frames are 64px; 1.2 matches the old 48px sprite's on-screen height
+    this.player = this.physics.add.sprite(this.bedX + 70, this.floorY - 40, 'lpc-khatira-idle', 39).setScale(1.2).setDepth(10);
+    this.player.setSize(20, 34);
+    this.player.setOffset(22, 26);
     this.player.setVisible(false);
     this.player.setCollideWorldBounds(true);
     this.player.body.setAllowGravity(false); // asleep: stay put until we wake
@@ -162,7 +165,7 @@ export default class MorningScene extends Phaser.Scene {
       this.player.setPosition(this.bedX + 70, this.floorY - 40);
       this.player.body.setAllowGravity(true);
       this.player.setAlpha(0).setVisible(true);
-      if (this.anims.exists('idle')) this.player.play('idle');
+      if (this.anims.exists('lpc-idle')) this.player.play('lpc-idle');
       this.tweens.add({
         targets: this.player, alpha: 1, duration: 700, ease: 'Sine.inOut',
         onComplete: () => { this.canMove = true; this.thoughtIdle(); }
@@ -238,7 +241,7 @@ export default class MorningScene extends Phaser.Scene {
       this.player.body.setAllowGravity(false);
       this.player.setVelocity(0, 0);
       this.player.setFlipX(false);
-      if (this.anims.exists('idle')) this.player.play('idle');
+      if (this.anims.exists('lpc-sit')) this.player.play('lpc-sit');
       this.mug.setVisible(true);
       this.cameras.main.fadeIn(700, 21, 17, 12);
       this.cameras.main.once('camerafadeincomplete', () => {
@@ -303,7 +306,7 @@ export default class MorningScene extends Phaser.Scene {
     this.player.body.setVelocity(0, 0);
     this.player.body.setAllowGravity(false);
     this.player.body.enable = false;
-    if (this.anims.exists(this.char?.walk || 'walk')) this.player.play(this.char?.walk || 'walk');
+    if (this.anims.exists(this.char?.walk || 'lpc-walk')) this.player.play(this.char?.walk || 'lpc-walk');
     this.player.setFlipX(false);
     this.tweens.add({
       targets: this.player, x: this.doorX, duration: 1500, ease: 'Sine.inOut',
@@ -354,9 +357,9 @@ export default class MorningScene extends Phaser.Scene {
 
     const moving = left || right;
     if (moving && onGround) {
-      if (this.anims.exists('walk') && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
+      if (this.anims.exists('lpc-walk') && this.player.anims.currentAnim?.key !== 'lpc-walk') this.player.play('lpc-walk');
     } else if (onGround) {
-      if (this.anims.exists('idle') && this.player.anims.currentAnim?.key !== 'idle') this.player.play('idle');
+      if (this.anims.exists('lpc-idle') && this.player.anims.currentAnim?.key !== 'lpc-idle') this.player.play('lpc-idle');
     }
 
     const s = this.nearestStation();

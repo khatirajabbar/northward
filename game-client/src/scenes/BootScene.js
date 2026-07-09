@@ -37,6 +37,19 @@ export default class BootScene extends Phaser.Scene {
       frameWidth: 64,
       frameHeight: 64
     });
+    this.load.spritesheet('lpc-khatira-jump', 'assets/characters/lpc-khatira/standard/jump.png', {
+      frameWidth: 64,
+      frameHeight: 64
+    });
+    // hurt.png is a single 13-frame row (832x64), not the usual 4-direction sheet
+    this.load.spritesheet('lpc-khatira-hurt', 'assets/characters/lpc-khatira/standard/hurt.png', {
+      frameWidth: 64,
+      frameHeight: 64
+    });
+    this.load.spritesheet('lpc-khatira-watering', 'assets/characters/lpc-khatira/standard/watering.png', {
+      frameWidth: 64,
+      frameHeight: 64
+    });
 
 
     this.load.image('grass', 'assets/tiles/grass.png');
@@ -174,8 +187,44 @@ export default class BootScene extends Phaser.Scene {
       repeat: -1
     });
 
+    this.anims.create({
+      key: 'lpc-jump',
+      frames: this.anims.generateFrameNumbers('lpc-khatira-jump', { start: 41, end: 43 }),
+      frameRate: 8,
+      repeat: 0
+    });
+
+    this.anims.create({
+      key: 'lpc-lie',
+      frames: [{ key: 'lpc-khatira-hurt', frame: 5 }],
+      frameRate: 1,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'lpc-rest',
+      frames: [{ key: 'lpc-khatira-sit', frame: 40 }],
+      frameRate: 1,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'lpc-water',
+      frames: this.anims.generateFrameNumbers('lpc-khatira-watering', { start: 39, end: 46 }),
+      frameRate: 8,
+      repeat: 0
+    });
+
+    // one frame at frameRate 4 = a 250ms bend-down beat
+    this.anims.create({
+      key: 'lpc-crouch',
+      frames: [{ key: 'lpc-khatira-jump', frame: 41 }],
+      frameRate: 4,
+      repeat: 0
+    });
+
     this.time.delayedCall(800, () => {
-      this.scene.start('LoginScene');
+      this.scene.start('ForestScene');
     });
   }
 }

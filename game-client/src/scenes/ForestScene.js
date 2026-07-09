@@ -554,6 +554,8 @@ export default class ForestScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, worldWidth, height + 400);
     this.cameras.main.setBounds(0, 0, worldWidth, height);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    // the lerped follow lands on fractional scroll positions; snap rendering to the pixel grid
+    this.cameras.main.setRoundPixels(true);
 
     // ── carried bucket (follows player) ──
     this.heldBucket = this.add.image(0, 0, 'bucket-empty')
@@ -1308,6 +1310,10 @@ export default class ForestScene extends Phaser.Scene {
                  Phaser.Input.Keyboard.JustDown(this.wasd.W) ||
                  Phaser.Input.Keyboard.JustDown(this.cursors.space);
 
+    // one-shot pose beats (watering, carrot crouch) hold off idle until they finish playing
+    const poseHold = this.player.anims.isPlaying &&
+      (this.player.anims.currentAnim?.key === 'lpc-water' || this.player.anims.currentAnim?.key === 'lpc-crouch');
+
     if (this.resting) {
       this.player.setVelocity(0, 0);
       this.restTimer += this.game.loop.delta;
@@ -1358,12 +1364,18 @@ export default class ForestScene extends Phaser.Scene {
       }
     } else if (left) {
       this.player.setVelocityX(-speed); this.player.setFlipX(true);
-      if (onGround && this.player.anims.currentAnim?.key !== 'lpc-walk') this.player.play('lpc-walk');
+      if (onGround && !this.riding && this.player.anims.currentAnim?.key !== 'lpc-walk') this.player.play('lpc-walk');
     } else if (right) {
       this.player.setVelocityX(speed); this.player.setFlipX(false);
-      if (onGround && this.player.anims.currentAnim?.key !== 'lpc-walk') this.player.play('lpc-walk');
-    } else if (onGround && this.player.anims.currentAnim?.key !== 'lpc-idle') {
+      if (onGround && !this.riding && this.player.anims.currentAnim?.key !== 'lpc-walk') this.player.play('lpc-walk');
+    } else if (onGround && !this.riding && !poseHold && this.player.anims.currentAnim?.key !== 'lpc-idle') {
       this.player.play('lpc-idle');
+    }
+    // riding and airborne poses override the on-foot walk/idle above
+    if (this.riding) {
+      if (this.player.anims.currentAnim?.key !== 'lpc-sit') this.player.play('lpc-sit');
+    } else if (!onGround && !this.resting) {
+      if (this.player.anims.currentAnim?.key !== 'lpc-jump') this.player.play('lpc-jump');
     }
     if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -540 : -340);
 
@@ -1484,12 +1496,13 @@ export default class ForestScene extends Phaser.Scene {
     if (this.riding) {
       this.horseSprite.x = this.player.x + 4;
       this.horseSprite.setFlipX(!this.player.flipX);
-      // normal riding — horse sits just below the player, as it always did
-      this.horseSprite.y = this.player.y + 22;
+      // normal riding — anchored to the body so the hoof line stays where it always was,
+      // even though the sprite itself is lifted onto the horse's back
+      this.horseSprite.y = this.player.body.bottom - 6;
       if (wading) {
         // wading the river ONLY — the horse sinks chest-deep and bobs, water hiding its legs
         const bob = Math.sin(this.time.now / 200) * 3;
-        this.horseSprite.y = this.player.y + 50 + bob;   // sinks lower into the water while crossing
+        this.horseSprite.y = this.player.body.bottom + 22 + bob;   // sinks lower into the water while crossing
         // ripples trailing at the waterline as the horse moves
         if (Math.abs(this.player.body.velocity.x) > 20 && this.time.now % 6 < 1) {
           const rip = this.add.ellipse(this.horseSprite.x, this.groundY + 8, 20, 5, 0x9fd4e0, 0.5).setDepth(5);
@@ -1571,6 +1584,8 @@ export default class ForestScene extends Phaser.Scene {
         this.showThought("the grass is too tall — i shouldn't get down here.");
       } else {
         this.riding = false;
+        this.player.setOffset(22, 26);
+        this.player.y += 74;
         this.showThought('back on your feet.');
       }
     } else if (action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
@@ -1634,8 +1649,7 @@ export default class ForestScene extends Phaser.Scene {
       this.restTimer = 0;
       this.player.setVelocity(0, 0);
       this.player.body.setAllowGravity(false);   // stay put on the ground while resting
-      this.player.play('lpc-idle');
-      // TODO: swap for a real lay-down sprite in the art pass
+      this.player.play('lpc-rest');
       return;
     }
     if (action === 'restup') {
@@ -1662,7 +1676,11 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (action === 'farewell') {
       this.saidGoodbye = true;
-      this.riding = false;
+      if (this.riding) {
+        this.riding = false;
+        this.player.setOffset(22, 26);
+        this.player.y += 74;
+      }
       // a heart floats up between you and the horse
       const hx = (this.player.x + this.horseSprite.x) / 2;
       const heart = this.add.text(hx, this.groundY - 70, '❤', {
@@ -1682,11 +1700,15 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (action === 'mount') {
       this.riding = true;
+      // lift the sprite (offset + y cancel out, so the body stays put) to seat it on the horse's back
+      this.player.setOffset(22, 100);
+      this.player.y -= 74;
       this.horseX = this.player.x;   // track from here
       this.showThought('up you go.');
       return;
     }
     if (action === 'feedhorse') {
+      if (!this.riding) this.player.play('lpc-crouch');   // a quick bend-down beat
       this.inventory.carrots -= 1;
       this.horseFed = true;
       this.physics.world.removeCollider(this.horseGateCollider);
@@ -1697,6 +1719,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'feedmeadow' && this._nearMeadow) {
+      if (!this.riding) this.player.play('lpc-crouch');   // a quick bend-down beat
       this.inventory.carrots -= 1;
       this._nearMeadow.fed = true;
       this.sparkle(this._nearMeadow.x, this.groundY - 30);
@@ -1750,6 +1773,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'carrot' && this._nearCarrot) {
+      if (!this.riding) this.player.play('lpc-crouch');   // a quick bend-down beat
       this.addItem('carrots');
       this.sparkle(this._nearCarrot.x, this._nearCarrot.y - 10);
       this._nearCarrot.destroy();
@@ -1768,6 +1792,7 @@ export default class ForestScene extends Phaser.Scene {
       this.carrying = 'full';
       this.showThought('cold lake water.');
     } else if (action === 'water') {
+      if (!this.riding) this.player.play('lpc-water');
       this.treeWatered = true;
       this.carrying = null;
       this.heldBucket.setVisible(false);
