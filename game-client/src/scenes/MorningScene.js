@@ -56,11 +56,12 @@ export default class MorningScene extends Phaser.Scene {
     const { W, H, floorY } = this;
     this.stations = [];
 
-    // ---- BED (far left) — starts as the sleeping bed (character in it) ----
+    // ---- BED (far left) — empty bed; the player sprite lies on it while asleep ----
+    // ('cabin-bed-sleeping' is now unused: the baked-in figure predates the LPC player)
     const bedX = W * 0.15;
     this.bedX = bedX;
-    this.bedSprite = this.add.image(bedX, floorY + 2, 'cabin-bed-sleeping')
-      .setOrigin(0.5, 1).setScale(this.fitW('cabin-bed-sleeping', 260)).setDepth(2);
+    this.bedSprite = this.add.image(bedX, floorY + 2, 'cabin-bed')
+      .setOrigin(0.5, 1).setScale(this.fitW('cabin-bed', 260)).setDepth(2);
 
     // ---- WASHBASIN (left-center) ----
     const sinkX = W * 0.30;
@@ -122,8 +123,10 @@ export default class MorningScene extends Phaser.Scene {
 
   buildPlayer() {
     // physics player — arcade body + global gravity (matches GameScene)
-    // LPC frames are 64px; 1.2 matches the old 48px sprite's on-screen height
-    this.player = this.physics.add.sprite(this.bedX + 70, this.floorY - 40, 'lpc-khatira-idle', 39).setScale(1.2).setDepth(10);
+    // LPC frames are 64px; 1.5 sizes her against the cabin furniture.
+    // body size/offset are frame pixels (arcade scales them with the sprite),
+    // and both body bottom and visual feet sit at frame y=60 — contact holds at any scale
+    this.player = this.physics.add.sprite(this.bedX + 70, this.floorY - 40, 'lpc-khatira-idle', 39).setScale(1.5).setDepth(10);
     this.player.setSize(20, 34);
     this.player.setOffset(22, 26);
     this.player.setVisible(false);
@@ -153,15 +156,21 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   startAsleep() {
+    // asleep on the mattress, head at the pillow (left) end. lpc-lie is a
+    // top-down pose with the head toward the frame's bottom edge, so a 90° cw
+    // turn lays her along the bed with the head pointing left — no flip needed
+    this.player.setPosition(this.bedX - 20, this.floorY - 72);
+    this.player.setAngle(90);
+    if (this.anims.exists('lpc-lie')) this.player.play('lpc-lie');
+    this.player.setVisible(true);
     this.time.delayedCall(900, () => this.chirp());
     this.time.delayedCall(2000, () => this.chirp());
     this.time.delayedCall(3400, () => this.chirp());
     this.tweens.add({ targets: this.roomDim, alpha: 0.38, duration: 5000, ease: 'Sine.inOut' });
     this.time.delayedCall(5000, () => {
       this.thought.setText('morning already. a bird singing somewhere outside.');
-      // swap sleeping bed -> empty bed, stand the character up beside it
-      this.bedSprite.setTexture('cabin-bed');
-      this.bedSprite.setScale(this.fitW('cabin-bed', 260));
+      // rise: leave the bed and stand up beside it
+      this.player.setAngle(0);
       this.player.setPosition(this.bedX + 70, this.floorY - 40);
       this.player.body.setAllowGravity(true);
       this.player.setAlpha(0).setVisible(true);
@@ -237,7 +246,9 @@ export default class MorningScene extends Phaser.Scene {
     this.canMove = false; this.busy = true; this.prompt.setVisible(false);
     this.cameras.main.fadeOut(600, 21, 17, 12);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.player.setPosition(this.sofaX, this.floorY - this.px * 5);
+      // hips on the seat-cushion surface, legs bending down over the cushion's
+      // front edge; a touch left of centre keeps her feet clear of the right armrest
+      this.player.setPosition(this.sofaX - this.px * 2, this.floorY - this.px * 11.5);
       this.player.body.setAllowGravity(false);
       this.player.setVelocity(0, 0);
       this.player.setFlipX(false);
@@ -248,7 +259,7 @@ export default class MorningScene extends Phaser.Scene {
         this.sitting = true; this.busy = false;
         this.thought.setText('a few quiet minutes before the forest.');
         this.prompt.setText('▸ e  get up');
-        this.prompt.setPosition(this.player.x, this.floorY - 80).setVisible(true);
+        this.prompt.setPosition(this.player.x, this.floorY - 130).setVisible(true);
         this.sipTimer = this.time.addEvent({ delay: 1500, loop: true, callback: () => this.steam(this.mugX, this.mugY) });
       });
     });

@@ -224,7 +224,7 @@ export default class BootScene extends Phaser.Scene {
     });
 
     this.time.delayedCall(800, () => {
-      this.scene.start('ForestScene');
+      this.scene.start('LoginScene');
     });
   }
 }
