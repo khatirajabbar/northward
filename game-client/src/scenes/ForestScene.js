@@ -21,6 +21,7 @@ export default class ForestScene extends Phaser.Scene {
     this.lakeFillX = 1880;
 
     // ── state ──
+    this.characterId = this.registry.get('playAs') || 'lpc-khatira';
     this.carrying = null;       // null | 'empty' | 'full'
     this.bucketPicked = false;
     this.treeWatered = false;
@@ -261,7 +262,7 @@ export default class ForestScene extends Phaser.Scene {
     });
 
     // ── player ──
-    this.player = this.physics.add.sprite(120, this.groundY - 40, 'lpc-khatira-idle', 39);
+    this.player = this.physics.add.sprite(120, this.groundY - 40, `${this.characterId}-idle-sheet`, 39);
     this.player.setCollideWorldBounds(true);
     this.player.setDragX(800);
     this.player.setMaxVelocity(220, 700);
@@ -582,7 +583,7 @@ export default class ForestScene extends Phaser.Scene {
       fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#cfe8d8'
     }).setOrigin(1, 0).setScrollFactor(0).setDepth(200).setAlpha(0.3);
 
-    this.player.play('lpc-idle');
+    this.player.play(`${this.characterId}-idle`);
     this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
   }
 
@@ -1312,7 +1313,7 @@ export default class ForestScene extends Phaser.Scene {
 
     // one-shot pose beats (watering, carrot crouch) hold off idle until they finish playing
     const poseHold = this.player.anims.isPlaying &&
-      (this.player.anims.currentAnim?.key === 'lpc-water' || this.player.anims.currentAnim?.key === 'lpc-crouch');
+      (this.player.anims.currentAnim?.key === `${this.characterId}-water` || this.player.anims.currentAnim?.key === `${this.characterId}-crouch`);
 
     if (this.resting) {
       this.player.setVelocity(0, 0);
@@ -1364,18 +1365,18 @@ export default class ForestScene extends Phaser.Scene {
       }
     } else if (left) {
       this.player.setVelocityX(-speed); this.player.setFlipX(true);
-      if (onGround && !this.riding && this.player.anims.currentAnim?.key !== 'lpc-walk') this.player.play('lpc-walk');
+      if (onGround && !this.riding && this.player.anims.currentAnim?.key !== `${this.characterId}-walk`) this.player.play(`${this.characterId}-walk`);
     } else if (right) {
       this.player.setVelocityX(speed); this.player.setFlipX(false);
-      if (onGround && !this.riding && this.player.anims.currentAnim?.key !== 'lpc-walk') this.player.play('lpc-walk');
-    } else if (onGround && !this.riding && !poseHold && this.player.anims.currentAnim?.key !== 'lpc-idle') {
-      this.player.play('lpc-idle');
+      if (onGround && !this.riding && this.player.anims.currentAnim?.key !== `${this.characterId}-walk`) this.player.play(`${this.characterId}-walk`);
+    } else if (onGround && !this.riding && !poseHold && this.player.anims.currentAnim?.key !== `${this.characterId}-idle`) {
+      this.player.play(`${this.characterId}-idle`);
     }
     // riding and airborne poses override the on-foot walk/idle above
     if (this.riding) {
-      if (this.player.anims.currentAnim?.key !== 'lpc-sit') this.player.play('lpc-sit');
+      if (this.player.anims.currentAnim?.key !== `${this.characterId}-sit`) this.player.play(`${this.characterId}-sit`);
     } else if (!onGround && !this.resting) {
-      if (this.player.anims.currentAnim?.key !== 'lpc-jump') this.player.play('lpc-jump');
+      if (this.player.anims.currentAnim?.key !== `${this.characterId}-jump`) this.player.play(`${this.characterId}-jump`);
     }
     if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -540 : -340);
 
@@ -1649,7 +1650,7 @@ export default class ForestScene extends Phaser.Scene {
       this.restTimer = 0;
       this.player.setVelocity(0, 0);
       this.player.body.setAllowGravity(false);   // stay put on the ground while resting
-      this.player.play('lpc-rest');
+      this.player.play(`${this.characterId}-rest`);
       return;
     }
     if (action === 'restup') {
@@ -1708,7 +1709,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'feedhorse') {
-      if (!this.riding) this.player.play('lpc-crouch');   // a quick bend-down beat
+      if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
       this.inventory.carrots -= 1;
       this.horseFed = true;
       this.physics.world.removeCollider(this.horseGateCollider);
@@ -1719,7 +1720,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'feedmeadow' && this._nearMeadow) {
-      if (!this.riding) this.player.play('lpc-crouch');   // a quick bend-down beat
+      if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
       this.inventory.carrots -= 1;
       this._nearMeadow.fed = true;
       this.sparkle(this._nearMeadow.x, this.groundY - 30);
@@ -1773,7 +1774,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'carrot' && this._nearCarrot) {
-      if (!this.riding) this.player.play('lpc-crouch');   // a quick bend-down beat
+      if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
       this.addItem('carrots');
       this.sparkle(this._nearCarrot.x, this._nearCarrot.y - 10);
       this._nearCarrot.destroy();
@@ -1792,7 +1793,7 @@ export default class ForestScene extends Phaser.Scene {
       this.carrying = 'full';
       this.showThought('cold lake water.');
     } else if (action === 'water') {
-      if (!this.riding) this.player.play('lpc-water');
+      if (!this.riding) this.player.play(`${this.characterId}-water`);
       this.treeWatered = true;
       this.carrying = null;
       this.heldBucket.setVisible(false);

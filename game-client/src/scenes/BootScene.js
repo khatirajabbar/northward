@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { loadLpcCharacter, createLpcAnims } from '../characters/lpc.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -25,31 +26,8 @@ export default class BootScene extends Phaser.Scene {
       frameHeight: 48
     });
 
-    this.load.spritesheet('lpc-khatira-idle', 'assets/characters/lpc-khatira/standard/idle.png', {
-      frameWidth: 64,
-      frameHeight: 64
-    });
-    this.load.spritesheet('lpc-khatira-walk', 'assets/characters/lpc-khatira/standard/walk.png', {
-      frameWidth: 64,
-      frameHeight: 64
-    });
-    this.load.spritesheet('lpc-khatira-sit', 'assets/characters/lpc-khatira/standard/sit.png', {
-      frameWidth: 64,
-      frameHeight: 64
-    });
-    this.load.spritesheet('lpc-khatira-jump', 'assets/characters/lpc-khatira/standard/jump.png', {
-      frameWidth: 64,
-      frameHeight: 64
-    });
-    // hurt.png is a single 13-frame row (832x64), not the usual 4-direction sheet
-    this.load.spritesheet('lpc-khatira-hurt', 'assets/characters/lpc-khatira/standard/hurt.png', {
-      frameWidth: 64,
-      frameHeight: 64
-    });
-    this.load.spritesheet('lpc-khatira-watering', 'assets/characters/lpc-khatira/standard/watering.png', {
-      frameWidth: 64,
-      frameHeight: 64
-    });
+    loadLpcCharacter(this, 'lpc-khatira');
+    loadLpcCharacter(this, 'lpc-oliver');
 
 
     this.load.image('grass', 'assets/tiles/grass.png');
@@ -166,62 +144,8 @@ export default class BootScene extends Phaser.Scene {
     });
 
 
-    this.anims.create({
-      key: 'lpc-idle',
-      frames: this.anims.generateFrameNumbers('lpc-khatira-idle', { start: 39, end: 40 }),
-      frameRate: 2,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: 'lpc-walk',
-      frames: this.anims.generateFrameNumbers('lpc-khatira-walk', { start: 40, end: 47 }),
-      frameRate: 10,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: 'lpc-sit',
-      frames: [{ key: 'lpc-khatira-sit', frame: 41 }],
-      frameRate: 1,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: 'lpc-jump',
-      frames: this.anims.generateFrameNumbers('lpc-khatira-jump', { start: 41, end: 43 }),
-      frameRate: 8,
-      repeat: 0
-    });
-
-    this.anims.create({
-      key: 'lpc-lie',
-      frames: [{ key: 'lpc-khatira-hurt', frame: 5 }],
-      frameRate: 1,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: 'lpc-rest',
-      frames: [{ key: 'lpc-khatira-sit', frame: 40 }],
-      frameRate: 1,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: 'lpc-water',
-      frames: this.anims.generateFrameNumbers('lpc-khatira-watering', { start: 39, end: 46 }),
-      frameRate: 8,
-      repeat: 0
-    });
-
-    // one frame at frameRate 4 = a 250ms bend-down beat
-    this.anims.create({
-      key: 'lpc-crouch',
-      frames: [{ key: 'lpc-khatira-jump', frame: 41 }],
-      frameRate: 4,
-      repeat: 0
-    });
+    createLpcAnims(this, 'lpc-khatira');
+    createLpcAnims(this, 'lpc-oliver');
 
     this.time.delayedCall(800, () => {
       this.scene.start('LoginScene');
