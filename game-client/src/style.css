@@ -147,8 +147,3 @@ canvas {
   border-radius: 3px;
   font-size: 0.85rem;
 }
-
-
-/* letterbox blend + crisp centering */
-#game { display: flex; align-items: center; justify-content: center; }
-#game canvas { display: block; }

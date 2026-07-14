@@ -31,7 +31,7 @@ export default class EndingScene extends Phaser.Scene {
     this.nestY = this.groundY + 4 - 85 * this.treeScale;    // on the trunk, below the canopy
     this.birdX = this.nestX + 4;   // the bird lies where it fell, below the nest
     this.figureHomeX = 1790;       // where they sit crying
-    this.figureFireX = this.fireX + 46;   // where they settle once the fire is lit
+    this.figureFireX = this.fireX + 62;   // where they settle once the fire is lit
     this.seatX = this.fireX + 88;         // where you sit, close beside them
     this.leaveX = 420;             // walking back past here ends the game
 

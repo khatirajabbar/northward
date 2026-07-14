@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
 import LoginScene from './scenes/LoginScene.js';
+import CharacterSelectScene from './scenes/CharacterSelectScene.js';
 import GameScene from './scenes/GameScene.js';
 import MorningScene from './scenes/MorningScene.js';
 import ForestScene from './scenes/ForestScene.js';
@@ -25,10 +26,18 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [BootScene, LoginScene, MorningScene, GameScene, ForestScene, EndingScene]
+  scene: [BootScene, LoginScene, CharacterSelectScene, MorningScene, GameScene, ForestScene, EndingScene]
 };
 
 const game = new Phaser.Game(config);
+
+// fullscreen the whole page, not just the canvas parent, so the login overlay stays visible
+game.scale.fullscreenTarget = document.body;
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'f' && e.key !== 'F') return;
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  game.scale.toggleFullscreen();
+});
 
 const overlay = document.getElementById('login-overlay');
 const emailInput = document.getElementById('login-email');
@@ -58,7 +67,7 @@ async function attemptLogin() {
     setTimeout(() => {
       overlay.style.display = 'none';
       game.scene.stop('LoginScene');
-      game.scene.start('MorningScene');
+      game.scene.start('CharacterSelectScene');
     }, 800);
   } catch (err) {
     showError(err.message);
