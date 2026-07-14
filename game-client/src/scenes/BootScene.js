@@ -47,7 +47,6 @@ export default class BootScene extends Phaser.Scene {
     // Cabin interior assets (Gemini art, cut to transparent PNGs)
     this.load.image('cabin-bg', 'assets/cabin/bg.png');
     this.load.image('cabin-bed', 'assets/cabin/bed_empty.png');
-    this.load.image('cabin-bed-sleeping', 'assets/cabin/bed_sleeping.png');
     this.load.image('cabin-window', 'assets/cabin/window.png');
     this.load.image('cabin-curtain-left', 'assets/cabin/curtain_left.png');
     this.load.image('cabin-curtain-right', 'assets/cabin/curtain_right.png');

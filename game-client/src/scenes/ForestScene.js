@@ -1193,6 +1193,7 @@ export default class ForestScene extends Phaser.Scene {
         // the cabin show through for a moment — stop it before handing off.
         // (a no-op when MorningScene isn't running.)
         this.scene.stop('MorningScene');
+        this.registry.set('kindness', this.kindness);
         this.scene.start('EndingScene');
       });
     }

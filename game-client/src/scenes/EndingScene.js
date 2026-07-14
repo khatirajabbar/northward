@@ -1,4 +1,8 @@
 import Phaser from 'phaser';
+import { leaderboard, formatTime } from '../services/leaderboard.js';
+
+const CRYING_COMPANION = { 'lpc-khatira': 'lpc-oliver', 'lpc-oliver': 'lpc-khatira' };
+const CHARACTER_TYPE = { 'lpc-khatira': 'female', 'lpc-oliver': 'male' };
 
 // Beat 5 — the ending. Someone is sitting under a tall tree, crying over a
 // bird that fell from its nest. There is nothing to fix and nothing to win
@@ -9,17 +13,6 @@ export default class EndingScene extends Phaser.Scene {
   constructor() {
     super('EndingScene');
   }
-  preload() {
-    this.load.spritesheet('player-khatira', 'assets/characters/player-khatira.png', {
-      frameWidth: 48,
-      frameHeight: 48
-    });
-    this.load.spritesheet('player-oliver', 'assets/characters/player-oliver.png', {
-      frameWidth: 48,
-      frameHeight: 48
-    });
-  }
-  
 
   create() {
     const { width, height } = this.scale;
@@ -33,8 +26,9 @@ export default class EndingScene extends Phaser.Scene {
     // ── landmark positions ──
     this.fireX = 1500;             // an old stone fire ring at their camp
     this.nestTreeX = 1730;         // the tall tree the nest is in
-    this.nestX = this.nestTreeX - 78;
-    this.nestY = this.groundY - 55;   // low, near the trunk — not up in the canopy
+    this.treeScale = 1.45;
+    this.nestX = this.nestTreeX - 20 * this.treeScale;      // tucked in against the trunk
+    this.nestY = this.groundY + 4 - 85 * this.treeScale;    // on the trunk, below the canopy
     this.birdX = this.nestX + 4;   // the bird lies where it fell, below the nest
     this.figureHomeX = 1790;       // where they sit crying
     this.figureFireX = this.fireX + 46;   // where they settle once the fire is lit
@@ -42,17 +36,25 @@ export default class EndingScene extends Phaser.Scene {
     this.leaveX = 420;             // walking back past here ends the game
 
     // ── state ──
+    this.characterId = this.registry.get('playAs') || 'lpc-khatira';
+    this.companionId = CRYING_COMPANION[this.characterId] || 'lpc-oliver';
     this.arrivalShown = false;
+    this.talked = false;
+    this.buryOffered = false;
+    this.buryTosses = 0;
     this.buried = false;
+    this.fireOffered = false;
+    this.woodLaid = false;
     this.fireBuilt = false;
     this.sitting = false;
     this.sitTimer = 0;
-    this.figureEased = false;
     this.skyBirdFlown = false;
     this.saidGoodbye = false;
     this.ended = false;
     this.busy = false;
     this.walkSpeed = 220;
+    this.dialogueActive = false;
+    this.dialogueBox = null;
 
     // ── warmth: 0 = cold blue night, 1 = warm gold. the whole palette rides this ──
     this.warmth = { t: 0 };
@@ -158,15 +160,16 @@ export default class EndingScene extends Phaser.Scene {
     }
 
     // ── the camp: the nest tree, the empty nest, the bird that fell ──
-    dress('tree-lush', this.nestTreeX, 1.45, 3);
+    dress('tree-lush', this.nestTreeX, this.treeScale, 3);
     const branch = this.add.image(this.nestTreeX - 6, this.nestY + 8, 'branch-arm')
       .setOrigin(1, 0.5).setScale(1.7).setDepth(3).setAngle(-6);
     this.tintScenery.push({ obj: branch, cold: this.sceneCold, warm: this.sceneWarm });
     const nest = this.add.image(this.nestX, this.nestY, 'nest')
       .setOrigin(0.5, 1).setScale(1.4).setDepth(4);
     this.tintScenery.push({ obj: nest, cold: this.sceneCold, warm: this.sceneWarm });
+    this.birdShadow = this.add.ellipse(this.birdX, this.groundY + 2, 30, 6, 0x000000, 0.25).setDepth(5);
     this.birdSprite = this.add.image(this.birdX, this.groundY + 2, 'bird-fallen')
-      .setOrigin(0.5, 1).setScale(1.6).setDepth(6);
+      .setOrigin(0.5, 1).setScale(1.3).setDepth(6);
 
     // the grave mound, hidden until the burial
     this.mound = this.add.image(this.birdX, this.groundY + 4, 'grave-mound')
@@ -185,14 +188,14 @@ export default class EndingScene extends Phaser.Scene {
       .setOrigin(0.5, 1).setScale(1.8).setDepth(8).setVisible(false);
     this.add.image(this.fireX, this.groundY + 4, 'fire-stones-front')
       .setOrigin(0.5, 1).setScale(1.6).setDepth(9);
-    this.fireGlow = this.add.circle(this.fireX, this.groundY - 26, 95, 0xffb347, 0).setDepth(5);
-    this.fireGlowCore = this.add.circle(this.fireX, this.groundY - 20, 48, 0xffd27a, 0).setDepth(5);
+    this.fireGlow = this.add.circle(this.fireX, this.groundY - 26, 75, 0xffb347, 0).setDepth(5);
+    this.fireGlowCore = this.add.circle(this.fireX, this.groundY - 20, 38, 0xffd27a, 0).setDepth(5);
     this.fireLight = this.add.ellipse(this.fireX, this.groundY + 2, 260, 26, 0xffb865, 0).setDepth(4);
 
     // ── the crying figure, hunched under the tree ──
     // TODO: audio — thin wind and a soft crying loop, very quiet (sound pass)
-  this.figure = this.add.image(this.figureHomeX, this.groundY + 2, 'player-oliver', 7)
-      .setOrigin(0.5, 1).setScale(1.5).setDepth(9);
+    this.figure = this.add.sprite(this.figureHomeX, this.groundY + 2, `${this.companionId}-sit-sheet`, 28)
+      .setOrigin(0.5, 1).setScale(1).setDepth(9);
     // small tremble in the shoulders
     this.cryTween = this.tweens.add({ targets: this.figure, y: this.groundY + 0.5,
       duration: 340, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
@@ -235,13 +238,13 @@ export default class EndingScene extends Phaser.Scene {
       .setOrigin(0, 0).setScrollFactor(0).setDepth(30).setAlpha(0);
 
     // ── player ──
-    this.player = this.physics.add.sprite(140, this.groundY - 40, 'player', 12);
+    this.player = this.physics.add.sprite(140, this.groundY - 40, `${this.characterId}-idle-sheet`, 39);
     this.player.setCollideWorldBounds(true);
     this.player.setDragX(800);
     this.player.setMaxVelocity(220, 700);
-    this.player.setScale(1.5);
-    this.player.setSize(20, 28);
-    this.player.setOffset(14, 18);
+    this.player.setScale(1);
+    this.player.setSize(20, 34);
+    this.player.setOffset(22, 26);
     this.player.setDepth(10);
     this.physics.add.collider(this.player, this.platforms);
 
@@ -261,7 +264,7 @@ export default class EndingScene extends Phaser.Scene {
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(150).setVisible(false);
 
     this.applyWarmth(0);
-    this.player.play('idle');
+    this.player.play(`${this.characterId}-idle`);
 
     // arriving out of the black — no rush
     this.cameras.main.fadeIn(1400, 0, 0, 0);
@@ -461,172 +464,6 @@ export default class EndingScene extends Phaser.Scene {
       g.fillEllipse(76, 22, 36, 14); g.fillEllipse(20, 24, 28, 12);
     }, 96, 32, 'cloud-puff');
 
-    // the figure, sitting — hunched over their knees, head down, facing left.
-    // built in layers like the trees: volume, shadow side, rim light, folds,
-    // then the arms, hands and hooded head on top
-    make((g) => {
-      g.fillStyle(0x38404a);
-      g.fillEllipse(19, 38, 28, 5);               // grounding shadow
-      g.fillStyle(0x54626e);
-      g.fillEllipse(20, 26, 26, 24);              // hunched torso
-      g.fillEllipse(24, 31, 18, 16);              // haunches
-      g.fillStyle(0x3d4752);
-      g.fillEllipse(27, 28, 14, 20);              // shaded back of the cloak
-      g.fillEllipse(20, 36, 24, 6);               // hem pooling in shadow
-      g.fillStyle(0x667682);
-      g.fillEllipse(10, 29, 13, 15);              // knees drawn up, catching light
-      g.fillStyle(0x7d8e9a);
-      g.fillEllipse(8, 25, 7, 7);                 // knee highlight
-      g.fillEllipse(18, 15, 20, 8);               // rim light along the bent back...
-      g.fillStyle(0x54626e);
-      g.fillEllipse(19, 18, 20, 8);               // ...cut to a thin crescent
-      g.fillStyle(0x3d4752);
-      g.fillTriangle(23, 21, 21, 33, 24, 33);     // cloak fold
-      g.fillTriangle(16, 26, 15, 34, 18, 34);     // cloak fold
-      g.fillStyle(0x47525c);
-      g.fillEllipse(12, 24, 16, 7);               // arm wrapped round the shins
-      g.fillStyle(0x667682);
-      g.fillEllipse(11, 22, 12, 4);               // light along the sleeve
-      g.fillStyle(0xb8967a);
-      g.fillCircle(8, 27, 2);                     // far hand, in shadow
-      g.fillStyle(0xcaa88a);
-      g.fillCircle(6, 25, 2.5);                   // near hand clasping the knee
-      g.fillStyle(0x47525c);
-      g.fillEllipse(17, 13, 18, 14);              // hood
-      g.fillStyle(0x7d8e9a);
-      g.fillEllipse(15, 9, 14, 7);                // rim light on the hood...
-      g.fillStyle(0x47525c);
-      g.fillEllipse(16, 12, 14, 7);               // ...cut to a crescent
-      g.fillStyle(0x3d4752);
-      g.fillTriangle(24, 12, 30, 16, 25, 19);     // hood fold at the neck
-      g.fillStyle(0x3a3430);
-      g.fillCircle(11, 15, 6.5);                  // head, down on the arms
-      g.fillStyle(0x4a423c);
-      g.fillEllipse(9, 12, 6, 4);                 // faint sheen in the hair
-      g.fillStyle(0xa8846a);
-      g.fillEllipse(7, 17, 3, 4);                 // a shadowed sliver of brow
-    }, 38, 40, 'figure-sit');
-
-    // the figure, sitting — the same pose, head lifted a little toward the fire
-    make((g) => {
-      g.fillStyle(0x38404a);
-      g.fillEllipse(19, 38, 28, 5);               // grounding shadow
-      g.fillStyle(0x54626e);
-      g.fillEllipse(20, 26, 26, 24);              // torso, still hunched
-      g.fillEllipse(24, 31, 18, 16);              // haunches
-      g.fillStyle(0x3d4752);
-      g.fillEllipse(27, 28, 14, 20);              // shaded back
-      g.fillEllipse(20, 36, 24, 6);               // hem in shadow
-      g.fillStyle(0x667682);
-      g.fillEllipse(10, 29, 13, 15);              // knees drawn up
-      g.fillStyle(0x7d8e9a);
-      g.fillEllipse(8, 25, 7, 7);                 // knee highlight
-      g.fillEllipse(19, 14, 20, 8);               // rim light, back straighter now...
-      g.fillStyle(0x54626e);
-      g.fillEllipse(20, 17, 20, 8);               // ...cut to a crescent
-      g.fillStyle(0x3d4752);
-      g.fillTriangle(23, 21, 21, 33, 24, 33);     // cloak fold
-      g.fillTriangle(16, 26, 15, 34, 18, 34);     // cloak fold
-      g.fillStyle(0x47525c);
-      g.fillEllipse(12, 23, 16, 7);               // arm resting looser
-      g.fillStyle(0x667682);
-      g.fillEllipse(11, 21, 12, 4);               // light along the sleeve
-      g.fillStyle(0xb8967a);
-      g.fillCircle(8, 26, 2);                     // far hand
-      g.fillStyle(0xcaa88a);
-      g.fillCircle(6, 24, 2.5);                   // near hand, open now
-      g.fillStyle(0x47525c);
-      g.fillEllipse(18, 11, 17, 13);              // hood, slipped back a little
-      g.fillStyle(0x7d8e9a);
-      g.fillEllipse(16, 7, 12, 6);                // rim light on the hood...
-      g.fillStyle(0x47525c);
-      g.fillEllipse(17, 10, 12, 6);               // ...cut to a crescent
-      g.fillStyle(0xcaa88a);
-      g.fillEllipse(9, 10, 6, 8);                 // face, turned to the fire
-      g.fillStyle(0xa8846a);
-      g.fillEllipse(10, 13, 4, 4);                // shading under the cheek
-      g.fillStyle(0x3a3430);
-      g.fillCircle(14, 9, 7);                     // hair
-      g.fillEllipse(11, 6, 8, 5);                 // hair falling over the brow
-      g.fillStyle(0x4a423c);
-      g.fillEllipse(13, 5, 6, 3);                 // faint sheen in the hair
-    }, 38, 40, 'figure-sit-calm');
-
-    // the figure, standing — still a little bowed, cloak falling to the boots
-    make((g) => {
-      g.fillStyle(0x38404a);
-      g.fillEllipse(16, 42, 20, 4);               // grounding shadow
-      g.fillStyle(0x54626e);
-      g.fillEllipse(16, 22, 18, 26);              // torso
-      g.fillPoints([{ x: 9, y: 26 }, { x: 23, y: 26 }, { x: 26, y: 40 }, { x: 6, y: 40 }], true);   // cloak flaring to the hem
-      g.fillStyle(0x3d4752);
-      g.fillPoints([{ x: 18, y: 14 }, { x: 23, y: 26 }, { x: 24, y: 40 }, { x: 18, y: 40 }], true); // shaded side
-      g.fillRect(7, 38, 18, 2);                   // hem line in shadow
-      g.fillStyle(0x7d8e9a);
-      g.fillEllipse(11, 17, 8, 18);               // rim light down the front...
-      g.fillStyle(0x54626e);
-      g.fillEllipse(13, 18, 8, 17);               // ...cut to a thin edge
-      g.fillStyle(0x3d4752);
-      g.fillTriangle(13, 27, 12, 40, 14, 40);     // long cloak fold
-      g.fillTriangle(18, 28, 18, 40, 20, 40);     // long cloak fold
-      g.fillStyle(0x38404a);
-      g.fillRect(9, 40, 5, 3); g.fillRect(17, 40, 5, 3);      // boots under the hem
-      g.fillStyle(0x47525c);
-      g.fillEllipse(11, 26, 6, 14);               // near arm hanging slack
-      g.fillStyle(0xcaa88a);
-      g.fillCircle(10, 33, 2.5);                  // hand
-      g.fillStyle(0x47525c);
-      g.fillEllipse(18, 12, 12, 8);               // hood bunched at the neck
-      g.fillStyle(0x7d8e9a);
-      g.fillEllipse(14, 12, 10, 4);               // light across the shoulders
-      g.fillStyle(0x3a3430);
-      g.fillCircle(11, 8, 7);                     // head, bowed forward
-      g.fillStyle(0x4a423c);
-      g.fillEllipse(9, 4, 7, 4);                  // faint sheen in the hair
-      g.fillStyle(0xcaa88a);
-      g.fillEllipse(6.5, 10, 4, 5);               // face, looking at the ground
-      g.fillStyle(0xa8846a);
-      g.fillEllipse(7, 12, 3, 3);                 // shading under the jaw
-    }, 32, 44, 'figure-stand');
-
-    // the figure, kneeling — bent forward over the little grave, one hand to the earth
-    make((g) => {
-      g.fillStyle(0x38404a);
-      g.fillEllipse(18, 32, 24, 4);               // grounding shadow
-      g.fillEllipse(30, 30, 8, 5);                // foot tucked behind
-      g.fillStyle(0x3d4752);
-      g.fillEllipse(24, 28, 16, 10);              // folded legs beneath
-      g.fillStyle(0x54626e);
-      g.fillEllipse(19, 17, 20, 18);              // body bent forward
-      g.fillEllipse(15, 20, 16, 14);              // chest leaning over the grave
-      g.fillStyle(0x3d4752);
-      g.fillEllipse(25, 18, 10, 14);              // shaded back
-      g.fillTriangle(21, 15, 20, 27, 23, 27);     // cloak fold
-      g.fillStyle(0x7d8e9a);
-      g.fillEllipse(18, 9, 16, 6);                // rim light along the bent back...
-      g.fillStyle(0x54626e);
-      g.fillEllipse(19, 11, 16, 6);               // ...cut to a crescent
-      g.fillStyle(0x47525c);
-      g.fillPoints([{ x: 14, y: 14 }, { x: 18, y: 17 }, { x: 8, y: 27 }, { x: 5, y: 25 }], true);   // arm reaching down
-      g.fillEllipse(13, 22, 7, 5);                // other arm braced on the knee
-      g.fillStyle(0xb8967a);
-      g.fillCircle(10, 24, 2);                    // braced hand
-      g.fillStyle(0xcaa88a);
-      g.fillCircle(5, 27, 2.5);                   // hand resting on the earth
-      g.fillStyle(0xa8846a);
-      g.fillEllipse(4, 29, 4, 2);                 // fingers against the ground
-      g.fillStyle(0x47525c);
-      g.fillEllipse(13, 8, 14, 10);               // hood fallen forward
-      g.fillStyle(0x7d8e9a);
-      g.fillEllipse(11, 5, 10, 5);                // rim light on the hood...
-      g.fillStyle(0x47525c);
-      g.fillEllipse(12, 7, 10, 5);                // ...cut to a crescent
-      g.fillStyle(0x3a3430);
-      g.fillCircle(8, 10, 6);                     // head, lowered
-      g.fillStyle(0xa8846a);
-      g.fillEllipse(4.5, 12, 3, 4);               // a shadowed sliver of face
-    }, 34, 34, 'figure-kneel');
-
     // bush — a low flowering shrub
     make((g) => {
       g.fillStyle(0x5c8a4a);
@@ -711,6 +548,10 @@ export default class EndingScene extends Phaser.Scene {
     const camX = this.cameras.main.scrollX;
     this.bgLayers.forEach((l) => { l.tilePositionX = camX * l.parallaxFactor / l.tileScaleX; });
 
+    // ── dialogue — 'e' advances one line at a time, the box stays over the speaker ──
+    if (this.dialogueActive && Phaser.Input.Keyboard.JustDown(this.keyE)) this.advanceDialogue();
+    if (this.dialogueActive) this.positionDialogueBox();
+
     // ── arrival — one spare thought, nothing more ──
     if (!this.arrivalShown && px > this.figureHomeX - 340) {
       this.arrivalShown = true;
@@ -727,11 +568,6 @@ export default class EndingScene extends Phaser.Scene {
     if (this.sitting) {
       this.player.setVelocity(0, 0);
       this.sitTimer += this.game.loop.delta;
-      // partway through the quiet, their head lifts — no words for it
-      if (!this.figureEased && this.sitTimer > 4000) {
-        this.figureEased = true;
-        this.figure.setTexture('player-oliver', 8);
-      }
       // and far off, a small bird crosses the warm sky
       if (!this.skyBirdFlown && this.sitTimer > 6500) {
         this.skyBirdFlown = true;
@@ -743,15 +579,15 @@ export default class EndingScene extends Phaser.Scene {
       }
     } else if (this.busy) {
       this.player.setVelocityX(0);
-      if (onGround && this.player.anims.currentAnim?.key !== 'idle') this.player.play('idle');
+      if (onGround && this.player.anims.currentAnim?.key !== `${this.characterId}-idle`) this.player.play(`${this.characterId}-idle`);
     } else if (left) {
       this.player.setVelocityX(-this.walkSpeed); this.player.setFlipX(true);
-      if (onGround && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
+      if (onGround && this.player.anims.currentAnim?.key !== `${this.characterId}-walk`) this.player.play(`${this.characterId}-walk`);
     } else if (right) {
       this.player.setVelocityX(this.walkSpeed); this.player.setFlipX(false);
-      if (onGround && this.player.anims.currentAnim?.key !== 'walk') this.player.play('walk');
-    } else if (onGround && this.player.anims.currentAnim?.key !== 'idle') {
-      this.player.play('idle');
+      if (onGround && this.player.anims.currentAnim?.key !== `${this.characterId}-walk`) this.player.play(`${this.characterId}-walk`);
+    } else if (onGround && this.player.anims.currentAnim?.key !== `${this.characterId}-idle`) {
+      this.player.play(`${this.characterId}-idle`);
     }
     if (jump && onGround && !this.sitting && !this.busy) this.player.setVelocityY(-340);
 
@@ -762,16 +598,20 @@ export default class EndingScene extends Phaser.Scene {
     let label = null, action = null;
     const near = (x, r = 75) => Math.abs(px - x) < r;
     if (!this.busy && !this.saidGoodbye && !this.ended) {
-      if (!this.buried && onGround && near(this.birdX, 70)) { label = 'bury the bird'; action = 'bury'; }
-      else if (this.buried && !this.fireBuilt && onGround && near(this.fireX, 85)) { label = 'build a fire'; action = 'fire'; }
+      if (!this.talked && onGround && near(this.birdX, 70)) { label = 'talk with them'; action = 'talk'; }
+      else if (this.talked && !this.buryOffered && onGround && near(this.birdX, 70)) { label = 'ask about burying the bird'; action = 'offerbury'; }
+      else if (this.buryOffered && !this.buried && onGround && near(this.birdX, 70)) { label = 'toss earth'; action = 'toss'; }
+      else if (this.buried && !this.fireOffered && onGround && near(this.fireX, 85)) { label = 'ask about a fire'; action = 'offerfire'; }
+      else if (this.fireOffered && !this.woodLaid && onGround && near(this.fireX, 85)) { label = 'lay the wood'; action = 'wood'; }
+      else if (this.woodLaid && !this.fireBuilt && onGround && near(this.fireX, 85)) { label = 'light it together'; action = 'light'; }
       else if (this.fireBuilt && !this.sitting && onGround && near(this.fireX + 60, 120)) { label = 'sit with them'; action = 'sit'; }
-      else if (this.sitting && this.sitTimer > 9000) { label = 'say goodbye'; action = 'goodbye'; }
+      else if (this.sitting && this.sitTimer > 8000) { label = 'say goodbye'; action = 'goodbye'; }
     }
 
     if (label) {
       this.prompt.setText('▸ e  ' + label).setVisible(true);
       this.prompt.setPosition(this.W / 2, this.H - 40);
-    } else {
+    } else if (!this.dialogueActive) {
       this.prompt.setVisible(false);
     }
 
@@ -779,81 +619,109 @@ export default class EndingScene extends Phaser.Scene {
   }
 
   doAction(action) {
-    if (action === 'bury') {
-      // this is done together — they rise and kneel across from you
+    if (action === 'talk') {
+      this.player.setVelocity(0, 0);
+      this.player.setFlipX(this.figure.x < this.player.x);
+      this.startDialogue([
+        { who: 'companion', text: 'this little bird fell from the nest.' },
+        { who: 'companion', text: 'i saw it every morning when i passed this tree. it always sang.' },
+        { who: 'companion', text: 'i couldn\'t do anything.' },
+        { who: 'player', text: 'i\'m sorry. i\'ll stay with you for a while.' }
+      ], () => {
+        this.talked = true;
+        this.busy = false;
+      });
+      return;
+    }
+    if (action === 'offerbury') {
+      this.player.setVelocity(0, 0);
+      this.player.setFlipX(this.birdX < this.player.x);
+      this.startDialogue([
+        { who: 'player', text: 'should we bury it? together.' },
+        { who: 'companion', text: 'yes. i\'d like that.' }
+      ], () => {
+        // they rise and come to the grave side
+        // TODO: audio — no music here, just wind and the soft sound of earth (sound pass)
+        this.cryTween.stop();
+        this.figure.play(`${this.companionId}-walk`);
+        this.figure.setFlipX(true);
+        this.figure.y = this.groundY + 2;
+        this.tweens.add({ targets: this.figure, x: this.birdX + 36, duration: 1700, ease: 'Sine.inOut',
+          onComplete: () => {
+            this.figure.anims.stop();
+            this.figure.setTexture(`${this.companionId}-sit-sheet`, 28);
+            this.buryOffered = true;
+            this.busy = false;
+          } });
+      });
+      return;
+    }
+    if (action === 'toss') {
+      // one press, one pair of handfuls — yours first, then theirs
       this.busy = true;
       this.player.setVelocity(0, 0);
       this.player.setFlipX(this.birdX < this.player.x);
-      // TODO: swap for real kneeling/digging sprites in the art pass
-      // TODO: audio — no music here, just wind and the soft sound of earth (sound pass)
-      this.cryTween.stop();
-      this.figure.setTexture('player-oliver', 9);
-      this.figure.y = this.groundY + 2;
-      this.tweens.add({ targets: this.figure, x: this.birdX + 36, duration: 1700, ease: 'Sine.inOut',
-        onComplete: () => this.figure.setTexture('player-oliver', 10) });
-      // six small handfuls of earth, taking turns — no hurry
-      for (let i = 0; i < 6; i++) {
-        this.time.delayedCall(2100 + i * 420, () => {
-          const fromPlayer = i % 2 === 0;
-          const sx = fromPlayer ? this.birdX - 22 : this.birdX + 24;
-          const d = this.add.circle(sx, this.groundY - 12, 3, 0x6b4a32, 0.9).setDepth(12);
-          this.tweens.add({ targets: d, x: this.birdX + (Math.random() - 0.5) * 12, y: this.groundY,
-            alpha: 0, duration: 420, ease: 'Quad.in', onComplete: () => d.destroy() });
-          // a small bow from whoever is digging
-          const digger = fromPlayer ? this.player : this.figure;
-          this.tweens.add({ targets: digger, scaleY: digger.scaleY * 0.94, duration: 140, yoyo: true });
-        });
+      this.buryTosses++;
+      const toss = (fromPlayer) => {
+        const sx = fromPlayer ? this.birdX - 22 : this.birdX + 24;
+        const d = this.add.circle(sx, this.groundY - 12, 3, 0x6b4a32, 0.9).setDepth(12);
+        this.tweens.add({ targets: d, x: this.birdX + (Math.random() - 0.5) * 12, y: this.groundY,
+          alpha: 0, duration: 420, ease: 'Quad.in', onComplete: () => d.destroy() });
+        // a small bow from whoever is digging
+        const digger = fromPlayer ? this.player : this.figure;
+        this.tweens.add({ targets: digger, scaleY: digger.scaleY * 0.94, duration: 140, yoyo: true });
+      };
+      toss(true);
+      this.time.delayedCall(500, () => toss(false));
+      if (this.buryTosses < 3) {
+        this.time.delayedCall(1000, () => { this.busy = false; });
+      } else {
+        this.finishBurial();
       }
-      this.tweens.add({ targets: this.birdSprite, alpha: 0, duration: 1400, delay: 2600 });
-      this.mound.setVisible(true);
-      this.tweens.add({ targets: this.mound, scaleY: 1.4, duration: 2000, delay: 2500, ease: 'Sine.out' });
-      // they lay a white flower on the little grave
-      this.time.delayedCall(4900, () => {
-        this.moundFlower.setPosition(this.figure.x - 12, this.groundY - 30).setAlpha(1);
-        this.tweens.add({ targets: this.moundFlower, x: this.birdX, y: this.groundY - 12,
-          duration: 800, ease: 'Sine.inOut' });
-        this.buried = true;
-        this.busy = false;
-        this.warmTo(0.2, 8000);
-      });
-      // then they go back to their place and sit — quieter than before
-      this.time.delayedCall(5900, () => {
-        this.figure.setTexture('player-oliver', 9);
-        this.tweens.add({ targets: this.figure, x: this.figureHomeX - 10, duration: 1500, ease: 'Sine.inOut',
-          onComplete: () => {
-            this.figure.setTexture('player-oliver', 7);
-            this.cryTween = this.tweens.add({ targets: this.figure, y: this.groundY + 1,
-              duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-          } });
-      });
-      this.time.delayedCall(7800, () => this.showThought('so cold out here.', 3000));
       return;
     }
-    if (action === 'fire') {
+    if (action === 'offerfire') {
+      this.player.setVelocity(0, 0);
+      this.player.setFlipX(this.fireX < this.player.x);
+      this.startDialogue([
+        { who: 'player', text: 'it\'s getting cold. should we light a fire?' },
+        { who: 'companion', text: 'there\'s wood in the ring. i never got to it.' }
+      ], () => {
+        this.fireOffered = true;
+        this.busy = false;
+      });
+      return;
+    }
+    if (action === 'wood') {
       this.busy = true;
       this.player.setVelocity(0, 0);
       this.player.setFlipX(this.fireX < this.player.x);
       // you lay the wood in the ring
-      this.time.delayedCall(500, () => {
-        this.fireLogs.setVisible(true).setAlpha(0);
-        this.tweens.add({ targets: this.fireLogs, alpha: 1, duration: 400 });
-      });
-      // and they get up to help — the fire is built together
-      this.time.delayedCall(1300, () => {
-        this.cryTween.stop();
-        this.figure.setTexture('player-oliver', 9);
-        this.figure.y = this.groundY + 2;
-        this.tweens.add({ targets: this.figure, x: this.figureFireX, duration: 2200, ease: 'Sine.inOut',
-          onComplete: () => {
-            this.figure.setTexture('player-oliver', 7);
-            // they add a branch of their own, and the spark takes
-            const stick = this.add.image(this.figure.x - 10, this.groundY - 30, 'stick')
-              .setOrigin(0.5).setScale(1.4).setDepth(8);
-            this.tweens.add({ targets: stick, x: this.fireX, y: this.groundY - 6, angle: 40,
-              duration: 500, ease: 'Quad.in',
-              onComplete: () => { stick.destroy(); this.kindleFire(); } });
-          } });
-      });
+      this.fireLogs.setVisible(true).setAlpha(0);
+      this.tweens.add({ targets: this.fireLogs, alpha: 1, duration: 400,
+        onComplete: () => { this.woodLaid = true; this.busy = false; } });
+      return;
+    }
+    if (action === 'light') {
+      this.busy = true;
+      this.player.setVelocity(0, 0);
+      this.player.setFlipX(this.fireX < this.player.x);
+      // they get up to help — the fire is lit together
+      this.cryTween.stop();
+      this.figure.play(`${this.companionId}-walk`);
+      this.figure.setFlipX(true);
+      this.figure.y = this.groundY + 2;
+      this.tweens.add({ targets: this.figure, x: this.figureFireX, duration: 2200, ease: 'Sine.inOut',
+        onComplete: () => {
+          this.figure.anims.stop();
+          this.figure.setTexture(`${this.companionId}-sit-sheet`, 28);
+          // they add a branch of their own, and the spark takes
+          const stick = this.add.image(this.figure.x - 10, this.groundY - 30, 'stick')
+            .setOrigin(0.5).setScale(1.4).setDepth(8);
+          this.tweens.add({ targets: stick, x: this.fireX, y: this.groundY - 6, angle: 40,
+            duration: 500, ease: 'Quad.in',
+            onComplete: () => { stick.destroy(); this.kindleFire(); } });
+        } });
       return;
     }
     if (action === 'sit') {
@@ -861,39 +729,137 @@ export default class EndingScene extends Phaser.Scene {
       this.sitTimer = 0;
       this.player.setVelocity(0, 0);
       this.player.body.setAllowGravity(false);
-      this.player.setPosition(this.seatX, this.groundY - 40);
-      this.player.setFlipX(true);   // both of you, facing the fire
-      this.player.play('idle');
-      // TODO: swap for a real sitting sprite in the art pass
+      this.player.setPosition(this.seatX, this.groundY - 30);
+      this.player.setFlipX(false);   // both of you, facing out of the screen
+      this.player.anims.stop();
+      this.player.setTexture(`${this.characterId}-sit-sheet`, 28);
+      this.figure.anims.stop();
+      this.figure.setFlipX(false);
+      this.figure.setTexture(`${this.companionId}-sit-sheet`, 28);
       // TODO: audio — the main theme returns here, slow and warm (sound pass)
       // a shoulder against a shoulder — the closest thing to words
       this.time.delayedCall(700, () => {
-        this.tweens.add({ targets: this.player, angle: -3, duration: 900, ease: 'Sine.inOut' });
         this.tweens.add({ targets: this.figure, angle: 2, duration: 900, ease: 'Sine.inOut' });
       });
       this.warmTo(1, 16000);
       return;
     }
     if (action === 'goodbye') {
-      this.saidGoodbye = true;
-      this.sitting = false;
-      this.busy = true;
-      this.player.body.setAllowGravity(true);
-      this.player.setAngle(0);
-      this.showThought('i need to go now. i wish i could stay longer.', 4800);
-      // TODO: audio — the theme thins back to a single line, resolved (sound pass)
-      // a small nod. that's all that's needed
-      this.tweens.add({ targets: this.figure, angle: 0, duration: 600, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.figure, y: this.groundY + 5, duration: 500,
-        yoyo: true, delay: 800, ease: 'Sine.inOut' });
-      this.time.delayedCall(1800, () => { this.busy = false; });
+      this.startDialogue([
+        { who: 'player', text: 'i need to go now. i wish i could stay longer.' },
+        { who: 'companion', text: 'thank you for staying. it mattered.' },
+        { who: 'player', text: 'take care of yourself. i hope we meet again.' }
+      ], () => this.doGoodbye());
     }
+  }
+
+  finishBurial() {
+    this.tweens.add({ targets: [this.birdSprite, this.birdShadow], alpha: 0, duration: 1400, delay: 900 });
+    this.mound.setVisible(true);
+    this.tweens.add({ targets: this.mound, scaleY: 1.4, duration: 2000, delay: 800, ease: 'Sine.out' });
+    // they lay a white flower on the little grave
+    this.time.delayedCall(2400, () => {
+      this.moundFlower.setPosition(this.figure.x - 12, this.groundY - 30).setAlpha(1);
+      this.tweens.add({ targets: this.moundFlower, x: this.birdX, y: this.groundY - 12,
+        duration: 800, ease: 'Sine.inOut' });
+      this.buried = true;
+      this.warmTo(0.2, 8000);
+    });
+    // then they go back to their place and sit — quieter than before
+    this.time.delayedCall(3400, () => {
+      this.figure.play(`${this.companionId}-walk`);
+      this.figure.setFlipX(false);
+      this.tweens.add({ targets: this.figure, x: this.figureHomeX - 10, duration: 1500, ease: 'Sine.inOut',
+        onComplete: () => {
+          this.figure.anims.stop();
+          this.figure.setTexture(`${this.companionId}-sit-sheet`, 28);
+          this.cryTween = this.tweens.add({ targets: this.figure, y: this.groundY + 1,
+            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+          this.busy = false;
+        } });
+    });
+    this.time.delayedCall(5300, () => this.showThought('so cold out here.', 3000));
+  }
+
+  doGoodbye() {
+    this.saidGoodbye = true;
+    this.sitting = false;
+    this.busy = true;
+    this.player.body.setAllowGravity(true);
+    this.player.setAngle(0);
+    // TODO: audio — the theme thins back to a single line, resolved (sound pass)
+    // a small nod. that's all that's needed
+    this.tweens.add({ targets: this.figure, angle: 0, duration: 600, ease: 'Sine.inOut' });
+    this.tweens.add({ targets: this.figure, y: this.groundY + 5, duration: 500,
+      yoyo: true, delay: 800, ease: 'Sine.inOut' });
+    this.time.delayedCall(1800, () => { this.busy = false; });
+  }
+
+  startDialogue(lines, onDone) {
+    this.busy = true;
+    this.player.setVelocity(0, 0);
+    this.dialogueLines = lines;
+    this.dialogueIndex = 0;
+    this.dialogueDone = onDone;
+    this.dialogueActive = true;
+    this.showDialogueLine();
+  }
+
+  showDialogueLine() {
+    const line = this.dialogueLines[this.dialogueIndex];
+    const fromPlayer = line.who === 'player';
+    if (this.dialogueBox) this.dialogueBox.destroy();
+    const border = fromPlayer ? 0xece8dc : 0xcfe0ec;
+    const text = this.add.text(0, 0, line.text, {
+      fontFamily: 'Georgia, serif', fontSize: '15px',
+      color: fromPlayer ? '#ece8dc' : '#cfe0ec',
+      fontStyle: 'italic', align: 'center', wordWrap: { width: 260 }
+    }).setOrigin(0.5);
+    const boxW = text.width + 16;
+    const boxH = text.height + 12;
+    const g = this.add.graphics();
+    g.fillStyle(0x12161a, 0.85);
+    g.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
+    g.fillTriangle(-6, boxH / 2, 6, boxH / 2, 0, boxH / 2 + 6);   // tail down toward the speaker
+    g.lineStyle(2, border, 1);
+    g.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
+    this.dialogueBox = this.add.container(0, 0, [g, text]).setDepth(160).setAlpha(0);
+    this.dialogueBox.boxW = boxW;
+    this.dialogueBox.boxH = boxH;
+    this.dialogueSpeaker = fromPlayer ? this.player : this.figure;
+    this.positionDialogueBox();
+    this.tweens.add({ targets: this.dialogueBox, alpha: 1, duration: 250 });
+    this.prompt.setText('▸ e  continue').setVisible(true);
+    this.prompt.setPosition(this.W / 2, this.H - 40);
+  }
+
+  // keep the box over the speaker's head, fully inside the camera view
+  positionDialogueBox() {
+    if (!this.dialogueBox) return;
+    const cam = this.cameras.main;
+    const half = this.dialogueBox.boxW / 2;
+    const top = this.dialogueSpeaker.getBounds().top;
+    const x = Phaser.Math.Clamp(this.dialogueSpeaker.x, cam.scrollX + half + 8, cam.scrollX + this.W - half - 8);
+    this.dialogueBox.setPosition(x, top - 16 - this.dialogueBox.boxH / 2);
+  }
+
+  advanceDialogue() {
+    this.dialogueIndex++;
+    if (this.dialogueIndex < this.dialogueLines.length) {
+      this.showDialogueLine();
+      return;
+    }
+    this.dialogueActive = false;
+    if (this.dialogueBox) { this.dialogueBox.destroy(); this.dialogueBox = null; }
+    const done = this.dialogueDone;
+    this.dialogueDone = null;
+    if (done) done();
   }
 
   kindleFire() {
     // TODO: audio — a small crackle fades in under the wind (sound pass)
-    this.flame.setVisible(true).setScale(1.8, 0.4);
-    this.tweens.add({ targets: this.flame, scaleY: 1.8, duration: 1200, ease: 'Sine.out' });
+    this.flame.setVisible(true).setScale(1.2, 0.4);
+    this.tweens.add({ targets: this.flame, scaleY: 1.2, duration: 1200, ease: 'Sine.out' });
     this.tweens.add({ targets: this.flame, angle: { from: -4, to: 4 },
       duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     this.tweens.add({ targets: this.fireGlow, alpha: 0.10, duration: 900, ease: 'Sine.out',
@@ -931,6 +897,7 @@ export default class EndingScene extends Phaser.Scene {
 
   finishGame() {
     this.ended = true;
+    this.submitKindnessScore();
     // you keep walking as the dark comes up around you
     const fade = this.add.rectangle(0, 0, this.W, this.H, 0x000000)
       .setOrigin(0, 0).setScrollFactor(0).setDepth(250).setAlpha(0);
@@ -942,8 +909,21 @@ export default class EndingScene extends Phaser.Scene {
           fontFamily: 'Georgia, serif', fontSize: '34px', color: '#ece8dc', fontStyle: 'italic'
         }).setOrigin(0.5).setScrollFactor(0).setDepth(260).setAlpha(0);
         this.tweens.add({ targets: title, alpha: 1, duration: 1600 });
-        // TODO: end-of-game hook — credits and the web platform handoff
-        // (kindness tally -> leaderboard) go here once the API shape is set
+        // TODO: end-of-game hook — credits and the web platform handoff go here
       } });
+  }
+
+  submitKindnessScore() {
+    const kindness = this.registry.get('kindness') || 0;
+    leaderboard.submitScore({
+      characterType: CHARACTER_TYPE[this.characterId] || 'female',
+      season: 'summer',
+      score: kindness,
+      completionTime: formatTime(this.time.now / 1000)
+    }).then(() => {
+      console.log('kindness score submitted:', kindness);
+    }).catch((err) => {
+      console.error('could not submit kindness score:', err.message);
+    });
   }
 }

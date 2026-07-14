@@ -58,7 +58,6 @@ export default class MorningScene extends Phaser.Scene {
     this.stations = [];
 
     // ---- BED (far left) — empty bed; the player sprite lies on it while asleep ----
-    // ('cabin-bed-sleeping' is now unused: the baked-in figure predates the LPC player)
     const bedX = W * 0.15;
     this.bedX = bedX;
     this.bedSprite = this.add.image(bedX, floorY + 2, 'cabin-bed')

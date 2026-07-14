@@ -8,7 +8,7 @@ export const leaderboard = {
       throw new Error('not logged in');
     }
 
-    const response = await fetch(`${LEADERBOARD_API_BASE}/api/leaderboard`, {
+    const post = () => fetch(`${LEADERBOARD_API_BASE}/api/leaderboard`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -22,6 +22,13 @@ export const leaderboard = {
         completionTime // format "HH:MM:SS"
       })
     });
+
+    let response = await post();
+
+    if (response.status === 401) {
+      await auth.refresh();
+      response = await post();
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({ error: 'submit failed' }));
