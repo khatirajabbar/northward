@@ -571,6 +571,9 @@ export default class ForestScene extends Phaser.Scene {
     this.debugKeys = this.input.keyboard.addKeys('ONE,TWO,THREE,FOUR,FIVE');
     // hold to walk slowly and gently — matters most in the bramble
     this.keyShift = this.input.keyboard.addKey('SHIFT');
+    const openPause = () => { this.scene.pause(); this.scene.launch('PauseScene', { caller: this.scene.key }); };
+    this.input.keyboard.on('keydown-P', openPause);
+    this.input.keyboard.on('keydown-ESC', openPause);
 
     // ── prompt ──
     this.prompt = this.add.text(0, 0, '', {

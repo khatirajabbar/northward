@@ -256,6 +256,9 @@ export default class EndingScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.keyE = this.input.keyboard.addKey('E');
+    const openPause = () => { this.scene.pause(); this.scene.launch('PauseScene', { caller: this.scene.key }); };
+    this.input.keyboard.on('keydown-P', openPause);
+    this.input.keyboard.on('keydown-ESC', openPause);
 
     // ── prompt ──
     this.prompt = this.add.text(0, 0, '', {

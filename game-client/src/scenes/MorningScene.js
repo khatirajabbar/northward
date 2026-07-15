@@ -32,6 +32,9 @@ export default class MorningScene extends Phaser.Scene {
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.keyE = this.input.keyboard.addKey('E');
     this.keyE.on('down', () => this.tryInteract());
+    const openPause = () => { this.scene.pause(); this.scene.launch('PauseScene', { caller: this.scene.key }); };
+    this.input.keyboard.on('keydown-P', openPause);
+    this.input.keyboard.on('keydown-ESC', openPause);
 
     this.done = { curtains: false, teeth: false, coffee: false, cereal: false, milk: false };
     this.inventory = {};
