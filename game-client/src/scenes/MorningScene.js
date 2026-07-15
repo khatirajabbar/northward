@@ -125,7 +125,7 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   buildPlayer() {
-    // physics player — arcade body + global gravity (matches GameScene)
+    // physics player — arcade body + global gravity
     // LPC frames are 64px; 1.5 sizes her against the cabin furniture.
     // body size/offset are frame pixels (arcade scales them with the sprite),
     // and both body bottom and visual feet sit at frame y=60 — contact holds at any scale
@@ -136,7 +136,7 @@ export default class MorningScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.body.setAllowGravity(false); // asleep: stay put until we wake
     this.playerSpeed = 240;   // walk speed (px/sec)
-    this.jumpSpeed = -480;    // same jump strength as GameScene
+    this.jumpSpeed = -480;
     this.canMove = false;
 
     // invisible floor to stand and land on

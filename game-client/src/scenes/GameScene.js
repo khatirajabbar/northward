@@ -119,7 +119,8 @@ export default class GameScene extends Phaser.Scene {
 
     // HUD
     this.add.text(20, 20, 'reach the light at the end of the path', {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '14px', color: '#2a2018'
+      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '14px', color: '#f0ece0',
+      stroke: '#10161c', strokeThickness: 3
     }).setScrollFactor(0).setDepth(100);
 
     this.deathCount = 0;
@@ -229,7 +230,9 @@ export default class GameScene extends Phaser.Scene {
 
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
-    const jump = this.cursors.up.isDown || this.wasd.W.isDown || this.cursors.space.isDown;
+    const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+                 Phaser.Input.Keyboard.JustDown(this.wasd.W) ||
+                 Phaser.Input.Keyboard.JustDown(this.cursors.space);
 
     if (left) {
       this.player.setVelocityX(-speed);

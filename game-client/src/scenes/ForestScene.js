@@ -69,7 +69,7 @@ export default class ForestScene extends Phaser.Scene {
         .setOrigin(0, 0).setScrollFactor(0).setDepth(-30);
     });
 
-    // ── parallax (same recolor as GameScene) ──
+    // ── parallax ──
     const dwScale = height / 272 * 1.05;
     const dwH = 272 * dwScale;
     const dwY = height - dwH;
@@ -1556,13 +1556,14 @@ export default class ForestScene extends Phaser.Scene {
       label = null;
       if (!this.horseHungryHintShown) {
         this.horseHungryHintShown = true;
-        this.showThought('the horse looks hungry.', 3200);
+        this.showThought('the horse looks hungry. maybe a carrot from the field would help.', 3600);
       }
     }
     else {
       const mh = this.meadowHorses && this.meadowHorses.find((m) => !m.fed && Math.abs(px - m.baseX) < 70);
       if (mh && (this.inventory.carrots || 0) > 0) { label = 'give a carrot'; action = 'feedmeadow'; this._nearMeadow = mh; }
     }
+    if (this.horseHungryHintShown && !near(this.horseX, 95)) this.horseHungryHintShown = false;
 
     // nothing else to do here? then you can set down whatever you're carrying
     if (!label && this.carryingCat && onGround && this.player.y > this.groundY - 60) { label = 'put down the cat'; action = 'putdowncat'; }
