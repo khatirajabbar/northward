@@ -42,6 +42,14 @@ public class GameSessionController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPatch("{sessionId:guid}/progress")]
+    public async Task<IActionResult> UpdateProgress(Guid sessionId, [FromBody] UpdateProgressDto dto)
+    {
+        var userId = GetUserId();
+        var result = await _gameSessionService.UpdateProgressAsync(userId, sessionId, dto);
+        return Ok(result);
+    }
+
     [HttpPatch("{sessionId:guid}/complete")]
     public async Task<IActionResult> Complete(Guid sessionId)
     {

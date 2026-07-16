@@ -6,6 +6,7 @@ public class GameSession
     public Guid UserId { get; private set; }
     public Guid PlayerCharacterId { get; private set; }
     public string Season { get; private set; } = string.Empty;
+    public string CurrentScene { get; private set; } = string.Empty;
     public int Score { get; private set; }
     public bool IsCompleted { get; private set; }
     public DateTime StartedAt { get; private set; }
@@ -21,6 +22,7 @@ public class GameSession
             UserId = userId,
             PlayerCharacterId = playerCharacterId,
             Season = season,
+            CurrentScene = Scenes.Morning,
             Score = 0,
             IsCompleted = false,
             StartedAt = DateTime.UtcNow
@@ -36,6 +38,21 @@ public class GameSession
             throw new ArgumentException("points must be positive", nameof(points));
 
         Score += points;
+    }
+
+    public void UpdateProgress(string currentScene, int score)
+    {
+        if (IsCompleted)
+            throw new InvalidOperationException("cannot update progress on a completed session");
+
+        if (string.IsNullOrWhiteSpace(currentScene))
+            throw new ArgumentException("current scene is required", nameof(currentScene));
+
+        if (score < 0)
+            throw new ArgumentException("score cannot be negative", nameof(score));
+
+        CurrentScene = currentScene;
+        Score = score;
     }
 
     public void Complete()

@@ -20,6 +20,10 @@ public class GameSessionConfiguration : IEntityTypeConfiguration<GameSession>
             .IsRequired()
             .HasMaxLength(20);
 
+        builder.Property(gs => gs.CurrentScene)
+            .IsRequired()
+            .HasMaxLength(20);
+
         builder.Property(gs => gs.Score)
             .IsRequired();
 

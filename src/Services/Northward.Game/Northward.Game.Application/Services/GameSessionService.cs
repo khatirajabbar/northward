@@ -39,6 +39,18 @@ public class GameSessionService : IGameSessionService
         return MapToDto(session);
     }
 
+    public async Task<GameSessionDto> UpdateProgressAsync(Guid userId, Guid sessionId, UpdateProgressDto dto)
+    {
+        var session = await _gameSessionRepository.GetByIdAsync(sessionId);
+
+        if (session == null || session.UserId != userId)
+            throw new KeyNotFoundException("session not found");
+
+        session.UpdateProgress(dto.CurrentScene, dto.Score);
+        await _gameSessionRepository.UpdateAsync(session);
+        return MapToDto(session);
+    }
+
     public async Task<GameSessionDto> CompleteAsync(Guid userId, Guid sessionId)
     {
         var session = await _gameSessionRepository.GetByIdAsync(sessionId);
@@ -57,6 +69,7 @@ public class GameSessionService : IGameSessionService
             Id: gameSession.Id,
             PlayerCharacterId: gameSession.PlayerCharacterId,
             Season: gameSession.Season,
+            CurrentScene: gameSession.CurrentScene,
             Score: gameSession.Score,
             IsCompleted: gameSession.IsCompleted,
             StartedAt: gameSession.StartedAt,
