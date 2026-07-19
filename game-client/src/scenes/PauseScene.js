@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
+import { game } from '../services/game.js';
 
-const MENU_ITEMS = ['resume', 'restart journey', 'fullscreen', 'quit to menu'];
+const MENU_ITEMS = ['resume', 'restart journey', 'fullscreen', 'save & quit', 'quit to title'];
 const STORY_SCENES = ['MorningScene', 'ForestScene', 'EndingScene'];
 
 export default class PauseScene extends Phaser.Scene {
@@ -63,7 +64,8 @@ export default class PauseScene extends Phaser.Scene {
     if (item === 'resume') { this.resumeCaller(); return; }
     if (item === 'restart journey') { this.restartJourney(); return; }
     if (item === 'fullscreen') { this.scale.toggleFullscreen(); return; }
-    if (item === 'quit to menu') this.quitToMenu();
+    if (item === 'save & quit') { this.saveAndQuit(); return; }
+    if (item === 'quit to title') this.quitToTitle();
   }
 
   resumeCaller() {
@@ -78,8 +80,19 @@ export default class PauseScene extends Phaser.Scene {
     this.scene.start('MorningScene');
   }
 
-  quitToMenu() {
+  saveAndQuit() {
+    const sessionId = this.registry.get('sessionId');
+    if (sessionId) {
+      game.updateProgress(sessionId, this.caller, this.registry.get('kindness') || 0)
+        .catch((err) => console.warn('could not save progress:', err.message));
+    } else {
+      console.warn('no session to save — quitting without saving');
+    }
+    this.quitToTitle();
+  }
+
+  quitToTitle() {
     STORY_SCENES.forEach((key) => this.scene.stop(key));
-    this.scene.start('CharacterSelectScene');
+    this.scene.start('SessionSelectScene');
   }
 }

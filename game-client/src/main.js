@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
 import LoginScene from './scenes/LoginScene.js';
+import SessionSelectScene from './scenes/SessionSelectScene.js';
 import CharacterSelectScene from './scenes/CharacterSelectScene.js';
 import MorningScene from './scenes/MorningScene.js';
 import ForestScene from './scenes/ForestScene.js';
@@ -26,7 +27,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [BootScene, LoginScene, CharacterSelectScene, MorningScene, ForestScene, EndingScene, PauseScene]
+  scene: [BootScene, LoginScene, SessionSelectScene, CharacterSelectScene, MorningScene, ForestScene, EndingScene, PauseScene]
 };
 
 const game = new Phaser.Game(config);
@@ -67,7 +68,7 @@ async function attemptLogin() {
     setTimeout(() => {
       overlay.style.display = 'none';
       game.scene.stop('LoginScene');
-      game.scene.start('CharacterSelectScene');
+      game.scene.start('SessionSelectScene');
     }, 800);
   } catch (err) {
     showError(err.message);

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { game } from '../services/game.js';
 
 // Beat 1 — the morning. A cozy one-room cabin: Penzilla walls/floor with the
 // hand-drawn Gemini furniture on top. Walk with arrows, press E at a station.
@@ -327,6 +328,8 @@ export default class MorningScene extends Phaser.Scene {
       onComplete: () => {
         this.cameras.main.fadeOut(1300, 21, 17, 12);
         this.registry.set('inventory', this.inventory);
+        const sessionId = this.registry.get('sessionId');
+        if (sessionId) game.updateProgress(sessionId, 'ForestScene', 0).catch((err) => console.warn('could not save progress:', err.message));
         this.time.delayedCall(1400, () => this.scene.start('ForestScene'));
       }
     });

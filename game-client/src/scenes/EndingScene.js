@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { leaderboard, formatTime } from '../services/leaderboard.js';
+import { game } from '../services/game.js';
 
 const CRYING_COMPANION = { 'lpc-khatira': 'lpc-oliver', 'lpc-oliver': 'lpc-khatira' };
 const CHARACTER_TYPE = { 'lpc-khatira': 'female', 'lpc-oliver': 'male' };
@@ -901,6 +902,8 @@ export default class EndingScene extends Phaser.Scene {
   finishGame() {
     this.ended = true;
     this.submitKindnessScore();
+    const sessionId = this.registry.get('sessionId');
+    if (sessionId) game.completeSession(sessionId).catch((err) => console.warn('could not complete session:', err.message));
     // you keep walking as the dark comes up around you
     const fade = this.add.rectangle(0, 0, this.W, this.H, 0x000000)
       .setOrigin(0, 0).setScrollFactor(0).setDepth(250).setAlpha(0);
@@ -918,11 +921,15 @@ export default class EndingScene extends Phaser.Scene {
 
   submitKindnessScore() {
     const kindness = this.registry.get('kindness') || 0;
+    const startedAt = this.registry.get('sessionStartedAt');
+    const seconds = startedAt
+      ? (Date.now() - new Date(startedAt).getTime()) / 1000
+      : this.time.now / 1000;
     leaderboard.submitScore({
       characterType: CHARACTER_TYPE[this.characterId] || 'female',
       season: 'summer',
       score: kindness,
-      completionTime: formatTime(this.time.now / 1000)
+      completionTime: formatTime(seconds)
     }).then(() => {
       console.log('kindness score submitted:', kindness);
     }).catch((err) => {

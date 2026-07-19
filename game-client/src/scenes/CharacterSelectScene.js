@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { game, CHARACTER_TYPE_BY_ID } from '../services/game.js';
+import { auth } from '../services/auth.js';
 
 const TRAVELERS = ['lpc-khatira', 'lpc-oliver'];
 
@@ -93,8 +95,27 @@ export default class CharacterSelectScene extends Phaser.Scene {
   confirm() {
     if (this.confirmed) return;
     this.confirmed = true;
-    this.registry.set('playAs', this.cards[this.selectedIndex].id);
+    const travelerId = this.cards[this.selectedIndex].id;
+    this.registry.set('playAs', travelerId);
+    this.registry.remove('sessionId');
+    this.registry.remove('sessionStartedAt');
+    this.registry.set('kindness', 0);
+    this.startJourney(travelerId);
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('MorningScene'));
+  }
+
+  async startJourney(travelerId) {
+    try {
+      const characterType = CHARACTER_TYPE_BY_ID[travelerId];
+      const characters = await game.getCharacters();
+      let character = characters.find((c) => c.characterType === characterType);
+      if (!character) character = await game.createCharacter(characterType, auth.user.username);
+      const session = await game.createSession(character.id, 'summer');
+      this.registry.set('sessionId', session.id);
+      this.registry.set('sessionStartedAt', session.startedAt);
+    } catch (err) {
+      console.warn('starting journey without a saved session:', err.message);
+    }
   }
 }

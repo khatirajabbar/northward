@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { game } from '../services/game.js';
 
 export default class ForestScene extends Phaser.Scene {
   constructor() {
@@ -25,7 +26,7 @@ export default class ForestScene extends Phaser.Scene {
     this.carrying = null;       // null | 'empty' | 'full'
     this.bucketPicked = false;
     this.treeWatered = false;
-    this.kindness = 0;
+    this.kindness = this.registry.get('kindness') || 0;
 
     // ── inventory (generic: holds any item by name) ──
     // you packed a bag before leaving home — a few things are already in it
@@ -582,7 +583,7 @@ export default class ForestScene extends Phaser.Scene {
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(150).setVisible(false);
 
     // ── faint kindness readout (TEST ONLY — we hide this later) ──
-    this.kindnessDebug = this.add.text(this.W - 20, 18, 'kindness: 0', {
+    this.kindnessDebug = this.add.text(this.W - 20, 18, 'kindness: ' + this.kindness, {
       fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#cfe8d8'
     }).setOrigin(1, 0).setScrollFactor(0).setDepth(200).setAlpha(0.3);
 
@@ -1143,6 +1144,7 @@ export default class ForestScene extends Phaser.Scene {
 
   addKindness(x, y) {
     this.kindness++;
+    this.registry.set('kindness', this.kindness);
     this.kindnessDebug.setText('kindness: ' + this.kindness);
     this.sparkle(x, y);
   }
@@ -1197,6 +1199,8 @@ export default class ForestScene extends Phaser.Scene {
         // (a no-op when MorningScene isn't running.)
         this.scene.stop('MorningScene');
         this.registry.set('kindness', this.kindness);
+        const sessionId = this.registry.get('sessionId');
+        if (sessionId) game.updateProgress(sessionId, 'EndingScene', this.kindness).catch((err) => console.warn('could not save progress:', err.message));
         this.scene.start('EndingScene');
       });
     }
