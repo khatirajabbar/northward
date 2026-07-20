@@ -18,5 +18,9 @@ public class UpdateProgressDtoValidator : AbstractValidator<UpdateProgressDto>
 
         RuleFor(x => x.Score)
             .GreaterThanOrEqualTo(0).WithMessage("score cannot be negative");
+
+        RuleFor(x => x.Checkpoint)
+            .MaximumLength(40).WithMessage("checkpoint cannot exceed 40 characters")
+            .When(x => x.Checkpoint != null);
     }
 }

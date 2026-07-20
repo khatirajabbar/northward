@@ -24,6 +24,10 @@ public class GameSessionConfiguration : IEntityTypeConfiguration<GameSession>
             .IsRequired()
             .HasMaxLength(20);
 
+        builder.Property(gs => gs.Checkpoint)
+            .IsRequired(false)
+            .HasMaxLength(40);
+
         builder.Property(gs => gs.Score)
             .IsRequired();
 

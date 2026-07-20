@@ -7,6 +7,7 @@ public class GameSession
     public Guid PlayerCharacterId { get; private set; }
     public string Season { get; private set; } = string.Empty;
     public string CurrentScene { get; private set; } = string.Empty;
+    public string? Checkpoint { get; private set; }
     public int Score { get; private set; }
     public bool IsCompleted { get; private set; }
     public DateTime StartedAt { get; private set; }
@@ -40,7 +41,7 @@ public class GameSession
         Score += points;
     }
 
-    public void UpdateProgress(string currentScene, int score)
+    public void UpdateProgress(string currentScene, int score, string? checkpoint)
     {
         if (IsCompleted)
             throw new InvalidOperationException("cannot update progress on a completed session");
@@ -53,6 +54,7 @@ public class GameSession
 
         CurrentScene = currentScene;
         Score = score;
+        Checkpoint = checkpoint;
     }
 
     public void Complete()

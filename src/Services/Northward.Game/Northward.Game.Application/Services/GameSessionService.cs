@@ -46,7 +46,7 @@ public class GameSessionService : IGameSessionService
         if (session == null || session.UserId != userId)
             throw new KeyNotFoundException("session not found");
 
-        session.UpdateProgress(dto.CurrentScene, dto.Score);
+        session.UpdateProgress(dto.CurrentScene, dto.Score, dto.Checkpoint);
         await _gameSessionRepository.UpdateAsync(session);
         return MapToDto(session);
     }
@@ -70,6 +70,7 @@ public class GameSessionService : IGameSessionService
             PlayerCharacterId: gameSession.PlayerCharacterId,
             Season: gameSession.Season,
             CurrentScene: gameSession.CurrentScene,
+            Checkpoint: gameSession.Checkpoint,
             Score: gameSession.Score,
             IsCompleted: gameSession.IsCompleted,
             StartedAt: gameSession.StartedAt,

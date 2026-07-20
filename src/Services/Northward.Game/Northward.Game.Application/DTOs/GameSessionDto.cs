@@ -5,6 +5,7 @@ public record GameSessionDto(
     Guid PlayerCharacterId,
     string Season,
     string CurrentScene,
+    string? Checkpoint,
     int Score,
     bool IsCompleted,
     DateTime StartedAt,

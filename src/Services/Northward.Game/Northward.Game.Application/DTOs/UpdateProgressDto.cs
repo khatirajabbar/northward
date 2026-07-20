@@ -2,5 +2,6 @@ namespace Northward.Game.Application.DTOs;
 
 public record UpdateProgressDto(
     string CurrentScene,
-    int Score
+    int Score,
+    string? Checkpoint
 );
