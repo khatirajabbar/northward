@@ -1,0 +1,31 @@
+# Keep the build context small and prevent host build artifacts from leaking
+# into the image (they'd shadow the clean restore/publish done inside build).
+
+# .NET build output
+**/bin/
+**/obj/
+**/out/
+
+# Node / front-end tooling (e.g. the Phaser game-client)
+**/node_modules/
+**/dist/
+
+# Docker & compose files (not needed inside the image)
+**/Dockerfile
+**/.dockerignore
+docker-compose*.yml
+.env
+
+# VCS, IDE, and OS cruft
+.git/
+.gitignore
+.vs/
+.vscode/
+.idea/
+**/*.user
+**/.DS_Store
+
+# Local secrets / logs
+**/*.env
+**/appsettings.*.local.json
+**/logs/
