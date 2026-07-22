@@ -141,6 +141,7 @@ export default class SessionSelectScene extends Phaser.Scene {
       this.registry.set('sessionId', session.id);
       this.registry.set('sessionStartedAt', session.startedAt);
       this.registry.set('kindness', session.score);
+      this.registry.set('checkpoint', session.checkpoint ?? null);
       this.scene.start(session.currentScene);
     });
   }

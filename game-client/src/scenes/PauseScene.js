@@ -76,6 +76,7 @@ export default class PauseScene extends Phaser.Scene {
   restartJourney() {
     this.registry.set('kindness', 0);
     this.registry.set('inventory', {});
+    this.registry.remove('checkpoint');
     STORY_SCENES.forEach((key) => this.scene.stop(key));
     this.scene.start('MorningScene');
   }
@@ -83,7 +84,10 @@ export default class PauseScene extends Phaser.Scene {
   saveAndQuit() {
     const sessionId = this.registry.get('sessionId');
     if (sessionId) {
-      game.updateProgress(sessionId, this.caller, this.registry.get('kindness') || 0)
+      // the checkpoint is forest-only — read it from the registry (ForestScene
+      // keeps it current) and send it only when quitting out of the forest
+      const checkpoint = this.caller === 'ForestScene' ? this.registry.get('checkpoint') : null;
+      game.updateProgress(sessionId, this.caller, this.registry.get('kindness') || 0, checkpoint)
         .catch((err) => console.warn('could not save progress:', err.message));
     } else {
       console.warn('no session to save — quitting without saving');

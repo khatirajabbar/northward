@@ -49,6 +49,11 @@ export default class ForestScene extends Phaser.Scene {
     this.respawnX = 3680;        // default checkpoint — updates to each torch you light
     this.respawnY = this.groundY - 40;
     this.torchX = 4940;          // torch checkpoint before the crossing
+    this.brambleTorchX = 6900;   // torch checkpoint before the bramble (sprite built below)
+    // checkpoint torches in world order — stable id -> world x. passing a torch
+    // saves it as the active checkpoint (respawn a step past it on resume).
+    this.torchCheckpoints = { 'torch-1': this.riverTorchX, 'torch-2': this.torchX, 'torch-3': this.brambleTorchX };
+    this.currentCheckpoint = null;
     this.saidGoodbye = false;
     this.grassWidth = 440;
     this.horseFed = false;
@@ -246,7 +251,11 @@ export default class ForestScene extends Phaser.Scene {
     // line and a little mound of turned earth covers it, so only the greens
     // and the orange shoulder show. each one sits its own way — a slightly
     // different size, depth in the soil, and mound — a patch, not a row ──
-    this.carrotXs.forEach((cx) => {
+    // on resume with carrots already in the bag, the field was harvested in the
+    // saved run — don't respawn the ground carrots (they'd duplicate). a fresh
+    // forest entry has no carrots yet (they're only found here), so the field shows.
+    const alreadyHarvestedCarrots = (this.inventory.carrots || 0) > 0;
+    if (!alreadyHarvestedCarrots) this.carrotXs.forEach((cx) => {
       const carrot = this.add.image(cx, this.groundY + 12 + (Math.random() * 6 - 3), 'carrot')
         .setOrigin(0.5, 1).setScale(1.2 + Math.random() * 0.3).setDepth(4);
       carrot.itemX = cx;
@@ -263,7 +272,17 @@ export default class ForestScene extends Phaser.Scene {
     });
 
     // ── player ──
-    this.player = this.physics.add.sprite(120, this.groundY - 40, `${this.characterId}-idle-sheet`, 39);
+    // resume: if a saved checkpoint matches a known torch, spawn a step past it
+    // on the ground; otherwise (null/unknown) start at the forest entrance
+    const savedCheckpoint = this.registry.get('checkpoint');
+    let spawnX = 120;
+    if (savedCheckpoint && this.torchCheckpoints[savedCheckpoint] !== undefined) {
+      this.currentCheckpoint = savedCheckpoint;
+      spawnX = this.torchCheckpoints[savedCheckpoint] + 40;   // a step past the torch
+      this.respawnX = this.torchCheckpoints[savedCheckpoint];
+      this.respawnY = this.groundY - 40;
+    }
+    this.player = this.physics.add.sprite(spawnX, this.groundY - 40, `${this.characterId}-idle-sheet`, 39);
     this.player.setCollideWorldBounds(true);
     this.player.setDragX(800);
     this.player.setMaxVelocity(220, 700);
@@ -301,7 +320,7 @@ export default class ForestScene extends Phaser.Scene {
     // checkpoint is needed; the mushroom hill is a gentle, no-death section.)
 
     // ── third torch on the ground past the cliff — checkpoint before the bramble ──
-    this.brambleTorchX = 6900;
+    // (brambleTorchX defined with the other checkpoint torches above)
     this.brambleTorchSprite = this.add.image(this.brambleTorchX, this.groundY + 2, 'torch')
       .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
     this.brambleTorchSprite.setTint(0x555555);   // dark/unlit look
@@ -1149,6 +1168,20 @@ export default class ForestScene extends Phaser.Scene {
     this.sparkle(x, y);
   }
 
+  // record the torch you just passed as the active checkpoint — writes it to the
+  // registry (so PauseScene's save & quit can read it) and saves it to the
+  // backend, fire-and-forget, only when it actually changes and a session exists.
+  setCheckpoint(id) {
+    if (id === this.currentCheckpoint) return;
+    this.currentCheckpoint = id;
+    this.registry.set('checkpoint', id);
+    const sessionId = this.registry.get('sessionId');
+    if (sessionId) {
+      game.updateProgress(sessionId, 'ForestScene', this.kindness, id)
+        .catch((err) => console.warn('could not save checkpoint:', err.message));
+    }
+  }
+
   update() {
     // ── bag toggle (I) ──
     if (Phaser.Input.Keyboard.JustDown(this.keyI)) this.toggleBag();
@@ -1200,7 +1233,7 @@ export default class ForestScene extends Phaser.Scene {
         this.scene.stop('MorningScene');
         this.registry.set('kindness', this.kindness);
         const sessionId = this.registry.get('sessionId');
-        if (sessionId) game.updateProgress(sessionId, 'EndingScene', this.kindness).catch((err) => console.warn('could not save progress:', err.message));
+        if (sessionId) game.updateProgress(sessionId, 'EndingScene', this.kindness, this.currentCheckpoint).catch((err) => console.warn('could not save progress:', err.message));
         this.scene.start('EndingScene');
       });
     }
@@ -1210,6 +1243,7 @@ export default class ForestScene extends Phaser.Scene {
       this.riverTorchLit = true;
       this.respawnX = this.riverTorchX;       // this is your checkpoint now
       this.respawnY = this.groundY - 40;
+      this.setCheckpoint('torch-1');
       this.riverTorchSprite.clearTint();
       this.riverTorchFlame.setVisible(true);
       this.tweens.add({ targets: this.riverTorchFlame, angle: { from: -4, to: 4 },
@@ -1234,6 +1268,7 @@ export default class ForestScene extends Phaser.Scene {
       this.torchLit = true;
       this.respawnX = this.torchX;            // this is your checkpoint now
       this.respawnY = this.groundY - 40;
+      this.setCheckpoint('torch-2');
       this.torchSprite.clearTint();   // post catches warm light
       this.torchFlame.setVisible(true);
       // the flame sways gently, like the grass — slow and soft
@@ -1261,6 +1296,7 @@ export default class ForestScene extends Phaser.Scene {
       this.brambleTorchLit = true;
       this.respawnX = this.brambleTorchX;      // this is your checkpoint now
       this.respawnY = this.groundY - 40;
+      this.setCheckpoint('torch-3');
       this.brambleTorchSprite.clearTint();
       this.brambleTorchFlame.setVisible(true);
       this.tweens.add({ targets: this.brambleTorchFlame, angle: { from: -4, to: 4 },

@@ -99,6 +99,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
     this.registry.set('playAs', travelerId);
     this.registry.remove('sessionId');
     this.registry.remove('sessionStartedAt');
+    this.registry.remove('checkpoint');
     this.registry.set('kindness', 0);
     this.startJourney(travelerId);
     this.cameras.main.fadeOut(500, 0, 0, 0);

@@ -57,8 +57,8 @@ export const game = {
     return request('/api/gamesession', 'POST', { playerCharacterId, season });
   },
 
-  updateProgress(sessionId, currentScene, score) {
-    return request(`/api/gamesession/${sessionId}/progress`, 'PATCH', { currentScene, score });
+  updateProgress(sessionId, currentScene, score, checkpoint) {
+    return request(`/api/gamesession/${sessionId}/progress`, 'PATCH', { currentScene, score, checkpoint });
   },
 
   completeSession(sessionId) {
