@@ -50,7 +50,7 @@
                     <tr>
                         <td class="lb-rank">@entry.Rank</td>
                         <td>@entry.Username</td>
-                        <td>@entry.CharacterType</td>
+                        <td>@(entry.CharacterType == "female" ? "khatira" : entry.CharacterType == "male" ? "oliver" : "knight")</td>
                         <td>@entry.Season</td>
                         <td>@entry.Score.ToString("N0")</td>
                         <td>@($"{(int)entry.CompletionTime.TotalMinutes}:{entry.CompletionTime.Seconds:D2}")</td>
