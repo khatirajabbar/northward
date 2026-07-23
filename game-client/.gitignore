@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Local env files (local ports / overrides) — but keep the committed docker example
+.env
+.env.local
+!.env.docker.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,4 +1,4 @@
-const AUTH_API_BASE = 'http://localhost:5283';
+const AUTH_API_BASE = import.meta.env.VITE_AUTH_URL || 'http://localhost:5283';
 // not referenced anywhere in game-client — verify against the Auth service
 const AUTH_REFRESH_PATH = '/api/auth/refresh';
 

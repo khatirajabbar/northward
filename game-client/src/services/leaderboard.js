@@ -1,6 +1,6 @@
 import { auth } from './auth.js';
 
-const LEADERBOARD_API_BASE = 'http://localhost:5294';
+const LEADERBOARD_API_BASE = import.meta.env.VITE_LEADERBOARD_URL || 'http://localhost:5294';
 
 export const leaderboard = {
   async submitScore({ characterType, season, score, completionTime }) {

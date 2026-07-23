@@ -1,6 +1,6 @@
 import { auth } from './auth.js';
 
-const GAME_API_BASE = 'http://localhost:5160';
+const GAME_API_BASE = import.meta.env.VITE_GAME_URL || 'http://localhost:5160';
 
 export const CHARACTER_TYPE_BY_ID = {
   'lpc-khatira': 'female',
