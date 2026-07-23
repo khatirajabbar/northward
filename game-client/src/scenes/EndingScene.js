@@ -34,7 +34,7 @@ export default class EndingScene extends Phaser.Scene {
     this.figureHomeX = 1790;       // where they sit crying
     this.figureFireX = this.fireX + 62;   // where they settle once the fire is lit
     this.seatX = this.fireX + 88;         // where you sit, close beside them
-    this.leaveX = 420;             // walking back past here ends the game
+    this.leaveX = 1000;             // walking back past here ends the game
 
     // ── state ──
     this.characterId = this.registry.get('playAs') || 'lpc-khatira';
@@ -797,6 +797,7 @@ export default class EndingScene extends Phaser.Scene {
     this.tweens.add({ targets: this.figure, y: this.groundY + 5, duration: 500,
       yoyo: true, delay: 800, ease: 'Sine.inOut' });
     this.time.delayedCall(1800, () => { this.busy = false; });
+    this.time.delayedCall(2600, () => this.showThought('time to go home.', 3200));
   }
 
   startDialogue(lines, onDone) {
