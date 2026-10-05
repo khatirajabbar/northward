@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { leaderboard, formatTime } from '../services/leaderboard.js';
 import { game } from '../services/game.js';
 import { makeCatTextures, updateCatFollow } from '../characters/cat.js';
+import { FOREST_SCALE, FEET } from '../characters/lpc.js';
 import { FLAGS, clock, tickClock, decodeProgress } from '../services/progress.js';
 import { CREDITS } from '../credits.js';
 
@@ -37,7 +38,7 @@ export default class EndingScene extends Phaser.Scene {
     this.birdX = this.nestX + 4;   // the bird lies where it fell, below the nest
     this.figureHomeX = 1790;       // where they sit crying
     this.figureFireX = this.fireX + 62;   // where they settle once the fire is lit
-    this.seatX = this.fireX + 88;         // where you sit, close beside them
+    this.seatX = this.figureFireX + 26 * FOREST_SCALE;   // where you sit, close beside them
     this.leaveX = 1000;             // walking back past here ends the game
 
     // ── state ──
@@ -199,14 +200,14 @@ export default class EndingScene extends Phaser.Scene {
     // ── the crying figure, hunched under the tree ──
     // TODO: audio — thin wind and a soft crying loop, very quiet (sound pass)
     this.figure = this.add.sprite(this.figureHomeX, this.groundY + 2, `${this.companionId}-sit-sheet`, 28)
-      .setOrigin(0.5, 1).setScale(1).setDepth(9);
+      .setOrigin(0.5, 1).setScale(FOREST_SCALE).setDepth(9);
     // small tremble in the shoulders
     this.cryTween = this.tweens.add({ targets: this.figure, y: this.groundY + 0.5,
       duration: 340, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     // a tear now and then, until the fire is lit
     this.time.addEvent({ delay: 1900, loop: true, callback: () => {
       if (this.fireBuilt) return;
-      const tear = this.add.circle(this.figure.x - 8 + Math.random() * 6, this.groundY - 44, 2, 0x9fc4d8, 0.8).setDepth(10);
+      const tear = this.add.circle(this.figure.x - 8 + Math.random() * 6, this.groundY - 44 * FOREST_SCALE, 2, 0x9fc4d8, 0.8).setDepth(10);
       this.tweens.add({ targets: tear, y: tear.y + 28, alpha: 0, duration: 850,
         ease: 'Quad.in', onComplete: () => tear.destroy() });
     } });
@@ -242,11 +243,11 @@ export default class EndingScene extends Phaser.Scene {
       .setOrigin(0, 0).setScrollFactor(0).setDepth(30).setAlpha(0);
 
     // ── player ──
-    this.player = this.physics.add.sprite(140, this.groundY - 40, `${this.characterId}-idle-sheet`, 39);
+    this.player = this.physics.add.sprite(140, this.groundY - FEET * FOREST_SCALE - 4, `${this.characterId}-idle-sheet`, 39);
     this.player.setCollideWorldBounds(true);
     this.player.setDragX(800);
     this.player.setMaxVelocity(220, 700);
-    this.player.setScale(1);
+    this.player.setScale(FOREST_SCALE);
     this.player.setSize(20, 34);
     this.player.setOffset(22, 26);
     this.player.setDepth(10);
@@ -750,7 +751,7 @@ export default class EndingScene extends Phaser.Scene {
       this.sitTimer = 0;
       this.player.setVelocity(0, 0);
       this.player.body.setAllowGravity(false);
-      this.player.setPosition(this.seatX, this.groundY - 30);
+      this.player.setPosition(this.seatX, this.groundY - 2 - FEET * FOREST_SCALE);
       this.player.setFlipX(false);   // both of you, facing out of the screen
       this.player.anims.stop();
       this.player.setTexture(`${this.characterId}-sit-sheet`, 28);

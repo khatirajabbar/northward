@@ -1,4 +1,4 @@
-// The cat you bring down from the cliff. Once it trusts you it follows you for
+// The cat you carry down from the cliff. Once you set it down it follows you for
 // the rest of the journey — through the forest and into the ending — and when
 // you stay still for a moment it comes over and sits next to you.
 
@@ -10,6 +10,20 @@ export function makeCatTextures(scene) {
     g.generateTexture(key, w, h);
     g.destroy();
   };
+
+  // cat (held) — curled up small in your arms, facing left
+  make((g) => {
+    g.fillStyle(0x8a7a66);
+    g.fillEllipse(16, 20, 22, 12);              // body curled
+    g.fillEllipse(9, 14, 11, 10);               // head
+    g.fillTriangle(4, 10, 8, 10, 5, 4);         // ear
+    g.fillTriangle(10, 10, 14, 10, 13, 4);      // ear
+    g.fillRect(24, 12, 4, 12);                  // tail
+    g.fillStyle(0x6b5d4d);
+    g.fillRect(14, 16, 3, 6); g.fillRect(19, 16, 3, 6);  // stripes
+    g.fillStyle(0x2b2620);
+    g.fillRect(6, 13, 2, 2); g.fillRect(11, 13, 2, 2);   // eyes
+  }, 32, 28, 'cat-held');
 
   // cat (standing) — alert, on its own feet, facing left
   make((g) => {

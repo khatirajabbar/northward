@@ -1,3 +1,9 @@
+// How big the traveler is drawn. LPC frames are 64px with the feet at y=60;
+// the physics body is set in frame pixels, so it scales along with the sprite.
+export const FOREST_SCALE = 1;     // out in the world (forest, ending)
+export const CABIN_SCALE = 1.5;    // indoors, against the cabin furniture
+export const FEET = 28;            // frame pixels from the sprite's centre down to the feet
+
 export function loadLpcCharacter(scene, characterId) {
   // hurt.png is a single 13-frame row (832x64), not the usual 4-direction sheet
   const sheets = ['idle', 'walk', 'sit', 'jump', 'hurt', 'watering'];

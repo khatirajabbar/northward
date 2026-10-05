@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { game } from '../services/game.js';
 import { tickClock } from '../services/progress.js';
+import { CABIN_SCALE } from '../characters/lpc.js';
 
 // Beat 1 — the morning. A cozy one-room cabin: Penzilla walls/floor with the
 // hand-drawn Gemini furniture on top. Walk with arrows, press E at a station.
@@ -128,10 +129,10 @@ export default class MorningScene extends Phaser.Scene {
 
   buildPlayer() {
     // physics player — arcade body + global gravity
-    // LPC frames are 64px; 1.5 sizes her against the cabin furniture.
+    // LPC frames are 64px; CABIN_SCALE sizes the traveler against the cabin furniture.
     // body size/offset are frame pixels (arcade scales them with the sprite),
     // and both body bottom and visual feet sit at frame y=60 — contact holds at any scale
-    this.player = this.physics.add.sprite(this.bedX + 70, this.floorY - 40, `${this.characterId}-idle-sheet`, 39).setScale(1.5).setDepth(10);
+    this.player = this.physics.add.sprite(this.bedX + 70, this.floorY - 40, `${this.characterId}-idle-sheet`, 39).setScale(CABIN_SCALE).setDepth(10);
     this.player.setSize(20, 34);
     this.player.setOffset(22, 26);
     this.player.setVisible(false);
@@ -161,18 +162,21 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   startAsleep() {
-    // asleep in the bed: the front-facing standing frame turned on its side,
-    // head on the pillow (left end). a copy of the bed's quilt is drawn over
-    // the body, so only the head and shoulders show above the covers
-    this.player.anims.stop();
-    this.player.setTexture(`${this.characterId}-idle-sheet`, 26);
-    this.player.setAngle(-90);
-    this.player.setPosition(this.bedX - 62, this.floorY - 104);
-    this.player.setVisible(true);
+    // asleep in the bed, turned toward the wall: the back-facing frame laid
+    // along the mattress with the head on the pillow. a copy of the bed's
+    // quilt is drawn over the top, so everything below the neck is under the
+    // covers and only the hair shows
+    this.player.setVisible(false);
+    this.sleeper = this.add.image(this.bedX - 58, this.floorY - 99,
+      `${this.characterId}-idle-sheet`, 0)
+      .setScale(CABIN_SCALE).setAngle(-90).setDepth(10).setCrop(19, 6, 26, 34);
     const bedSource = this.textures.get('cabin-bed').getSourceImage();
     this.quilt = this.add.image(this.bedSprite.x, this.bedSprite.y, 'cabin-bed')
       .setOrigin(0.5, 1).setScale(this.bedSprite.scaleX).setDepth(11)
-      .setCrop(92, 0, bedSource.width - 92, bedSource.height);
+      .setCrop(86, 0, bedSource.width - 86, bedSource.height);
+    // slow breathing
+    this.tweens.add({ targets: this.sleeper, y: this.sleeper.y - 1.2, duration: 1700,
+      yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     this.time.delayedCall(900, () => this.chirp());
     this.time.delayedCall(2000, () => this.chirp());
     this.time.delayedCall(3400, () => this.chirp());
@@ -181,6 +185,7 @@ export default class MorningScene extends Phaser.Scene {
       this.thought.setText('morning already. a bird singing somewhere outside.');
       // rise: leave the bed and stand up beside it
       this.quilt.destroy();
+      this.sleeper.destroy();
       this.player.setAngle(0);
       this.player.setPosition(this.bedX + 70, this.floorY - 40);
       this.player.body.setAllowGravity(true);
@@ -259,7 +264,7 @@ export default class MorningScene extends Phaser.Scene {
     this.cameras.main.once('camerafadeoutcomplete', () => {
       // hips on the seat-cushion surface, legs bending down over the cushion's
       // front edge; a touch left of centre keeps her feet clear of the right armrest
-      this.player.setPosition(this.sofaX - this.px * 2, this.floorY - this.px * 11.5);
+      this.player.setPosition(this.sofaX - this.px * 2, this.floorY - 59.5 - 14 * CABIN_SCALE);
       this.player.body.setAllowGravity(false);
       this.player.setVelocity(0, 0);
       this.player.setFlipX(false);
@@ -270,7 +275,7 @@ export default class MorningScene extends Phaser.Scene {
         this.sitting = true; this.busy = false;
         this.thought.setText('a few quiet minutes before the forest.');
         this.prompt.setText('▸ e  get up');
-        this.prompt.setPosition(this.player.x, this.floorY - 130).setVisible(true);
+        this.prompt.setPosition(this.player.x, this.floorY - 70 - 40 * CABIN_SCALE).setVisible(true);
         this.sipTimer = this.time.addEvent({ delay: 1500, loop: true, callback: () => this.steam(this.mugX, this.mugY) });
       });
     });
@@ -322,7 +327,8 @@ export default class MorningScene extends Phaser.Scene {
       return;
     }
     this.canMove = false; this.busy = true;
-    this.thought.setText('alright. time to go north.');
+    this.inventory = { bread: 1, water: 1, rope: 1 };   // the bag hangs by the door, packed last night
+    this.thought.setText('bag on my shoulder — bread, water, rope. time to go north.');
     this.prompt.setVisible(false);
     // hand control to the tween: stop physics fighting the walk-to-door
     this.player.body.setVelocity(0, 0);
@@ -390,7 +396,7 @@ export default class MorningScene extends Phaser.Scene {
     const s = this.nearestStation();
     if (s) {
       this.prompt.setText('▸ e  ' + s.label);
-      this.prompt.setPosition(this.player.x, this.floorY - 80).setVisible(true);
+      this.prompt.setPosition(this.player.x, this.floorY - 14 - 50 * CABIN_SCALE).setVisible(true);
     } else {
       this.prompt.setVisible(false);
     }
