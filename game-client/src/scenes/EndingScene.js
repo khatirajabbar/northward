@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { leaderboard, formatTime } from '../services/leaderboard.js';
 import { game } from '../services/game.js';
+import { makeCatTextures, updateCatFollow } from '../characters/cat.js';
+import { FLAGS, clock, tickClock, decodeProgress } from '../services/progress.js';
+import { CREDITS } from '../credits.js';
 
 const CRYING_COMPANION = { 'lpc-khatira': 'lpc-oliver', 'lpc-oliver': 'lpc-khatira' };
 const CHARACTER_TYPE = { 'lpc-khatira': 'female', 'lpc-oliver': 'male' };
@@ -23,6 +26,7 @@ export default class EndingScene extends Phaser.Scene {
     this.groundY = height - 60;
 
     this.makeTextures();
+    makeCatTextures(this);
 
     // ── landmark positions ──
     this.fireX = 1500;             // an old stone fire ring at their camp
@@ -115,7 +119,6 @@ export default class EndingScene extends Phaser.Scene {
       ts.warmTint = warmTint;
       this.bgLayers.push(ts);
     };
-    addDW('dw-bg', 0.05, -25, 0x24384a, 0x8a5a48, 1);
     addDW('dw-far', 0.12, -24, 0x2e4656, 0x9a6a50, 0.9);
     addDW('dw-mid', 0.25, -23, 0x1d2e3a, 0x6b4534, 1);
     addDW('dw-close', 0.45, -22, 0x101b25, 0x3b2620, 1);
@@ -249,6 +252,14 @@ export default class EndingScene extends Phaser.Scene {
     this.player.setDepth(10);
     this.physics.add.collider(this.player, this.platforms);
 
+    // the cat from the cliff, if you brought it down — still with you
+    this.cat = null;
+    if (decodeProgress(this.registry.get('checkpoint')).flags & FLAGS.cat) {
+      this.cat = this.add.image(this.player.x - 60, this.groundY, 'cat-stand')
+        .setOrigin(0.5, 1).setScale(1.4).setDepth(9);
+      this.tintScenery.push({ obj: this.cat, cold: 0xb9c4d4, warm: 0xffe2c4 });
+    }
+
     this.physics.world.setBounds(0, 0, worldWidth, height + 400);
     this.cameras.main.setBounds(0, 0, worldWidth, height);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
@@ -257,7 +268,8 @@ export default class EndingScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.keyE = this.input.keyboard.addKey('E');
-    const openPause = () => { this.scene.pause(); this.scene.launch('PauseScene', { caller: this.scene.key }); };
+    this.keyEnter = this.input.keyboard.addKey('ENTER');
+    const openPause = () => { if (this.ended) return; this.scene.pause(); this.scene.launch('PauseScene', { caller: this.scene.key }); };
     this.input.keyboard.on('keydown-P', openPause);
     this.input.keyboard.on('keydown-ESC', openPause);
 
@@ -545,6 +557,11 @@ export default class EndingScene extends Phaser.Scene {
   }
 
   update() {
+    if (!this.ended) tickClock(this);
+    // by the fire the cat settles on your free side — the other one is taken
+    if (this.cat) updateCatFollow(this, this.cat, this.player, this.groundY, this.sitting ? 1 : 0);
+    if (this.canLeave && (Phaser.Input.Keyboard.JustDown(this.keyE) || Phaser.Input.Keyboard.JustDown(this.keyEnter))) this.returnToTitle();
+
     const px = this.player.x;
     const onGround = this.player.body.blocked.down;
 
@@ -902,6 +919,8 @@ export default class EndingScene extends Phaser.Scene {
 
   finishGame() {
     this.ended = true;
+    this.finalKindness = this.registry.get('kindness') || 0;
+    this.finalTime = formatTime(clock.seconds);
     this.submitKindnessScore();
     const sessionId = this.registry.get('sessionId');
     if (sessionId) game.completeSession(sessionId).catch((err) => console.warn('could not complete session:', err.message));
@@ -916,21 +935,59 @@ export default class EndingScene extends Phaser.Scene {
           fontFamily: 'Georgia, serif', fontSize: '34px', color: '#ece8dc', fontStyle: 'italic'
         }).setOrigin(0.5).setScrollFactor(0).setDepth(260).setAlpha(0);
         this.tweens.add({ targets: title, alpha: 1, duration: 1600 });
-        // TODO: end-of-game hook — credits and the web platform handoff go here
+        // the title rests a moment, then lifts to make room for the credits
+        this.time.delayedCall(3200, () => {
+          this.tweens.add({ targets: title, y: 110, duration: 1400, ease: 'Sine.inOut',
+            onComplete: () => this.showCredits() });
+        });
       } });
+  }
+
+  showCredits() {
+    const text = (y, str, size, color, italic = false) => {
+      const t = this.add.text(this.W / 2, y, str, {
+        fontFamily: italic ? 'Georgia, serif' : 'Helvetica Neue, sans-serif', fontSize: size, color,
+        fontStyle: italic ? 'italic' : 'normal', align: 'center', lineSpacing: 5,
+        wordWrap: { width: this.W - 320 }
+      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(260).setAlpha(0);
+      this.tweens.add({ targets: t, alpha: 1, duration: 1200 });
+      return t;
+    };
+
+    const [, minutes, seconds] = this.finalTime.split(':');
+    const hours = Number(this.finalTime.split(':')[0]);
+    const time = `${hours * 60 + Number(minutes)}:${seconds}`;
+    text(160, `kindness ${this.finalKindness}   ·   ${time}`, '15px', '#9fb0b6');
+
+    let y = 215;
+    CREDITS.forEach((block) => {
+      const heading = text(y, block.heading, '16px', '#ece8dc', true);
+      y += heading.height + 6;
+      const body = text(y, block.lines.join('\n'), '12px', '#8a9aa0');
+      y += body.height + 22;
+    });
+
+    this.time.delayedCall(2500, () => {
+      const hint = text(this.H - 60, '▸ e  back to the title', '14px', '#ece8dc');
+      hint.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.returnToTitle());
+      this.canLeave = true;
+    });
+  }
+
+  returnToTitle() {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.cameras.main.fadeOut(900, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('SessionSelectScene'));
   }
 
   submitKindnessScore() {
     const kindness = this.registry.get('kindness') || 0;
-    const startedAt = this.registry.get('sessionStartedAt');
-    const seconds = startedAt
-      ? (Date.now() - new Date(startedAt).getTime()) / 1000
-      : this.time.now / 1000;
     leaderboard.submitScore({
       characterType: CHARACTER_TYPE[this.characterId] || 'female',
       season: 'summer',
       score: kindness,
-      completionTime: formatTime(seconds)
+      completionTime: this.finalTime
     }).then(() => {
       console.log('kindness score submitted:', kindness);
     }).catch((err) => {
