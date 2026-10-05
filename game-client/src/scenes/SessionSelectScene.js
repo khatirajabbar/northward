@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { game, CHARACTER_ID_BY_TYPE } from '../services/game.js';
+import { clock, decodeProgress } from '../services/progress.js';
 
 const SCENE_LABELS = {
   MorningScene: 'morning',
@@ -142,6 +143,8 @@ export default class SessionSelectScene extends Phaser.Scene {
       this.registry.set('sessionStartedAt', session.startedAt);
       this.registry.set('kindness', session.score);
       this.registry.set('checkpoint', session.checkpoint ?? null);
+      this.registry.set('inventory', {});
+      clock.seconds = decodeProgress(session.checkpoint).seconds;
       this.scene.start(session.currentScene);
     });
   }

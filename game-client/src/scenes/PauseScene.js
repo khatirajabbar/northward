@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { game } from '../services/game.js';
+import { clock, withCurrentTime } from '../services/progress.js';
 
 const MENU_ITEMS = ['resume', 'restart journey', 'fullscreen', 'save & quit', 'quit to title'];
 const STORY_SCENES = ['MorningScene', 'ForestScene', 'EndingScene'];
@@ -77,6 +78,7 @@ export default class PauseScene extends Phaser.Scene {
     this.registry.set('kindness', 0);
     this.registry.set('inventory', {});
     this.registry.remove('checkpoint');
+    clock.seconds = 0;
     STORY_SCENES.forEach((key) => this.scene.stop(key));
     this.scene.start('MorningScene');
   }
@@ -84,9 +86,11 @@ export default class PauseScene extends Phaser.Scene {
   saveAndQuit() {
     const sessionId = this.registry.get('sessionId');
     if (sessionId) {
-      // the checkpoint is forest-only — read it from the registry (ForestScene
-      // keeps it current) and send it only when quitting out of the forest
-      const checkpoint = this.caller === 'ForestScene' ? this.registry.get('checkpoint') : null;
+      // the forest knows its own state; the other scenes just carry the last
+      // saved state forward (none yet in the morning) with the play time so far
+      let checkpoint;
+      if (this.caller === 'ForestScene') checkpoint = this.scene.get('ForestScene').snapshot();
+      else checkpoint = withCurrentTime(this.caller === 'MorningScene' ? null : this.registry.get('checkpoint'));
       game.updateProgress(sessionId, this.caller, this.registry.get('kindness') || 0, checkpoint)
         .catch((err) => console.warn('could not save progress:', err.message));
     } else {

@@ -31,6 +31,8 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+// development only (stripped from the production build): lets test scripts reach the game
+if (import.meta.env.DEV) window.__northward = game;
 
 // fullscreen the whole page, not just the canvas parent, so the login overlay stays visible
 game.scale.fullscreenTarget = document.body;

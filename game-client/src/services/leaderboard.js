@@ -41,6 +41,7 @@ export const leaderboard = {
 
 // Format seconds into "HH:MM:SS"
 export function formatTime(totalSeconds) {
+  totalSeconds = Math.min(Math.max(totalSeconds, 1), 24 * 3600 - 1);   // the service takes 00:00:01 – 23:59:59
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = Math.floor(totalSeconds % 60);

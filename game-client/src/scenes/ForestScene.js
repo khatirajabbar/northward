@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { game } from '../services/game.js';
+import { makeCatTextures, updateCatFollow } from '../characters/cat.js';
+import { FLAGS, tickClock, encodeProgress, decodeProgress } from '../services/progress.js';
 
 export default class ForestScene extends Phaser.Scene {
   constructor() {
@@ -14,6 +16,7 @@ export default class ForestScene extends Phaser.Scene {
     this.groundY = height - 60;
 
     this.makeTextures();
+    makeCatTextures(this);
 
     // ── landmark positions ──
     this.bucketX = 620;
@@ -58,9 +61,10 @@ export default class ForestScene extends Phaser.Scene {
     this.grassWidth = 440;
     this.horseFed = false;
     this.riding = false;
-    this.carryingCat = false;
     this.catFollowing = false;
-    this.catStopTimer = 0;
+    // what the saved run had already done (empty on a fresh forest entry)
+    this.saved = decodeProgress(this.registry.get('checkpoint'));
+    this.pickedCarrots = 0;     // bitmask over carrotXs
     this.groundBucketState = null;
     this.walkSpeed = 220;
     this.rideSpeed = 380;
@@ -87,7 +91,6 @@ export default class ForestScene extends Phaser.Scene {
       ts.parallaxFactor = factor;
       this.bgLayers.push(ts);
     };
-    addDW('dw-bg', 0.05, -25, 0x2e505c, 1);
     addDW('dw-far', 0.12, -24, 0x3a6068, 0.9);
     addDW('dw-mid', 0.25, -23, 0x25444e, 1);
     addDW('dw-close', 0.45, -22, 0x152b33, 1);
@@ -251,14 +254,13 @@ export default class ForestScene extends Phaser.Scene {
     // line and a little mound of turned earth covers it, so only the greens
     // and the orange shoulder show. each one sits its own way — a slightly
     // different size, depth in the soil, and mound — a patch, not a row ──
-    // on resume with carrots already in the bag, the field was harvested in the
-    // saved run — don't respawn the ground carrots (they'd duplicate). a fresh
-    // forest entry has no carrots yet (they're only found here), so the field shows.
-    const alreadyHarvestedCarrots = (this.inventory.carrots || 0) > 0;
-    if (!alreadyHarvestedCarrots) this.carrotXs.forEach((cx) => {
+    // on resume, the carrots picked in the saved run stay picked
+    this.carrotXs.forEach((cx, index) => {
+      if (this.saved.field & (1 << index)) return;
       const carrot = this.add.image(cx, this.groundY + 12 + (Math.random() * 6 - 3), 'carrot')
         .setOrigin(0.5, 1).setScale(1.2 + Math.random() * 0.3).setDepth(4);
       carrot.itemX = cx;
+      carrot.fieldIndex = index;
       this.tweens.add({ targets: carrot, angle: { from: -4, to: 4 }, duration: 1200 + Math.random() * 400,
         yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       const dirt = Math.random() < 0.5 ? [0x4e4136, 0x5d5044] : [0x483c31, 0x554839];
@@ -272,13 +274,13 @@ export default class ForestScene extends Phaser.Scene {
     });
 
     // ── player ──
-    // resume: if a saved checkpoint matches a known torch, spawn a step past it
+    // resume: if a saved checkpoint matches a known torch, spawn beside it
     // on the ground; otherwise (null/unknown) start at the forest entrance
-    const savedCheckpoint = this.registry.get('checkpoint');
+    const savedCheckpoint = this.saved.place;
     let spawnX = 120;
     if (savedCheckpoint && this.torchCheckpoints[savedCheckpoint] !== undefined) {
       this.currentCheckpoint = savedCheckpoint;
-      spawnX = this.torchCheckpoints[savedCheckpoint] + 40;   // a step past the torch
+      spawnX = this.torchCheckpoints[savedCheckpoint] - 10;   // beside the torch — a step past it can be water
       this.respawnX = this.torchCheckpoints[savedCheckpoint];
       this.respawnY = this.groundY - 40;
     }
@@ -587,8 +589,6 @@ export default class ForestScene extends Phaser.Scene {
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.keyE = this.input.keyboard.addKey('E');
     this.keyI = this.input.keyboard.addKey('I');
-    // ── DEBUG teleport keys (harmless in normal play — just don't press them) ──
-    this.debugKeys = this.input.keyboard.addKeys('ONE,TWO,THREE,FOUR,FIVE');
     // hold to walk slowly and gently — matters most in the bramble
     this.keyShift = this.input.keyboard.addKey('SHIFT');
     const openPause = () => { this.scene.pause(); this.scene.launch('PauseScene', { caller: this.scene.key }); };
@@ -601,13 +601,89 @@ export default class ForestScene extends Phaser.Scene {
       color: '#f0ece0', backgroundColor: '#00000066', padding: { x: 8, y: 4 }
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(150).setVisible(false);
 
-    // ── faint kindness readout (TEST ONLY — we hide this later) ──
-    this.kindnessDebug = this.add.text(this.W - 20, 18, 'kindness: ' + this.kindness, {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#cfe8d8'
-    }).setOrigin(1, 0).setScrollFactor(0).setDepth(200).setAlpha(0.3);
-
     this.player.play(`${this.characterId}-idle`);
-    this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
+    this.restoreProgress();
+    if (this.saved.place === 'start') this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
+  }
+
+  // put the world back the way the saved run left it
+  restoreProgress() {
+    const saved = this.saved;
+    if (!saved.saved) return;
+    const has = (flag) => (saved.flags & flag) !== 0;
+
+    this.inventory.carrots = saved.carrots;
+    this.pickedCarrots = saved.field;
+
+    if (has(FLAGS.tree)) {
+      this.treeWatered = true;
+      this.bucketPicked = true;
+      this.treeSprite.setTexture('tree-healthy');
+      // the empty bucket was left by the tree
+      this.groundBucket.setPosition(this.treeX + 34, this.groundY + 5).setScale(1.3);
+      this.bucketShadow.setPosition(this.treeX + 34, this.groundY + 4);
+      this.bucketTufts.forEach((t) => t.setVisible(false));
+    }
+    if (has(FLAGS.horseFed)) {
+      this.horseFed = true;
+      this.physics.world.removeCollider(this.horseGateCollider);
+    }
+    if (has(FLAGS.grassLearned)) {
+      this.grassLearned = true;
+      this.grassLearnedShown = true;
+      this.physics.world.removeCollider(this.grassWallCollider);
+      this.grassWallCollider = null;
+    }
+    if (has(FLAGS.goodbye)) {
+      this.saidGoodbye = true;
+      this.horseSprite.x = this.meadowX - 30;
+    } else if (this.horseFed) {
+      this.horseSprite.x = this.player.x - 70;   // waiting beside you
+    }
+    this.meadowHorses.forEach((m, i) => { if (saved.meadow & (1 << i)) m.fed = true; });
+    if (has(FLAGS.cat)) {
+      this.catRescued = true;
+      this.catFollowing = true;
+      if (this.catBreathe) { this.catBreathe.stop(); this.catBreathe = null; }
+      this.catSprite.setPosition(this.player.x - 50, this.groundY);
+    }
+    if (has(FLAGS.bird)) {
+      this.birdFreed = true;
+      this.tweens.killTweensOf(this.birdSprite);
+      this.birdSprite.setVisible(false);
+    }
+  }
+
+  // everything worth keeping about this run, packed for the game service
+  snapshot() {
+    let flags = 0;
+    if (this.treeWatered) flags |= FLAGS.tree;
+    if (this.horseFed) flags |= FLAGS.horseFed;
+    if (this.grassLearned) flags |= FLAGS.grassLearned;
+    if (this.saidGoodbye) flags |= FLAGS.goodbye;
+    if (this.catRescued) flags |= FLAGS.cat;
+    if (this.birdFreed) flags |= FLAGS.bird;
+    let meadow = 0;
+    this.meadowHorses.forEach((m, i) => { if (m.fed) meadow |= 1 << i; });
+    return encodeProgress({
+      place: this.currentCheckpoint || 'start',
+      carrots: this.inventory.carrots || 0,
+      field: this.pickedCarrots,
+      meadow,
+      flags
+    });
+  }
+
+  // keep the registry copy current (PauseScene and EndingScene read it) and
+  // save to the backend, fire-and-forget, when a session exists
+  saveProgress(sceneKey = 'ForestScene') {
+    const state = this.snapshot();
+    this.registry.set('checkpoint', state);
+    const sessionId = this.registry.get('sessionId');
+    if (sessionId) {
+      game.updateProgress(sessionId, sceneKey, this.kindness, state)
+        .catch((err) => console.warn('could not save progress:', err.message));
+    }
   }
 
   makeTextures() {
@@ -928,50 +1004,6 @@ export default class ForestScene extends Phaser.Scene {
       g.fillCircle(13, 16, 3); g.fillCircle(27, 15, 3); g.fillCircle(20, 21, 2);  // spots
     }, 40, 40, 'mushroom');
 
-    // cat — a small frightened tabby, curled and facing left
-    make((g) => {
-      g.fillStyle(0x8a7a66);
-      g.fillEllipse(16, 20, 22, 12);              // body curled
-      g.fillEllipse(9, 14, 11, 10);               // head
-      g.fillTriangle(4, 10, 8, 10, 5, 4);         // ear
-      g.fillTriangle(10, 10, 14, 10, 13, 4);      // ear
-      g.fillRect(24, 12, 4, 12);                  // tail up, anxious
-      g.fillStyle(0x6b5d4d);
-      g.fillRect(14, 16, 3, 6); g.fillRect(19, 16, 3, 6);  // stripes
-      g.fillStyle(0x2b2620);
-      g.fillRect(6, 13, 2, 2); g.fillRect(11, 13, 2, 2);   // eyes
-    }, 32, 28, 'cat');
-
-    // cat (standing) — alert and anxious, on its own feet, facing left
-    make((g) => {
-      g.fillStyle(0x8a7a66);
-      g.fillEllipse(17, 14, 24, 10);              // body
-      g.fillRect(8, 18, 3, 8); g.fillRect(13, 18, 3, 8);   // front legs
-      g.fillRect(20, 18, 3, 8); g.fillRect(25, 18, 3, 8);  // back legs
-      g.fillEllipse(7, 9, 11, 10);                // head, up
-      g.fillTriangle(2, 6, 6, 6, 3, 0);           // ear
-      g.fillTriangle(8, 6, 12, 6, 11, 0);         // ear
-      g.fillRect(28, 6, 3, 12);                   // tail up, anxious
-      g.fillStyle(0x6b5d4d);
-      g.fillRect(14, 11, 3, 5); g.fillRect(20, 11, 3, 5);  // stripes
-      g.fillStyle(0x2b2620);
-      g.fillRect(4, 8, 2, 2); g.fillRect(9, 8, 2, 2);      // eyes
-    }, 34, 30, 'cat-stand');
-
-    // cat (sitting) — settled and calm, tail curled round, facing left
-    make((g) => {
-      g.fillStyle(0x8a7a66);
-      g.fillEllipse(16, 18, 20, 16);              // body, upright haunches
-      g.fillEllipse(8, 9, 11, 10);                // head
-      g.fillTriangle(3, 6, 7, 6, 4, 0);           // ear
-      g.fillTriangle(9, 6, 13, 6, 12, 0);         // ear
-      g.fillRect(6, 20, 4, 6); g.fillRect(22, 20, 4, 6);   // front paws down
-      g.fillStyle(0x6b5d4d);
-      g.fillEllipse(24, 22, 12, 5);               // tail curled round the side
-      g.fillStyle(0x2b2620);
-      g.fillRect(5, 8, 2, 2); g.fillRect(10, 8, 2, 2);     // eyes
-    }, 32, 28, 'cat-sit');
-
     // rabbit (sitting) — one clean shape: round body, head, two tall ears,
     // dot eye, bright tail. less detail reads better at this size
     make((g) => {
@@ -1164,34 +1196,23 @@ export default class ForestScene extends Phaser.Scene {
   addKindness(x, y) {
     this.kindness++;
     this.registry.set('kindness', this.kindness);
-    this.kindnessDebug.setText('kindness: ' + this.kindness);
     this.sparkle(x, y);
+    this.saveProgress();
   }
 
-  // record the torch you just passed as the active checkpoint — writes it to the
-  // registry (so PauseScene's save & quit can read it) and saves it to the
-  // backend, fire-and-forget, only when it actually changes and a session exists.
+  // record the torch you just passed as the active checkpoint and save,
+  // only when it actually changes
   setCheckpoint(id) {
     if (id === this.currentCheckpoint) return;
     this.currentCheckpoint = id;
-    this.registry.set('checkpoint', id);
-    const sessionId = this.registry.get('sessionId');
-    if (sessionId) {
-      game.updateProgress(sessionId, 'ForestScene', this.kindness, id)
-        .catch((err) => console.warn('could not save checkpoint:', err.message));
-    }
+    this.saveProgress();
   }
 
   update() {
+    tickClock(this);
+
     // ── bag toggle (I) ──
     if (Phaser.Input.Keyboard.JustDown(this.keyI)) this.toggleBag();
-
-    // ── DEBUG: jump to a section to test it (1 start, 2 horse, 3 cliff, 4 bramble) ──
-    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.ONE)) this.player.setPosition(120, this.groundY - 40);
-    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.TWO)) this.player.setPosition(2700, this.groundY - 40);
-    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.THREE)) this.player.setPosition(4600, this.groundY - 40);
-    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.FOUR)) this.player.setPosition(5750, this.groundY - 40);
-    if (Phaser.Input.Keyboard.JustDown(this.debugKeys.FIVE)) this.player.setPosition(this.restTreeX - 100, this.groundY - 40);
 
     const px = this.player.x;
 
@@ -1232,8 +1253,7 @@ export default class ForestScene extends Phaser.Scene {
         // (a no-op when MorningScene isn't running.)
         this.scene.stop('MorningScene');
         this.registry.set('kindness', this.kindness);
-        const sessionId = this.registry.get('sessionId');
-        if (sessionId) game.updateProgress(sessionId, 'EndingScene', this.kindness, this.currentCheckpoint).catch((err) => console.warn('could not save progress:', err.message));
+        this.saveProgress('EndingScene');
         this.scene.start('EndingScene');
       });
     }
@@ -1423,6 +1443,8 @@ export default class ForestScene extends Phaser.Scene {
       if (this.player.anims.currentAnim?.key !== `${this.characterId}-jump`) this.player.play(`${this.characterId}-jump`);
     }
     if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -540 : -340);
+    // the river bed sits lower than the banks — the horse steps up and out by itself
+    if (wading && onGround && (this.player.body.blocked.left || this.player.body.blocked.right)) this.player.setVelocityY(-300);
 
     // ── riding: horse moves under the player ──
     // ── tall-grass gate ──
@@ -1509,33 +1531,12 @@ export default class ForestScene extends Phaser.Scene {
       });
     }
 
-    if (this.carryingCat) {
-      // held in the arms, facing the way you walk — follows you down the climb
-      this.catSprite.x = this.player.x + (this.player.flipX ? -6 : 6);
-      this.catSprite.y = this.player.y + 20;
-      this.catSprite.setFlipX(!this.player.flipX);
-    } else if (this.catFollowing) {
-      // a little companion now — trails behind you on foot, sits when you rest.
-      // it keeps a gap on whichever side it's already on, so turning in place
-      // doesn't make it snap across you — it only closes a gap that's too wide
-      const gap = this.catSprite.x - this.player.x;     // + = cat is to your right
-      const followGap = 100;
-      let target = this.catSprite.x;
-      if (gap > followGap) target = this.player.x + followGap;        // too far right -> ease in
-      else if (gap < -followGap) target = this.player.x - followGap;  // too far left -> ease in
-      this.catSprite.x += (target - this.catSprite.x) * 0.05;
-      this.catSprite.y = this.groundY;
-      const moving = vx > 20;
-      if (moving) {
-        this.catStopTimer = 0;
-        if (this.catSprite.texture.key !== 'cat-stand') this.catSprite.setTexture('cat-stand');
-        this.catSprite.setFlipX(this.catSprite.x < this.player.x);
-      } else {
-        this.catStopTimer += this.game.loop.delta;
-        if (this.catStopTimer > 3000 && this.catSprite.texture.key !== 'cat-sit') {
-          this.catSprite.setTexture('cat-sit');   // settled down to wait for you
-        }
-      }
+    if (this.catFollowing) {
+      // while you're both up on the cliff it stays up there with you; once
+      // you head down it hops down after you
+      const playerOnCliff = this.player.body.bottom < this.cliffTopY + 20;
+      const catOverCliff = this.catSprite.x > this.cliffTopX - 110 && this.catSprite.x < this.cliffTopX + 90;
+      updateCatFollow(this, this.catSprite, this.player, playerOnCliff && catOverCliff ? this.cliffTopY : this.groundY);
     }
 
     if (this.riding) {
@@ -1581,12 +1582,13 @@ export default class ForestScene extends Phaser.Scene {
     let label = null, action = null;
     const near = (x, r = 75) => Math.abs(px - x) < r;
     const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
-    if (nearCarrot) { label = 'pick up the carrot'; action = 'carrot'; this._nearCarrot = nearCarrot; }
+    // watering comes first — a few carrots grow right beside the tree
+    if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
+    else if (nearCarrot) { label = 'pick up the carrot'; action = 'carrot'; this._nearCarrot = nearCarrot; }
     else if (!this.bucketPicked && near(this.bucketX)) { label = 'pick up the bucket'; action = 'pickup'; }
     else if (this.carrying === 'empty' && near(this.lakeFillX, 130)) { label = 'fill the bucket'; action = 'fill'; }
-    else if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
     else if (!this.horseFed && near(this.horseX, 95) && (this.inventory.carrots || 0) > 0) { label = 'give the horse a carrot'; action = 'feedhorse'; }
-    else if (!this.carryingCat && Math.abs(px - this.catSprite.x) < 70 && Math.abs(this.player.y - this.catSprite.y) < 80) { label = 'pick up the cat'; action = 'pickupcat'; }
+    else if (!this.catRescued && Math.abs(px - this.catSprite.x) < 70 && Math.abs(this.player.y - this.catSprite.y) < 80) { label = 'reach out to the cat'; action = 'rescuecat'; }
     else if (!this.birdFreed && !this.birdPanicking && this.movingSlow && Math.abs(px - this.birdX) < 60) { label = 'free the bird'; action = 'freebird'; }
     else if (this.horseFed && !this.saidGoodbye && Math.abs(px - this.meadowX) < 160) { label = 'say goodbye'; action = 'farewell'; }
     else if (this.horseFed && !this.riding && !this.saidGoodbye && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
@@ -1606,8 +1608,7 @@ export default class ForestScene extends Phaser.Scene {
     if (this.horseHungryHintShown && !near(this.horseX, 95)) this.horseHungryHintShown = false;
 
     // nothing else to do here? then you can set down whatever you're carrying
-    if (!label && this.carryingCat && onGround && this.player.y > this.groundY - 60) { label = 'put down the cat'; action = 'putdowncat'; }
-    else if (!label && this.carrying && onGround) { label = 'put down the bucket'; action = 'putdownbucket'; }
+    if (!label && this.carrying && onGround) { label = 'put down the bucket'; action = 'putdownbucket'; }
 
     if (label) {
       this.prompt.setText('▸ e  ' + label).setVisible(true);
@@ -1775,33 +1776,13 @@ export default class ForestScene extends Phaser.Scene {
       this._nearMeadow = null;
       return;
     }
-    if (action === 'pickupcat') {
-      this.carryingCat = true;
-      this.catFollowing = false;
-      this.catSprite.setTexture('cat');   // curls up, safe in your arms
-      this.catSprite.setScale(1.4);
-      if (this.catBreathe) { this.catBreathe.stop(); this.catBreathe = null; }
-      if (!this.catRescued) {
-        this.catRescued = true;
-        this.sparkle(this.catSprite.x, this.catSprite.y - 10);
-        this.addKindness(this.catSprite.x, this.catSprite.y - 20);
-        this.showThought("there you are. i've got you.", 3200);
-      } else {
-        this.showThought('up you come.', 2000);
-      }
-      return;
-    }
-    if (action === 'putdowncat') {
-      this.carryingCat = false;
+    if (action === 'rescuecat') {
+      // it trusts you now — from here on it follows you, all the way to the end
+      this.catRescued = true;
       this.catFollowing = true;
-      this.catStopTimer = 0;
-      this.catSprite.setTexture('cat-stand');   // back on its own feet
-      this.catSprite.setPosition(Math.round(this.player.x) + (this.player.flipX ? -20 : 20), this.groundY);
-      this.catSprite.setFlipX(false);
-      if (!this.catSetDown) {
-        this.catSetDown = true;
-        this.showThought('there. safe on the ground.', 2400);
-      }
+      if (this.catBreathe) { this.catBreathe.stop(); this.catBreathe = null; }
+      this.addKindness(this.catSprite.x, this.catSprite.y - 20);
+      this.showThought("there you are. come on — we'll go down together.", 3200);
       return;
     }
     if (action === 'putdownbucket') {
@@ -1822,6 +1803,7 @@ export default class ForestScene extends Phaser.Scene {
       if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
       this.addItem('carrots');
       this.sparkle(this._nearCarrot.x, this._nearCarrot.y - 10);
+      this.pickedCarrots |= 1 << this._nearCarrot.fieldIndex;
       this._nearCarrot.destroy();
       this._nearCarrot = null;
       this.showThought('a carrot. into the bag.');
