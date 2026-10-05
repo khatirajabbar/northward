@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { game, CHARACTER_TYPE_BY_ID } from '../services/game.js';
 import { auth } from '../services/auth.js';
+import { clock } from '../services/progress.js';
 
 const TRAVELERS = ['lpc-khatira', 'lpc-oliver'];
 
@@ -24,9 +25,8 @@ export default class CharacterSelectScene extends Phaser.Scene {
     const k = Math.min(1, maxGroupW / 760);
     const cardW = 260 * k;
     const cardH = 320 * k;
-    const lockedW = 260 * k;
     const gap = 40 * k;
-    const groupW = cardW * 2 + lockedW + gap * 2;
+    const groupW = cardW * 2 + gap;
     const groupLeft = width / 2 - groupW / 2;
     const cardY = Math.round(height / 2 + 30);
     const cardTop = cardY - cardH / 2;
@@ -48,18 +48,6 @@ export default class CharacterSelectScene extends Phaser.Scene {
       return { id, rect, sprite };
     });
 
-    // the locked third slot — a traveler still on their way
-    const lockedX = Math.round(groupLeft + cardW * 2 + gap * 2 + lockedW / 2);
-    this.add.rectangle(lockedX, cardY, lockedW, cardH, 0x0b1015).setStrokeStyle(1, 0x1e262c);
-    this.add.image(lockedX, feetY, 'lpc-khatira-idle-sheet', 26)
-      .setOrigin(0.5, 1).setScale(2 * k).setTint(0x05070a);
-    this.add.text(lockedX, cardY, '?', {
-      fontFamily: 'Georgia, serif', fontSize: '34px', color: '#3a464e'
-    }).setOrigin(0.5);
-    this.add.text(lockedX, Math.round(cardY + cardH / 2 - 24 * k), 'locked', {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#3a464e'
-    }).setOrigin(0.5);
-
     this.underline = this.add.rectangle(this.cards[0].rect.x,
       Math.round(cardY + cardH / 2 + 12), cardW * 0.6, 3, 0xece8dc);
 
@@ -73,6 +61,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-D', () => this.move(1));
     this.input.keyboard.on('keydown-ENTER', () => this.confirm());
     this.input.keyboard.on('keydown-E', () => this.confirm());
+    this.input.keyboard.on('keydown-ESC', () => this.back());
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
   }
@@ -92,9 +81,17 @@ export default class CharacterSelectScene extends Phaser.Scene {
       duration: 200, ease: 'Sine.out' });
   }
 
+  back() {
+    if (this.confirmed) return;
+    this.confirmed = true;
+    this.cameras.main.fadeOut(300, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('SessionSelectScene'));
+  }
+
   confirm() {
     if (this.confirmed) return;
     this.confirmed = true;
+    clock.seconds = 0;
     const travelerId = this.cards[this.selectedIndex].id;
     this.registry.set('playAs', travelerId);
     this.registry.remove('sessionId');

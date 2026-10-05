@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { game } from '../services/game.js';
+import { tickClock } from '../services/progress.js';
 
 // Beat 1 — the morning. A cozy one-room cabin: Penzilla walls/floor with the
 // hand-drawn Gemini furniture on top. Walk with arrows, press E at a station.
@@ -160,13 +161,18 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   startAsleep() {
-    // asleep on the mattress, head at the pillow (left) end. lpc-lie is a
-    // top-down pose with the head toward the frame's bottom edge, so a 90° cw
-    // turn lays her along the bed with the head pointing left — no flip needed
-    this.player.setPosition(this.bedX - 20, this.floorY - 72);
-    this.player.setAngle(90);
-    if (this.anims.exists(`${this.characterId}-lie`)) this.player.play(`${this.characterId}-lie`);
+    // asleep in the bed: the front-facing standing frame turned on its side,
+    // head on the pillow (left end). a copy of the bed's quilt is drawn over
+    // the body, so only the head and shoulders show above the covers
+    this.player.anims.stop();
+    this.player.setTexture(`${this.characterId}-idle-sheet`, 26);
+    this.player.setAngle(-90);
+    this.player.setPosition(this.bedX - 62, this.floorY - 104);
     this.player.setVisible(true);
+    const bedSource = this.textures.get('cabin-bed').getSourceImage();
+    this.quilt = this.add.image(this.bedSprite.x, this.bedSprite.y, 'cabin-bed')
+      .setOrigin(0.5, 1).setScale(this.bedSprite.scaleX).setDepth(11)
+      .setCrop(92, 0, bedSource.width - 92, bedSource.height);
     this.time.delayedCall(900, () => this.chirp());
     this.time.delayedCall(2000, () => this.chirp());
     this.time.delayedCall(3400, () => this.chirp());
@@ -174,6 +180,7 @@ export default class MorningScene extends Phaser.Scene {
     this.time.delayedCall(5000, () => {
       this.thought.setText('morning already. a bird singing somewhere outside.');
       // rise: leave the bed and stand up beside it
+      this.quilt.destroy();
       this.player.setAngle(0);
       this.player.setPosition(this.bedX + 70, this.floorY - 40);
       this.player.body.setAllowGravity(true);
@@ -357,6 +364,7 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   update() {
+    tickClock(this);
     if (!this.canMove || this.busy) {
       if (this.player && this.player.body) this.player.setVelocityX(0);
       return;
