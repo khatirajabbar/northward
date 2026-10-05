@@ -62,13 +62,16 @@ public class LeaderboardController : ControllerBase
 
     /// <summary>
     /// Submit a new leaderboard entry for the authenticated user.
+    /// The username is taken from the verified JWT, not the request body,
+    /// so a user can only ever submit under their own account name.
     /// </summary>
     [Authorize]
     [HttpPost]
     public async Task<IActionResult> Submit([FromBody] SubmitEntryRequestDto request)
     {
         var userId = GetUserId();
-        var entry = await _leaderboardService.SubmitAsync(userId, request);
+        var username = GetUsername();
+        var entry = await _leaderboardService.SubmitAsync(userId, username, request);
         return Created(string.Empty, entry);
     }
 
@@ -76,5 +79,10 @@ public class LeaderboardController : ControllerBase
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.Parse(userIdClaim!);
+    }
+
+    private string GetUsername()
+    {
+        return User.FindFirstValue(ClaimTypes.Name)!;
     }
 }

@@ -10,11 +10,6 @@ public class SubmitEntryRequestDtoValidator : AbstractValidator<SubmitEntryReque
 
     public SubmitEntryRequestDtoValidator()
     {
-        RuleFor(x => x.Username)
-            .NotEmpty().WithMessage("username is required")
-            .MinimumLength(3).WithMessage("username must be at least 3 characters")
-            .MaximumLength(50).WithMessage("username must be at most 50 characters");
-
         RuleFor(x => x.CharacterType)
             .NotEmpty().WithMessage("character type is required")
             .Must(t => AllowedCharacterTypes.Contains(t))
