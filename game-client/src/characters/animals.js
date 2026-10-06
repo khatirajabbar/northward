@@ -1,11 +1,11 @@
 // The forest's animals are sprite sheets drawn by tools/animals.mjs. This is
 // the list of sheets to load and the animations cut from them — the sizes and
-// frame numbers mirror FRAMES at the bottom of that file. (The torch flame is
-// drawn the same way, so it lives here too.)
+// frame numbers mirror FRAMES at the bottom of that file. (The torch and
+// campfire flames are drawn the same way, so they live here too.)
 
 const SHEETS = [
   ['horse', 62, 42], ['horse-grey', 62, 42], ['horse-dark', 62, 42], ['foal', 42, 32],
-  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['flame', 11, 16]
+  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['flame', 11, 16], ['campfire', 18, 24]
 ];
 
 // art pixels from the horse's hooves up to its back — where a rider sits
@@ -44,4 +44,5 @@ export function createAnimalAnims(scene) {
   add('bird-fly', 'bird', [3, 4, 5, 6], 14);
 
   add('flame-burn', 'flame', [0, 1, 2, 3], 8);
+  add('campfire-burn', 'campfire', [0, 1, 2, 3], 7);
 }

@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
-import { spruce, birch, scotsPine, oak, bush, leafClump } from './trees.mjs';
+import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
 import { horse, foal, cat, rabbit, bird } from './animals.mjs';
 
 const W = 640, H = 360;
@@ -741,6 +741,155 @@ function daisy(petal, heart, big) {
   }, 0x2f5a3c);
 }
 
+// ── the last field: night turning to a gold dusk ──
+
+// a sky in bands with soft steps between them, top to bottom
+function bandedSky(colors) {
+  const img = new Img(W, H);
+  const band = H / colors.length;
+  for (let y = 0; y < H; y++) {
+    const i = Math.min(colors.length - 1, Math.floor(y / band)), into = y - i * band;
+    const next = colors[Math.min(colors.length - 1, i + 1)];
+    for (let x = 0; x < W; x++) {
+      let c = colors[i];
+      if (into >= band - 2 && (x + y) % 2 === 0) c = next;                    // a dithered step into the next band
+      if (into >= band - 5 && into < band - 2 && (x + y * 2) % 4 === 0) c = next;
+      if (into >= band - 9 && into < band - 5 && (x * 3 + y) % 8 === 0) c = next;
+      img.put(x, y, c);
+    }
+  }
+  return img;
+}
+
+function moon() {
+  const img = new Img(26, 26);
+  img.ellipse(13, 13, 12.5, 12.5, 0xc7d6e0); img.ellipse(12.2, 12.2, 11.4, 11.4, 0xdde8ef); img.ellipse(10.6, 10.4, 7.4, 7.2, 0xedf3f6);
+  [[8, 9, 2.6, 2.2], [16.5, 15.5, 2.2, 1.8], [14.5, 6.5, 1.5, 1.3], [9.5, 17.5, 1.4, 1.2], [19, 10, 1, 1]]
+    .forEach(([x, y, rx, ry]) => { img.ellipse(x, y, rx, ry, 0xc7d6e0); img.ellipse(x + 0.6, y + 0.5, rx * 0.6, ry * 0.6, 0xb3c5d2); });
+  return img;
+}
+
+// a low sun with its halo breaking up into the sky
+function sun() {
+  const img = new Img(60, 60);
+  for (let y = 0; y < 60; y++) for (let x = 0; x < 60; x++) {
+    const d = Math.hypot(x - 29.5, y - 29.5);
+    if (d < 12) img.put(x, y, 0xfff3c0);
+    else if (d < 17) img.put(x, y, 0xffe29a);
+    else if (d < 21 && (x + y) % 2 === 0) img.put(x, y, [255, 214, 138, 200]);
+    else if (d < 29 && (x + y * 2) % 4 === 0) img.put(x, y, [255, 201, 120, 150]);
+  }
+  return img;
+}
+
+function duskCloud(len) {
+  const img = new Img(len, 13);
+  const cx = len / 2;
+  img.ellipse(cx, 8, len / 2 - 1, 3.4, 0xe8eef4);
+  img.ellipse(cx - len * 0.18, 5.5, len * 0.24, 3, 0xe8eef4); img.ellipse(cx + len * 0.14, 6, len * 0.2, 2.6, 0xe8eef4);
+  img.ellipse(cx + len * 0.06, 10.4, len * 0.42, 1.6, 0xc4d0dc);
+  return img;
+}
+
+// the bough the nest sits on — reaching left from the trunk, thick end at the right
+function nestBough() {
+  const bark = [0x3f2e22, 0x574032, 0x705343, 0x8a6a55];
+  return piece(44, 13, (g) => {
+    g.poly([[44, 2], [44, 8], [22, 10], [0, 11], [0, 10], [22, 6]], bark[1]);                 // it droops a little toward its tip
+    g.line(2, 10, 43, 3, bark[2]); g.line(20, 10, 43, 8, bark[0]);
+    g.line(12, 8, 8, 3, bark[1]); g.line(28, 5, 26, 0, bark[1]); g.put(7, 3, bark[2]);        // twigs
+    [[30, 6], [37, 5], [17, 9]].forEach(([x, y]) => g.put(x, y, bark[0]));
+  }, 0x241a14);
+}
+
+// a small twig bowl, empty now
+function nest() {
+  const tw = [0x4a3320, 0x6b4d30, 0x8f6b42, 0xb08c5c];
+  const rnd = rng(52);
+  return piece(16, 8, (g) => {
+    g.ellipse(8, 5, 8, 3.6, tw[1]); g.ellipse(8, 3.4, 6.4, 1.8, tw[0]);                       // bowl and its hollow
+    for (let i = 0; i < 16; i++) { const x = rnd.int(0, 14), y = rnd.int(3, 7); if (g.alpha(x, y)) g.hline(x, y, rnd.int(2, 3), rnd.chance(0.5) ? tw[2] : tw[3]); }
+    g.hline(1, 2, 3, tw[2]); g.hline(12, 2, 3, tw[2]); g.put(0, 3, tw[3]); g.put(15, 3, tw[2]);
+    g.line(13, 4, 16, 1, tw[2]); g.line(2, 5, 0, 7, tw[1]);                                   // stray twigs
+  }, 0x241a14);
+}
+
+// the bird that fell — small and brown, lying still on its side
+function birdFallen() {
+  const b = [0x4a3a28, 0x6b5135, 0x8a6d49, 0xc9b08a];
+  return piece(15, 7, (g) => {
+    g.rect(11, 3, 4, 2, b[0]);                                                                // tail
+    g.ellipse(7.5, 4, 4.6, 2.8, b[1]); g.ellipse(6.5, 5.2, 3, 1.4, b[3]);                    // body, pale breast
+    g.ellipse(9, 3, 3, 1.6, b[0]); g.hline(8, 2, 3, b[2]);                                    // folded wing
+    g.ellipse(3, 4, 2.6, 2.4, b[1]); g.ellipse(3.2, 3.2, 1.4, 1, b[2]);                       // head
+    g.put(0, 5, 0xd9a441); g.hline(2, 4, 2, 0x17110d);                                        // beak, and its eye closed
+    g.put(8, 6, 0xd9a441); g.put(10, 6, 0xd9a441);                                            // its feet
+  });
+}
+
+// a small handful of turned earth
+function graveMound() {
+  const d = C.dirt, rnd = rng(8);
+  return piece(24, 9, (g) => {
+    g.ellipse(12, 9, 12, 8.6, d[1]); g.ellipse(11, 7.4, 9, 5.6, d[2]); g.ellipse(10, 5.4, 5.4, 2.6, d[3]);
+    for (let i = 0; i < 12; i++) { const x = rnd.int(2, 21), y = rnd.int(3, 8); if (g.alpha(x, y)) g.put(x, y, rnd.chance(0.5) ? d[0] : d[3]); }
+    g.ellipse(18, 7.4, 1.6, 1.2, C.stone[2]); g.put(17, 7, C.stone[3]);
+  }, 0x2b221b);
+}
+
+// the old fire ring, cold: a patch of ash and char with a few small stones
+// around it — kept low and to the sides, so the wood is what you see
+function firePit() {
+  const st = C.stone;
+  return piece(40, 7, (g) => {
+    g.ellipse(20, 5, 15, 2.4, 0x2b2420); g.ellipse(19, 4.6, 10, 1.4, 0x4a4440);               // scorched earth, old ash
+    [[12, 4], [17, 5], [23, 4], [27, 5], [20, 4], [15, 6], [25, 6]].forEach(([x, y]) => g.put(x, y, 0x8f8a84));
+    g.line(13, 5, 17, 4, 0x17110d); g.line(23, 6, 27, 5, 0x17110d);                            // charred stick ends
+    [[13, 1.6], [20, 1.2], [27, 1.6]].forEach(([x, y]) => { g.ellipse(x, y + 1, 2.2, 1.5, st[1]); g.hline(Math.round(x - 1), Math.round(y), 2, st[2]); });
+    [[2.5, 4.4, 2.4, 2], [7, 5.2, 2.2, 1.6], [33, 5.2, 2.2, 1.6], [37.5, 4.4, 2.4, 2]].forEach(([x, y, rx, ry]) => {
+      g.ellipse(x, y, rx, ry, st[2]); g.hline(Math.round(x - 1), Math.round(y - 1), 2, st[4]); g.hline(Math.round(x - 1), 6, 3, st[1]);
+    });
+  }, st[0]);
+}
+
+// the wood you lay: split logs crossed over one another, their pale cut ends showing
+function fireLogs() {
+  const t = C.timber, bark = [t[1], t[3], t[4], 0x86644c];
+  return piece(30, 13, (g) => {
+    // one log: its body, a lit top edge, a dark underside, and the sawn end
+    const log = (pts, lit, under, end) => {
+      g.poly(pts, bark[1]); g.line(...lit, bark[3]); g.line(...under, C.ink);
+      g.ellipse(end[0], end[1], 1.9, 2.1, C.cut[2]); g.put(Math.round(end[0]), Math.round(end[1]), C.cut[0]); g.put(Math.round(end[0]) - 1, Math.round(end[1]) - 1, C.cut[3]);
+    };
+    log([[3, 3], [28, 2], [28, 6], [3, 7]], [4, 3, 27, 2], [4, 7, 27, 6], [27.5, 4]);            // lying across the back
+    log([[0, 9], [2, 13], [21, 5], [19, 1]], [1, 9, 19, 2], [3, 13, 21, 5], [19.6, 3.2]);        // crossed over it from the left
+    log([[30, 9], [28, 13], [9, 5], [11, 1]], [29, 9, 11, 2], [27, 13, 9, 5], [10.4, 3.2]);      // and from the right
+    [[6, 8], [10, 6], [22, 7], [25, 9], [15, 4]].forEach(([x, y]) => g.put(x, y, bark[0]));     // bark
+    log([[8, 9], [23, 9], [23, 13], [8, 13]], [9, 9, 22, 9], [9, 12, 22, 12], [9, 11]);          // a short one in front
+    g.put(14, 10, bark[0]); g.put(18, 11, bark[0]);
+  });
+}
+
+// the campfire's flame: taller and fuller than a torch's, in four licks
+function campfire() {
+  const f = C.fire;
+  const one = (lean, tall, side) => piece(16, 22, (g) => {
+    const tip = 8 + lean, top = 21 - tall;
+    g.poly([[1, 21], [15, 21], [15, 15], [tip + 2, top + 5], [tip, top], [tip - 1, top + 6], [1, 15]], f[1]);
+    g.ellipse(8, 17, 7.4, 4.6, f[1]);
+    g.poly([[3 + side, 12], [5 + side, 6], [6 + side, 13]], f[1]);                            // a second tongue
+    g.poly([[4, 21], [12, 21], [12, 17], [tip + 1, top + 8], [tip, top + 5], [4, 17]], f[2]);
+    g.ellipse(8, 18.4, 3.8, 3, f[2]);
+    g.poly([[6, 21], [10, 21], [tip, top + 11]], f[3]); g.ellipse(8, 19.4, 2, 1.8, f[3]);      // the white heart
+    g.put(tip, top, f[0]); g.put(1, 15, f[0]); g.put(14, 15, f[0]);
+  }, f[0]);
+  return sheet([one(0, 19, 0), one(1, 17, 1), one(-1, 21, 0), one(0, 18, 7)], 18, 24);
+}
+
+function stick() {
+  return piece(10, 3, (g) => { g.rect(0, 1, 10, 2, C.timber[3]); g.hline(0, 1, 10, C.timber[4]); g.rect(3, 0, 2, 1, C.timber[2]); });
+}
+
 // ── assemble ──
 // ── assemble ──
 
@@ -780,7 +929,15 @@ export function buildAll() {
     // the mushroom hill
     hill: hill(), mushroom: mushroom(), boulder: boulder(),
     'daisy-white': daisy(0xf7f4ee, 0xffd23f, true), 'daisy-yellow': daisy(0xffe27a, 0xe8a02c, true),
-    'daisy-white-small': daisy(0xf7f4ee, 0xffd23f, false), 'daisy-yellow-small': daisy(0xffe27a, 0xe8a02c, false)
+    'daisy-white-small': daisy(0xf7f4ee, 0xffd23f, false), 'daisy-yellow-small': daisy(0xffe27a, 0xe8a02c, false),
+    // the last field (the scene tints all of this from cold night to warm dusk)
+    'dusk-cold': bandedSky([0x0d1220, 0x121a2b, 0x1a2637, 0x243343, 0x314351, 0x415560, 0x546a70, 0x6b8286]),
+    'dusk-warm': bandedSky([0x2b1a30, 0x46243a, 0x6b3343, 0x94494b, 0xbd6a4e, 0xdd8f56, 0xf2b368, 0xffd98c]),
+    moon: moon(), sun: sun(), 'dusk-cloud-a': duskCloud(64), 'dusk-cloud-b': duskCloud(88),
+    'oak-b': oak(132, 152, rnd), 'bare-a': bareTree(56, 96, rnd), 'bare-b': bareTree(48, 80, rnd),
+    'nest-bough': nestBough(), nest: nest(), 'bird-fallen': birdFallen(), 'grave-mound': graveMound(),
+    'fire-pit': firePit(), 'fire-logs': fireLogs(),
+    campfire: campfire(), stick: stick()
   };
   return sprites;
 }

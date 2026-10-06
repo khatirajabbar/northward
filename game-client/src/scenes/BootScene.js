@@ -63,7 +63,9 @@ export default class BootScene extends Phaser.Scene {
       'icon-bread', 'icon-carrot', 'icon-water', 'icon-rope',
       'tallgrass-a', 'tallgrass-b', 'tallgrass-c', 'tallgrass-low-a', 'tallgrass-low-b', 'bramble-a', 'bramble-b', 'bramble-c', 'bramble-low',
       'stone-a', 'stone-b', 'stone-c', 'water', 'torch',
-      'hill', 'mushroom', 'boulder', 'daisy-white', 'daisy-yellow', 'daisy-white-small', 'daisy-yellow-small'
+      'hill', 'mushroom', 'boulder', 'daisy-white', 'daisy-yellow', 'daisy-white-small', 'daisy-yellow-small',
+      'dusk-cold', 'dusk-warm', 'moon', 'sun', 'dusk-cloud-a', 'dusk-cloud-b', 'oak-b', 'bare-a', 'bare-b',
+      'nest-bough', 'nest', 'bird-fallen', 'grave-mound', 'fire-pit', 'fire-logs', 'stick'
     ].forEach((name) => this.load.image(`woods-${name}`, `assets/woods/${name}.png`));
     loadAnimals(this);
 

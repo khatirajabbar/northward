@@ -170,6 +170,31 @@ export function oak(w, h, rnd, leaves = C.grass) {
   return img;
 }
 
+// a leafless tree for the cold spaces of the last field: a pale trunk that
+// forks and forks again into bare twigs
+export function bareTree(w, h, rnd) {
+  const img = new Img(w, h);
+  const bark = [0x43342b, 0x64503f, 0x86705b, 0xa58f77];
+  const limbOut = (x0, y0, angle, len, width, depth) => {
+    const x1 = x0 + Math.cos(angle) * len, y1 = y0 - Math.sin(angle) * len;
+    for (let k = 0; k < width; k++) {
+      img.line(x0 + k, y0, x1 + k, y1, width === 1 ? bark[1] : k === 0 ? bark[0] : k === width - 1 ? bark[3] : bark[k === 1 ? 1 : 2]);
+    }
+    if (depth <= 0 || y1 < 3) return;
+    const n = depth > 2 ? 2 : rnd.int(2, 3);
+    for (let i = 0; i < n; i++) {
+      const fan = (i - (n - 1) / 2) * (0.62 + rnd() * 0.3) + (rnd() - 0.5) * 0.25;
+      limbOut(x1, y1, angle + fan, len * (0.6 + rnd() * 0.16), Math.max(1, width - 1), depth - 1);
+    }
+  };
+  const cx = Math.floor(w / 2) - 2;
+  limbOut(cx, h - 1, Math.PI / 2 + (rnd() - 0.5) * 0.12, h * 0.4, 4, 5);
+  img.rect(cx - 2, h - 3, 8, 3, bark[1]); img.hline(cx - 3, h - 1, 10, bark[0]);            // root flare
+  img.line(cx + 3, Math.round(h * 0.78), cx + 9, Math.round(h * 0.7), bark[1]);              // a snapped lower branch
+  for (let y = h - 4; y > h * 0.62; y -= 5) img.put(cx + 1, y, bark[0]);                     // bark marks
+  return img;
+}
+
 export function bush(w, h, rnd, { berries } = {}) {
   const img = new Img(w, h);
   leafClump(img, w * 0.3, h * 0.62, w * 0.28, h * 0.36, C.grass, rnd);

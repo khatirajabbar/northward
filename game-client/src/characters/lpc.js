@@ -17,7 +17,7 @@ export function setTravelerBody(sprite, lift = 0) {
 
 export function loadLpcCharacter(scene, characterId) {
   // hurt.png is a single 13-frame row (832x64), not the usual 4-direction sheet
-  const sheets = ['idle', 'walk', 'sit', 'jump', 'hurt', 'watering'];
+  const sheets = ['idle', 'walk', 'sit', 'jump', 'hurt', 'watering', 'slash'];
   sheets.forEach((name) => {
     scene.load.spritesheet(`${characterId}-${name}-sheet`, `assets/characters/${characterId}/standard/${name}.png`, {
       frameWidth: 64,
@@ -73,6 +73,19 @@ export function createLpcAnims(scene, characterId) {
     key: `${characterId}-water`,
     frames: scene.anims.generateFrameNumbers(`${characterId}-watering-sheet`, { start: 39, end: 46 }),
     frameRate: 8,
+    repeat: 0
+  });
+
+  // a handful of earth: crouch to gather it, then a throw from the shoulder
+  scene.anims.create({
+    key: `${characterId}-toss`,
+    frames: [
+      { key: `${characterId}-jump-sheet`, frame: 40 }, { key: `${characterId}-jump-sheet`, frame: 40 },
+      { key: `${characterId}-slash-sheet`, frame: 40 }, { key: `${characterId}-slash-sheet`, frame: 42 },
+      { key: `${characterId}-slash-sheet`, frame: 43 }, { key: `${characterId}-slash-sheet`, frame: 44 },
+      { key: `${characterId}-idle-sheet`, frame: 39 }
+    ],
+    frameRate: 10,
     repeat: 0
   });
 
