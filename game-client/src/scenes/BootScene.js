@@ -44,38 +44,13 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('dw-mid', 'assets/forest2/dw-mid.png');
     this.load.image('dw-close', 'assets/forest2/dw-close.png');
 
-    // Cabin interior assets (Gemini art, cut to transparent PNGs)
-    this.load.image('cabin-bg', 'assets/cabin/bg.png');
-    this.load.image('cabin-bed', 'assets/cabin/bed_empty.png');
-    this.load.image('cabin-window', 'assets/cabin/window.png');
-    this.load.image('cabin-curtain-left', 'assets/cabin/curtain_left.png');
-    this.load.image('cabin-curtain-right', 'assets/cabin/curtain_right.png');
-    this.load.image('cabin-washbasin', 'assets/cabin/washbasin.png');
-    this.load.image('cabin-counter', 'assets/cabin/counter.png');
-    this.load.image('cabin-fridge-closed', 'assets/cabin/fridge_closed.png');
-    this.load.image('cabin-fridge-open', 'assets/cabin/fridge_open.png');
-    this.load.image('cabin-birdhouse', 'assets/cabin/birdhouse.png');
-    this.load.image('cabin-bag', 'assets/cabin/bag.png');
-    this.load.image('cabin-door', 'assets/cabin/door.png');
-    this.load.image('cabin-lantern', 'assets/cabin/lantern.png');
-    this.load.image('cabin-painting', 'assets/cabin/painting.png');
-    this.load.image('cabin-shelf', 'assets/cabin/shelf.png');
-    this.load.image('cabin-wall', 'assets/cabin/wall.png');
-    this.load.image('cabin-floor', 'assets/cabin/floor.png');
-    this.load.image('cabin-lamp-top', 'assets/cabin/lamp_top.png');
-    this.load.image('cabin-lamp-mid', 'assets/cabin/lamp_mid.png');
-    this.load.image('cabin-lamp-bottom', 'assets/cabin/lamp_bottom.png');
-    this.load.image('cabin-counter-left', 'assets/cabin/counter_left.png');
-    this.load.image('cabin-counter-mid', 'assets/cabin/counter_mid.png');
-    this.load.image('cabin-counter-right', 'assets/cabin/counter_right.png');
-    this.load.image('cabin-teapot', 'assets/cabin/teapot.png');
-    this.load.image('cabin-mug', 'assets/cabin/mug.png');
-    this.load.image('cabin-plant', 'assets/cabin/plant.png');
-    this.load.image('cabin-sofa', 'assets/cabin/sofa.png');
-    this.load.image('cabin-coffee-table', 'assets/cabin/coffee_table.png');
-    this.load.image('cabin-floor-lamp', 'assets/cabin/floor_lamp.png');
-    this.load.image('cabin-bookshelf', 'assets/cabin/bookshelf.png');
-    this.load.image('cabin-radio', 'assets/cabin/radio.png');
+    // The morning cabin — drawn by tools/cabin-art.mjs: the far distance, the
+    // clearing with the whole house, and the pieces the scene moves, swaps or layers
+    ['backdrop', 'scene', 'quilt', 'quilt-lump', 'sleeper-khatira', 'sleeper-oliver', 'window-front',
+      'curtain-shut', 'curtain-open', 'bird', 'sofa', 'mug', 'bowl', 'bowl-cereal', 'bowl-milk',
+      'fridge', 'fridge-open', 'fridge-plant', 'bag', 'door-shut', 'door-open',
+      'glow', 'sunlight', 'puff', 'steam', 'note', 'sparkle', 'zzz'
+    ].forEach((name) => this.load.image(`home-${name}`, `assets/home/${name}.png`));
 
     const dirtGfx = this.make.graphics({ x: 0, y: 0, add: false });
     dirtGfx.fillStyle(0x3a2d1f);
