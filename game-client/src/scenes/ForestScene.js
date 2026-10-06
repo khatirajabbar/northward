@@ -308,8 +308,10 @@ export default class ForestScene extends Phaser.Scene {
     this.mushrooms = this.physics.add.staticGroup();
     const makeBounce = (x, groundTopY, scale, power, solid = true) => {
       const capY = groundTopY - 12;
-      // the drawing is shown at the art's own size; `scale` still sizes the bounce pad
-      const m = this.add.image(x, capY + 4, 'woods-mushroom').setOrigin(0.5, 1).setScale(ART).setDepth(7);
+      // the drawing is shown at the art's own size (`scale` still sizes the bounce
+      // pad). it's planted deep and drawn BEHIND the hill, so the slope's own turf
+      // closes over the foot of the stem and it grows out of the ground
+      const m = this.add.image(x, capY + 10, 'woods-mushroom').setOrigin(0.5, 1).setScale(ART).setDepth(2.5);
       this.tweens.add({ targets: m, scaleX: { from: ART, to: ART + 0.1 }, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       const pad = this.add.rectangle(x, capY - scale * 18, 34 * scale, 10, 0xff0000, 0).setDepth(7);
       this.physics.add.existing(pad, true);
@@ -350,7 +352,11 @@ export default class ForestScene extends Phaser.Scene {
     // scatter little flowers ALONG the whole green — up the slope, across the cliff
     // top by the cat, and behind the rock — so it's lush but never looks like a
     // bounce mushroom (only the real bounce mushrooms are mushrooms now).
+    // (the mushrooms keep a little clear ground around their stems)
+    const mushroomXs = [];
+    for (let x = mtnLeft + 90; x <= peakX - 230; x += 90) mushroomXs.push(x);
     const plantFlower = (x) => {
+      if (mushroomXs.some((mx) => Math.abs(x - mx) < 30)) return;
       const top = surfaceTopY(x) + 2;   // returns the flat cliff height past the peak
       const key = `woods-daisy-${Math.random() < 0.5 ? 'white' : 'yellow'}${Math.random() < 0.4 ? '-small' : ''}`;
       this.add.image(x + (Math.random() - 0.5) * 14, top, key)
@@ -367,11 +373,11 @@ export default class ForestScene extends Phaser.Scene {
 
     // the green slope is decoration — you climb by bouncing up the mushrooms,
     // which sit flush on the slope surface as the path up to the cat.
-    for (let x = mtnLeft + 90; x <= peakX - 230; x += 90) {
+    mushroomXs.forEach((x) => {
       const top = surfaceTopY(x);
       const power = -440 - (this.groundY - top) * 0.30;
       makeBounce(x, top + 10, 1.3, power, true);   // +10 sinks the base into the grass
-    }
+    });
 
     this.physics.add.collider(this.player, this.mushrooms, (player, pad) => {
       // only bounce when coming DOWN onto the cap (player above it, falling).

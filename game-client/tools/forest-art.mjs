@@ -692,23 +692,35 @@ function mushroom() {
   });
 }
 
-// the boulder at the back of the cliff top — split into flat faces, moss on its crown
+// the boulder at the back of the cliff top: a big weathered stone with a
+// smaller one leaning against it, moss on its crown, grass at its foot
 function boulder() {
   const st = C.stone, rnd = rng(77);
+  const moss = [C.grass[0], C.grass[1], C.grass[3], C.grass[4]];
   return piece(60, 50, (g) => {
-    g.poly([[2, 50], [7, 25], [23, 8], [46, 10], [58, 33], [56, 50]], st[2]);       // the whole stone
-    g.poly([[7, 25], [23, 8], [32, 26], [14, 38]], st[3]);                          // lit face
-    g.poly([[10, 25], [22, 12], [27, 23], [15, 32]], st[4], 0.55);
-    g.poly([[46, 10], [58, 33], [56, 50], [37, 50], [32, 26]], st[1]);              // face in shade
-    g.line(23, 8, 32, 26, st[0]); g.line(32, 26, 37, 50, st[0]); g.line(32, 26, 14, 38, st[0]);    // the seams between them
-    g.line(33, 27, 38, 50, st[2]); g.line(44, 30, 49, 40, st[0]); g.line(20, 42, 26, 46, st[1]);
-    for (let i = 0; i < 26; i++) {
-      const x = rnd.int(5, 55), y = rnd.int(14, 48);
+    // the big stone: rounded by weather, lit from the upper left
+    g.poly([[10, 50], [7, 40], [9, 28], [15, 17], [24, 9], [36, 6], [46, 9], [53, 18], [57, 30], [58, 42], [56, 50]], st[2]);
+    g.poly([[10, 28], [15, 17], [24, 9], [36, 6], [46, 9], [50, 14], [40, 17], [28, 19], [19, 25], [13, 33]], st[3]);
+    g.poly([[20, 14], [26, 10], [36, 8], [42, 10], [34, 12], [25, 15]], st[4]);
+    g.poly([[50, 14], [53, 18], [57, 30], [58, 42], [56, 50], [38, 50], [43, 38], [47, 26]], st[1]);
+    g.poly([[54, 34], [58, 42], [56, 50], [46, 50], [50, 42]], mix(st[1], st[0], 0.5));
+    for (let x = 9; x < 58; x++) if (g.alpha(x, 49)) { g.put(x, 49, st[1]); if (x % 2) g.put(x, 48, st[1]); }   // dark where it meets the ground
+    // cracks, each with a thin lit lip
+    [[[31, 7], [34, 19]], [[34, 19], [30, 31]], [[34, 19], [44, 23]], [[30, 31], [33, 42]], [[18, 30], [22, 36]], [[47, 31], [50, 39]]]
+      .forEach(([[x0, y0], [x1, y1]]) => { g.line(x0 + 1, y0, x1 + 1, y1, st[4], 0.5); g.line(x0, y0, x1, y1, st[0]); });
+    for (let i = 0; i < 34; i++) {
+      const x = rnd.int(9, 56), y = rnd.int(10, 47);
       if (g.alpha(x, y)) g.put(x, y, rnd.chance(0.5) ? st[3] : st[1]);
     }
-    // moss along the top
-    const moss = [C.grass[0], C.grass[1], C.grass[3], C.grass[4]];
-    leafClump(g, 27, 8, 9, 3, moss, rnd); leafClump(g, 41, 10, 6, 2.4, moss, rnd); leafClump(g, 15, 17, 4, 2, moss, rnd);
+    // the small stone leaning on it
+    g.poly([[1, 50], [1, 44], [5, 38], [13, 37], [18, 41], [20, 50]], st[2]);
+    g.poly([[2, 44], [6, 39], [13, 38], [16, 41], [9, 43]], st[3]); g.hline(7, 39, 5, st[4]);
+    g.poly([[16, 41], [18, 41], [20, 50], [12, 50], [14, 45]], st[1]);
+    g.line(5, 37, 13, 36, st[0]); g.line(13, 36, 19, 40, st[0]); g.line(19, 40, 21, 50, st[0]);    // its edge against the big one
+    // moss on the crown and in the hollows
+    leafClump(g, 34, 6, 10, 3, moss, rnd); leafClump(g, 20, 13, 5, 2.2, moss, rnd); leafClump(g, 48, 11, 4, 2, moss, rnd);
+    leafClump(g, 9, 38, 4, 1.6, moss, rnd);
+    [[26, 12], [41, 10], [15, 19], [45, 14], [52, 17]].forEach(([x, y]) => { g.put(x, y, moss[1]); g.put(x, y + 1, moss[0]); });
   }, st[0]);
 }
 
