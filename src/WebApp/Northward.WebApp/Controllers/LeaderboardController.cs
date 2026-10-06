@@ -12,7 +12,7 @@ public class LeaderboardController : Controller
         _leaderboardApi = leaderboardApi;
     }
 
-    public async Task<IActionResult> Index(string? season = null, string sort = "score")
+    public async Task<IActionResult> Index(string? season = null, string sort = "time")
     {
         var entries = sort == "time"
             ? await _leaderboardApi.GetTopTimesAsync(20, season)

@@ -51,6 +51,16 @@ builder.Services.AddValidatorsFromAssemblyContaining<CreatePlayerCharacterDtoVal
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("GameClient", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5222")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Auto-apply migrations on startup
@@ -67,6 +77,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseCors("GameClient");
 
 app.UseAuthentication();
 app.UseAuthorization();
