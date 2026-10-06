@@ -1,8 +1,19 @@
-// How big the traveler is drawn. LPC frames are 64px with the feet at y=60;
-// the physics body is set in frame pixels, so it scales along with the sprite.
-export const FOREST_SCALE = 1;     // out in the world (forest, ending)
+// How big the traveler is drawn. LPC frames are 64px with the feet at y=60.
+// Out in the world the forest's art is shown at 2x and indoors the cabin's at
+// 2.5x, so these two keep the traveler the same size against both.
+export const FOREST_SCALE = 1.25;  // out in the world (forest, ending)
 export const CABIN_SCALE = 1.5;    // indoors, against the cabin furniture
 export const FEET = 28;            // frame pixels from the sprite's centre down to the feet
+
+// The traveler's physics body out in the world: 20x34 on screen, standing on
+// the sprite's feet, whatever size the sprite is drawn — so the drawing can
+// grow without changing how the jumps, stones and mushrooms play. `lift`
+// raises the drawing above the body (sitting on the horse's back).
+export function setTravelerBody(sprite, lift = 0) {
+  const s = sprite.scaleY;
+  sprite.body.setSize(20 / s, 34 / s);
+  sprite.body.setOffset(32 - 10 / s, 60 - (34 - lift) / s);
+}
 
 export function loadLpcCharacter(scene, characterId) {
   // hurt.png is a single 13-frame row (832x64), not the usual 4-direction sheet

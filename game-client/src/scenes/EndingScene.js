@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { leaderboard, formatTime } from '../services/leaderboard.js';
 import { game } from '../services/game.js';
-import { makeCatTextures, updateCatFollow } from '../characters/cat.js';
-import { FOREST_SCALE, FEET } from '../characters/lpc.js';
+import { makeCat, updateCatFollow } from '../characters/cat.js';
+import { FOREST_SCALE, FEET, setTravelerBody } from '../characters/lpc.js';
 import { FLAGS, clock, tickClock, decodeProgress } from '../services/progress.js';
 import { CREDITS } from '../credits.js';
 
@@ -27,7 +27,6 @@ export default class EndingScene extends Phaser.Scene {
     this.groundY = height - 60;
 
     this.makeTextures();
-    makeCatTextures(this);
 
     // ── landmark positions ──
     this.fireX = 1500;             // an old stone fire ring at their camp
@@ -248,16 +247,14 @@ export default class EndingScene extends Phaser.Scene {
     this.player.setDragX(800);
     this.player.setMaxVelocity(220, 700);
     this.player.setScale(FOREST_SCALE);
-    this.player.setSize(20, 34);
-    this.player.setOffset(22, 26);
+    setTravelerBody(this.player);
     this.player.setDepth(10);
     this.physics.add.collider(this.player, this.platforms);
 
     // the cat from the cliff, if you brought it down — still with you
     this.cat = null;
     if (decodeProgress(this.registry.get('checkpoint')).flags & FLAGS.cat) {
-      this.cat = this.add.image(this.player.x - 60, this.groundY, 'cat-stand')
-        .setOrigin(0.5, 1).setScale(1.4).setDepth(9);
+      this.cat = makeCat(this, this.player.x - 60, this.groundY).setDepth(9);
       this.tintScenery.push({ obj: this.cat, cold: 0xb9c4d4, warm: 0xffe2c4 });
     }
 

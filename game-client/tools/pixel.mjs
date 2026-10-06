@@ -285,3 +285,31 @@ export function loadPng(file) {
   }
   return img;
 }
+
+// ── helpers for sprites ──
+
+// draw on a w×h canvas and come back with a 1px outline around it (so the
+// result is w+2 × h+2 and the drawing starts at 1,1). pass null for no outline.
+export function outlined(w, h, draw, outline) {
+  const inner = new Img(w, h);
+  draw(inner);
+  const out = new Img(w + 2, h + 2);
+  out.blit(inner, 1, 1);
+  if (outline !== null && outline !== undefined) out.outline(outline);
+  return out;
+}
+
+// lay equal-sized frames side by side — a sprite sheet. smaller frames are
+// centred and stood on the bottom edge.
+export function sheet(frames, w = Math.max(...frames.map((f) => f.w)), h = Math.max(...frames.map((f) => f.h))) {
+  const out = new Img(w * frames.length, h);
+  frames.forEach((f, i) => out.blit(f, i * w + Math.floor((w - f.w) / 2), h - f.h));
+  out.frameWidth = w;
+  out.frameHeight = h;
+  return out;
+}
+
+// a line with some thickness, for limbs and stems
+export function limb(img, x0, y0, x1, y1, width, c) {
+  for (let k = 0; k < width; k++) img.line(x0 + k, y0, x1 + k, y1, c);
+}

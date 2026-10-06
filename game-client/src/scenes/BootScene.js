@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { loadLpcCharacter, createLpcAnims } from '../characters/lpc.js';
+import { loadAnimals, createAnimalAnims } from '../characters/animals.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -51,6 +52,20 @@ export default class BootScene extends Phaser.Scene {
       'fridge', 'fridge-open', 'fridge-plant', 'bag', 'door-shut', 'door-open',
       'glow', 'sunlight', 'puff', 'steam', 'note', 'sparkle', 'zzz'
     ].forEach((name) => this.load.image(`home-${name}`, `assets/home/${name}.png`));
+
+    // The forest — drawn by tools/forest-art.mjs: sky, the tree lines behind
+    // the road, the ground, and every prop along the way
+    ['sky', 'far', 'mid', 'near', 'ground', 'fringe',
+      'spruce-a', 'spruce-b', 'spruce-c', 'pine-a', 'birch-a', 'birch-b', 'oak-a', 'bush-a', 'bush-b',
+      'tuft-a', 'tuft-b', 'tuft-c', 'flower-white', 'flower-yellow', 'flower-pink', 'fern', 'pebble', 'stump',
+      'bucket-empty', 'bucket-full', 'carrot', 'mound-a', 'mound-b', 'sapling-weak', 'sapling-healthy', 'pond',
+      'fox-log', 'fox-cub', 'fox-cub-sit', 'fox-eyes', 'bread',
+      'icon-bread', 'icon-carrot', 'icon-water', 'icon-rope',
+      'tallgrass-a', 'tallgrass-b', 'tallgrass-c', 'tallgrass-low-a', 'tallgrass-low-b', 'bramble-a', 'bramble-b', 'bramble-c', 'bramble-low',
+      'stone-a', 'stone-b', 'stone-c', 'water', 'torch',
+      'hill', 'mushroom', 'boulder', 'daisy-white', 'daisy-yellow', 'daisy-white-small', 'daisy-yellow-small'
+    ].forEach((name) => this.load.image(`woods-${name}`, `assets/woods/${name}.png`));
+    loadAnimals(this);
 
     const dirtGfx = this.make.graphics({ x: 0, y: 0, add: false });
     dirtGfx.fillStyle(0x3a2d1f);
@@ -120,6 +135,7 @@ export default class BootScene extends Phaser.Scene {
 
     createLpcAnims(this, 'lpc-khatira');
     createLpcAnims(this, 'lpc-oliver');
+    createAnimalAnims(this);
 
     this.time.delayedCall(800, () => {
       this.scene.start('LoginScene');

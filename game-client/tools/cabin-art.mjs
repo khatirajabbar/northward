@@ -12,6 +12,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, loadPng } from './pixel.mjs';
+import { C } from './palette.mjs';
+import { drawPine } from './trees.mjs';
 import { useTheme, furnish, buildSprites, PLACE } from './cabin-furniture.mjs';
 
 export { PLACE };
@@ -33,32 +35,6 @@ export const LAYOUT = {
   ridge: 140
 };
 const L = LAYOUT;
-
-// ── palette ──
-const C = {
-  ink: 0x2b1b14,                                                    // warm dark outline
-  wood: [0x4a2f1e, 0x6b452a, 0x8a5c36, 0xa97a48, 0xc99a62, 0xe2bd85],   // furniture oak, dark → light
-  log: [0x2e211b, 0x3a2a22, 0x4a362b, 0x574033, 0x644b3b, 0x73584a],    // back wall logs (kept quiet)
-  floor: [0x4a2f1e, 0x5f4029, 0x775233, 0x8e653e, 0xa57a4c],
-  timber: [0x221610, 0x33221a, 0x453024, 0x573d2d, 0x6a4c39],           // beams, posts
-  cut: [0x7d5c38, 0x9c7647, 0xb88f58, 0xd0aa70],                        // sawn log ends
-  stone: [0x2d2f36, 0x45484f, 0x5f636b, 0x7c818a, 0x9da2aa],
-  roof: [0x1b272d, 0x283a42, 0x355059, 0x436671, 0x577f8a],
-  grass: [0x2f5a3c, 0x3f6d4e, 0x4f815b, 0x5f9668, 0x79ad78],
-  dirt: [0x3e332a, 0x4e4136, 0x5d5044, 0x6e6052],
-  path: [0x7b6b55, 0x8f7e65, 0xa39277],
-  pineFar: 0x587f88,
-  pineMid: 0x386069,
-  pine: [0x15292e, 0x1f3a40, 0x2b5056, 0x3a686c, 0x4f8480],
-  cream: [0xb9a888, 0xd6c6a4, 0xece0c4, 0xf7efd9],
-  teal: [0x2f6b6e, 0x458a8a, 0x62a8a2, 0x86c4ba],
-  rust: [0x7a3324, 0x9c4630, 0xb95c40, 0xd47a58],
-  mustard: [0xa87628, 0xcf9a3a, 0xe8bb5c],
-  iron: [0x17191e, 0x262a31, 0x383d47, 0x4d5360, 0x69707e],
-  fire: [0xc8441c, 0xff8c3a, 0xffc14d, 0xfff3c4],
-  white: [0xb8c0c4, 0xd9dfe0, 0xf2f5f3],
-  glow: 0xffd68a
-};
 
 useTheme(C, L);
 
@@ -107,39 +83,6 @@ function drawSky(img) {
   cloud(214, 122, 50, [0x9dbcbc, 0xecd2ac]);
   cloud(560, 150, 46, [0xbccdbb, 0xf6d7a6]);
   cloud(40, 170, 40, [0xb4c8bc, 0xf0d4aa]);
-}
-
-// a pine as a stack of ragged tiers; `tones` runs dark → light, lit from the right
-function drawPine(img, cx, baseY, height, halfW, tones, rnd, { trunk = true } = {}) {
-  if (trunk) {
-    const th = Math.max(4, Math.round(height * 0.12));
-    img.rect(cx - 1, baseY - th, 3, th, 0x3b2a20);
-    img.vline(cx + 1, baseY - th, th, 0x54402f);
-  }
-  const top = baseY - height;
-  const tiers = Math.max(3, Math.round(height / 11));
-  const bottom = baseY - Math.round(height * 0.1);
-  for (let t = 0; t < tiers; t++) {
-    const y0 = top + Math.round(((bottom - top) * t) / tiers);
-    const y1 = top + Math.round(((bottom - top) * (t + 1.35)) / tiers);
-    const wTop = (halfW * (t + 0.15)) / tiers, wBot = (halfW * (t + 1.25)) / tiers;
-    for (let y = y0; y < y1; y++) {
-      const k = (y - y0) / (y1 - y0);
-      const half = Math.max(0.6, wTop * 0.35 + (wBot - wTop * 0.35) * k);
-      const l = Math.round(cx - half - (rnd.chance(0.35) ? 1 : 0));
-      const r = Math.round(cx + half + (rnd.chance(0.35) ? 1 : 0));
-      for (let x = l; x <= r; x++) {
-        const side = (x - cx) / (half + 1);          // -1 left … 1 right
-        let tone = 1;
-        if (side > 0.25) tone = 2;
-        if (side > 0.6 && k < 0.75) tone = 3;
-        if (side < -0.45) tone = 0;
-        if (k > 0.82) tone = Math.max(0, tone - 1);   // shadow under each tier
-        if (tones.length > 4 && tone === 3 && rnd.chance(0.3)) tone = 4;
-        img.put(x, y, tones[Math.min(tone, tones.length - 1)]);
-      }
-    }
-  }
 }
 
 function drawDistance(img, rnd) {

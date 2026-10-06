@@ -1,9 +1,14 @@
 import Phaser from 'phaser';
 import { game } from '../services/game.js';
-import { makeCatTextures, updateCatFollow } from '../characters/cat.js';
-import { FOREST_SCALE, FEET } from '../characters/lpc.js';
+import { makeCat, updateCatFollow } from '../characters/cat.js';
+import { FOREST_SCALE, FEET, setTravelerBody } from '../characters/lpc.js';
+import { HORSE_BACK } from '../characters/animals.js';
 import { FLAGS, tickClock, encodeProgress, decodeProgress } from '../services/progress.js';
 import FoxCubPuzzle from '../puzzles/foxCub.js';
+
+// The forest's art is drawn small by tools/forest-art.mjs (the same palette and
+// trees as the cabin) and shown at 2x.
+const ART = 2;
 
 export default class ForestScene extends Phaser.Scene {
   constructor() {
@@ -18,11 +23,8 @@ export default class ForestScene extends Phaser.Scene {
     this.groundY = height - 60;
     // where the sprite's centre sits when the traveler stands on the ground
     this.standY = this.groundY - FEET * FOREST_SCALE - 4;
-    // riding: how far the sprite is lifted to seat the hips on the horse's back
-    this.rideLift = 88 - 14 * FOREST_SCALE;
-
-    this.makeTextures();
-    makeCatTextures(this);
+    // riding: how far the drawing is lifted so the traveler's seat rests on the horse's back
+    this.rideLift = Math.round(HORSE_BACK * ART - 7 - 13 * FOREST_SCALE);
 
     // ── landmark positions ──
     this.bucketX = 620;
@@ -77,30 +79,20 @@ export default class ForestScene extends Phaser.Scene {
     this.rideSpeed = 380;
     this.carrotSprites = [];
 
-    // ── sky ──
-    this.cameras.main.setBackgroundColor('#10161c');
-    const skyBands = [0x10161c, 0x1a2630, 0x2b3d49, 0x415863, 0x6a8088];
-    const bandH = height / skyBands.length;
-    skyBands.forEach((c, i) => {
-      this.add.rectangle(0, i * bandH, width, bandH + 1, c)
-        .setOrigin(0, 0).setScrollFactor(0).setDepth(-30);
-    });
-
-    // ── parallax ──
-    const dwScale = height / 272 * 1.05;
-    const dwH = 272 * dwScale;
-    const dwY = height - dwH;
+    // ── sky, and the forest behind the road: three lines of trees sliding by at
+    // their own speeds, the farthest slowest ──
+    this.cameras.main.setBackgroundColor('#6fa3bd');
+    this.add.image(0, 0, 'woods-sky').setOrigin(0, 0).setScale(ART).setScrollFactor(0).setDepth(-30);
     this.bgLayers = [];
-    const addDW = (key, factor, depth, tint, alpha) => {
-      const ts = this.add.tileSprite(0, dwY, width, dwH, key);
-      ts.setOrigin(0, 0).setScrollFactor(0).setTileScale(dwScale, dwScale);
-      ts.setDepth(depth).setTint(tint).setAlpha(alpha);
+    const addLayer = (key, factor, depth) => {
+      const ts = this.add.tileSprite(0, 0, width, height, key);
+      ts.setOrigin(0, 0).setScrollFactor(0).setTileScale(ART, ART).setDepth(depth);
       ts.parallaxFactor = factor;
       this.bgLayers.push(ts);
     };
-    addDW('dw-far', 0.12, -24, 0x3a6068, 0.9);
-    addDW('dw-mid', 0.25, -23, 0x25444e, 1);
-    addDW('dw-close', 0.45, -22, 0x152b33, 1);
+    addLayer('woods-far', 0.1, -24);
+    addLayer('woods-mid', 0.22, -23);
+    addLayer('woods-near', 0.4, -22);
 
     // ── ground ──
     this.platforms = this.physics.add.staticGroup();
@@ -125,32 +117,32 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (runStart !== null) groundRuns.push([runStart, worldWidth]);
     groundRuns.forEach(([x0, x1]) => {
-      this.add.tileSprite(x0, this.groundY, x1 - x0, height - this.groundY + 8, 'terrain-dirt-day')
-        .setOrigin(0, 0).setDepth(2);
-      this.add.tileSprite(x0, this.groundY + 1, x1 - x0, 14, 'grass-fringe-day')
-        .setOrigin(0, 1).setDepth(5);
+      this.add.tileSprite(x0, this.groundY, x1 - x0, 80, 'woods-ground')
+        .setOrigin(0, 0).setTileScale(ART, ART).setDepth(2);
+      this.add.tileSprite(x0, this.groundY + 2, x1 - x0, 12, 'woods-fringe')
+        .setOrigin(0, 1).setTileScale(ART, ART).setDepth(5);
     });
 
-    // ── forest dressing — full and bare trees, bushes, grass and flowers along
-    // the whole road, the way the ending dresses its field. everything sits at
-    // depth 1 (trees) or 4-5 (shrubs), behind the gameplay objects, and the
+    // ── forest dressing — spruce, pine and birch along the whole road, with
+    // bushes, ferns, grass and flowers under them. everything sits at depth 1
+    // (trees) or 4-5 (undergrowth), behind the gameplay objects, and the
     // placements stay clear of the landmarks so nothing readable is covered ──
-    [{ x: 320, s: 1.0 }, { x: 1520, s: 1.15, f: true }, { x: 2230, s: 0.95 },
-     { x: 3350, s: 1.1 }, { x: 4300, s: 1.0, f: true }, { x: 5560, s: 1.15 },
-     { x: 9700, s: 1.1 }].forEach((t) => {
-      this.add.image(t.x, this.groundY + 4, 'tree-lush-day')
-        .setOrigin(0.5, 1).setScale(t.s).setDepth(1).setFlipX(!!t.f);
+    const prop = (key, x, depth, flip = false, y = this.groundY + 4) =>
+      this.add.image(x, y, `woods-${key}`).setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(flip);
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+    [[120, 'spruce-b'], [300, 'birch-a'], [470, 'spruce-a'], [700, 'pine-a'], [760, 'spruce-c'],
+     [1230, 'birch-b'], [1400, 'spruce-a'], [1510, 'spruce-b'], [1790, 'birch-a'], [2150, 'spruce-a', true],
+     [2290, 'spruce-c'], [2560, 'birch-b'], [2640, 'spruce-b'], [3180, 'spruce-a'], [3330, 'pine-a'],
+     [3470, 'birch-a', true], [3600, 'spruce-b'], [4180, 'spruce-b', true], [4320, 'birch-a'], [4470, 'spruce-a'],
+     [4860, 'pine-a', true], [5480, 'spruce-a'], [5600, 'birch-b'], [5690, 'spruce-c'], [6760, 'spruce-b'],
+     [6840, 'birch-a'], [6980, 'spruce-a', true], [7420, 'pine-a'], [7540, 'spruce-b'], [9480, 'spruce-a'],
+     [9620, 'birch-a', true], [9760, 'spruce-b'], [9900, 'pine-a'], [10060, 'spruce-a', true]
+    ].forEach(([x, key, flip]) => prop(key, x, 1, !!flip));
+    [260, 560, 1300, 1450, 2180, 2500, 3250, 3420, 4380, 4900, 5540, 6820, 7480, 9560, 9700].forEach((x, i) => {
+      prop(i % 2 ? 'bush-b' : 'bush-a', x + (Math.random() * 20 - 10), 4, Math.random() < 0.5, this.groundY + 3);
     });
-    [180, 1350, 3520, 4480, 5480, 9450, 9880].forEach((x) => {
-      this.add.image(x, this.groundY + 4, 'tree-bare-day')
-        .setOrigin(0.5, 1).setScale(1.3 + Math.random() * 0.4).setDepth(1)
-        .setFlipX(Math.random() < 0.5);
-    });
-    [260, 1420, 2180, 3420, 4380, 5540, 6820, 9620].forEach((x) => {
-      this.add.image(x + (Math.random() * 20 - 10), this.groundY + 4, 'bush-day')
-        .setOrigin(0.5, 1).setScale(0.9 + Math.random() * 0.4).setDepth(4);
-    });
-    // scattered tufts and blooms — skipping the water, the tall-grass gate, the
+    [380, 2230, 4240, 9840].forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
+    // scattered undergrowth — skipping the water, the tall-grass gate, the
     // mushroom slope, the bramble and the rest field, which dress themselves
     const dressSkip = [
       [rivL - 40, rivR + 40], [gapL - 40, gapR + 40],
@@ -160,102 +152,77 @@ export default class ForestScene extends Phaser.Scene {
     ];
     for (let x = 140; x < worldWidth - 80; x += 90) {
       if (dressSkip.some(([a, b]) => x > a && x < b)) continue;
-      if (Math.random() < 0.7) {
-        this.add.image(x + (Math.random() * 30 - 15), this.groundY + 4, 'tallgrass-day')
-          .setOrigin(0.5, 1).setScale(0.45 + Math.random() * 0.3).setDepth(5).setAlpha(0.9);
+      if (Math.random() < 0.75) {
+        prop(pick(['tuft-a', 'tuft-b', 'tuft-b', 'tuft-c']), x + (Math.random() * 30 - 15), 5, Math.random() < 0.5, this.groundY + 3);
       }
       if (Math.random() < 0.4) {
-        const key = Math.random() < 0.5 ? 'flower-white' : 'flower-yellow';
-        this.add.image(x + (Math.random() * 50 - 25), this.groundY + 4, key)
-          .setOrigin(0.5, 1).setScale(0.9 + Math.random() * 0.4).setDepth(5);
+        prop(pick(['flower-white', 'flower-yellow', 'flower-pink']), x + (Math.random() * 50 - 25), 5, false, this.groundY + 2);
       }
+      if (Math.random() < 0.14) prop('fern', x + 40, 4, Math.random() < 0.5, this.groundY + 3);
+      if (Math.random() < 0.08) prop('pebble', x + 20, 4, false, this.groundY + 3);
     }
-    // ── water — layered, not flat: a lit top edge, a bright surface strip,
-    // then bands falling away into the dark ──
-    const drawWater = (cx, w, depth) => {
-      const g = this.add.graphics().setDepth(depth);
-      g.fillStyle(0x142835, 0.95); g.fillRect(cx - w / 2, this.groundY + 14, w, 200);  // the deep
-      g.fillStyle(0x1d3a49, 0.95); g.fillRect(cx - w / 2, this.groundY + 14, w, 46);   // depth bands
-      g.fillStyle(0x27505f, 0.95); g.fillRect(cx - w / 2, this.groundY + 14, w, 26);
-      g.fillStyle(0x35687a, 0.95); g.fillRect(cx - w / 2, this.groundY + 14, w, 10);   // surface strip
-      g.fillStyle(0x7fb8d0, 0.6); g.fillRect(cx - w / 2, this.groundY + 14, w, 2);     // lit top edge
-      return g;
+    // ── water — one tiled painting of a river: a lit edge, a bright surface,
+    // then down into the dark. it drifts slowly (see update) ──
+    this.waters = [];
+    const addWater = (cx, w, top, h, depth, flow, alpha = 1) => {
+      const water = this.add.tileSprite(cx - w / 2, this.groundY + top, w, h, 'woods-water')
+        .setOrigin(0, 0).setTileScale(ART, ART).setDepth(depth).setAlpha(alpha);
+      water.flow = flow;
+      water.drift = Math.random() * 64;
+      this.waters.push(water);
     };
-    // river water filling its pit
-    drawWater(this.riverX, this.riverWidth + 20, 3);
-    // a waterline strip drawn ABOVE the horse — its legs sink behind this, so it reads as in the water
-    this.add.rectangle(this.riverX, this.groundY + 18, this.riverWidth + 20, 26, 0x27505f, 0.95).setOrigin(0.5, 0).setDepth(11);
-    this.add.rectangle(this.riverX, this.groundY + 18, this.riverWidth + 20, 4, 0x7fb8d0, 0.45).setOrigin(0.5, 0).setDepth(12);
+    // the river filling its pit
+    addWater(this.riverX, this.riverWidth + 20, 14, 88, 3, 5);
+    // the near surface, drawn ABOVE the horse — its legs sink behind this, so it reads as in the water
+    addWater(this.riverX, this.riverWidth + 20, 18, 30, 11, 8, 0.94);
 
     // the stepping-stone crossing — same water
-    drawWater(this.crossX, this.crossWidth + 20, 3);
+    addWater(this.crossX, this.crossWidth + 20, 14, 88, 3, 5);
     // stepping stones — tops level with the ground, so you must JUMP between them.
-    // the physics ellipse is invisible now; a layered stone image draws the look
-    // at the same spot (its top edge sits exactly on the old ellipse top)
+    // the physics ellipse is invisible; a drawn stone sits at the same spot
+    // (its top edge exactly on the ellipse's top)
     this.stones = this.physics.add.staticGroup();
-    this.stoneXs.forEach((sx) => {
+    this.stoneXs.forEach((sx, i) => {
       const stone = this.add.ellipse(sx, this.groundY + 6, 44, 20, 0x6b7278).setDepth(6).setVisible(false);
       this.physics.add.existing(stone, true);
       stone.body.setSize(40, 12).setOffset(2, 0);
       this.stones.add(stone);
-      this.add.image(sx, this.groundY - 4, 'stepping-stone').setOrigin(0.5, 0).setDepth(6);
+      this.add.image(sx, this.groundY - 6, `woods-stone-${'abc'[i % 3]}`)
+        .setOrigin(0.5, 0).setScale(ART).setDepth(6).setFlipX(i % 2 === 1);
     });
-    // a foreground waterline band over the stones — their bases sit behind the
-    // surface now, IN the water instead of on top of it
-    this.add.rectangle(this.crossX, this.groundY + 18, this.crossWidth + 20, 10, 0x27505f, 0.85).setOrigin(0.5, 0).setDepth(7);
-    this.add.rectangle(this.crossX, this.groundY + 18, this.crossWidth + 20, 2, 0x7fb8d0, 0.5).setOrigin(0.5, 0).setDepth(7);
+    // the near surface over the stones — their feet sit IN the water instead of on top of it
+    addWater(this.crossX, this.crossWidth + 20, 18, 12, 7, 8, 0.88);
 
-    // ── torch checkpoint on the near bank — starts UNLIT, lights as you pass ──
-    this.torchSprite = this.add.image(this.torchX, this.groundY + 2, 'torch')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
-    this.torchSprite.setTint(0x555555);   // dark/unlit look
-    // the flame sits at the top of the post, hidden until lit
-    this.torchFlame = this.add.image(this.torchX, this.groundY - 52, 'flame')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(7).setVisible(false);
-    this.torchGlow = this.add.circle(this.torchX, this.groundY - 60, 34, 0xffb347, 0).setDepth(5);
-    this.torchLit = false;
-
-    // ── river torch checkpoint on the near bank — starts UNLIT, lights as you pass ──
-    this.riverTorchSprite = this.add.image(this.riverTorchX, this.groundY + 2, 'torch')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
-    this.riverTorchSprite.setTint(0x555555);
-    this.riverTorchFlame = this.add.image(this.riverTorchX, this.groundY - 52, 'flame')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(7).setVisible(false);
-    this.riverTorchGlow = this.add.circle(this.riverTorchX, this.groundY - 60, 34, 0xffb347, 0).setDepth(5);
-    this.riverTorchLit = false;
+    // ── checkpoint torches — each starts unlit and lights as you pass it:
+    // on the near bank of the river, before the crossing, and before the bramble ──
+    this.torches = {
+      'torch-1': this.makeTorch(this.riverTorchX),
+      'torch-2': this.makeTorch(this.torchX),
+      'torch-3': this.makeTorch(this.brambleTorchX)
+    };
 
 
-    // ── lake — a layered pond: dark depths, banded shallows, a lit surface rim ──
-    const pond = this.add.graphics().setDepth(8);
-    pond.fillStyle(0x142835, 0.95);
-    pond.fillEllipse(this.lakeCenterX, this.groundY + 34, 232, 40);    // the deep
-    pond.fillStyle(0x1d3a49, 0.95);
-    pond.fillEllipse(this.lakeCenterX, this.groundY + 28, 214, 30);    // depth bands
-    pond.fillStyle(0x27505f, 0.95);
-    pond.fillEllipse(this.lakeCenterX, this.groundY + 23, 196, 22);
-    pond.fillStyle(0x35687a, 0.95);
-    pond.fillEllipse(this.lakeCenterX, this.groundY + 19, 184, 12);    // surface
-    pond.fillStyle(0x7fb8d0, 0.55);
-    pond.fillEllipse(this.lakeCenterX, this.groundY + 16, 172, 4);     // lit top edge
-    const shimmer = this.add.ellipse(this.lakeCenterX - 30, this.groundY + 18, 70, 4, 0x9fd4e0, 0.45).setDepth(8);
-    this.tweens.add({ targets: shimmer, x: this.lakeCenterX + 40, alpha: 0.12,
+    // ── the pond — a small woodland pool in front of the path, light sliding on it ──
+    this.add.image(this.lakeCenterX, this.groundY + 4, 'woods-pond').setOrigin(0.5, 0).setScale(ART).setDepth(8);
+    const shimmer = this.add.rectangle(this.lakeCenterX - 30, this.groundY + 26, 26, 2, 0xdff3f2, 0.7).setDepth(8);
+    this.tweens.add({ targets: shimmer, x: this.lakeCenterX + 40, alpha: 0.15,
       duration: 2800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     // ── the weak tree ──
-    this.treeScale = 1.6;
-    this.treeSprite = this.add.image(this.treeX, this.groundY + 4, 'tree-weak')
+    this.treeScale = ART;
+    this.treeSprite = this.add.image(this.treeX, this.groundY + 4, 'woods-sapling-weak')
       .setOrigin(0.5, 1).setScale(this.treeScale).setDepth(2);
 
     // ── the bucket (on the path) — seated: sunk a little into the ground,
     // with a soft contact shadow under it and grass tufts at its front edge.
     // the same image swaps bucket-empty/bucket-full, so this covers both;
     // the shadow and tufts follow it when it's picked up and set down ──
-    this.bucketShadow = this.add.ellipse(this.bucketX, this.groundY + 4, 34, 7, 0x2c332e, 0.5).setDepth(2);
-    this.groundBucket = this.add.image(this.bucketX, this.groundY + 5, 'bucket-empty')
-      .setOrigin(0.5, 1).setScale(1.4).setDepth(2);
+    this.bucketShadow = this.add.ellipse(this.bucketX, this.groundY + 4, 26, 6, 0x2c332e, 0.5).setDepth(2);
+    this.groundBucket = this.add.image(this.bucketX, this.groundY + 5, 'woods-bucket-empty')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(2);
     this.bucketTufts = [
-      this.add.image(this.bucketX - 9, this.groundY + 5, 'tallgrass-day').setOrigin(0.5, 1).setScale(0.16).setDepth(3),
-      this.add.image(this.bucketX + 10, this.groundY + 5, 'tallgrass-day').setOrigin(0.5, 1).setScale(0.13).setDepth(3)
+      prop('tuft-a', this.bucketX - 10, 3, false, this.groundY + 4),
+      prop('tuft-a', this.bucketX + 11, 3, true, this.groundY + 4)
     ];
 
     // ── carrots on the path — planted: the root tip sits below the ground
@@ -265,19 +232,13 @@ export default class ForestScene extends Phaser.Scene {
     // on resume, the carrots picked in the saved run stay picked
     this.carrotXs.forEach((cx, index) => {
       if (this.saved.field & (1 << index)) return;
-      const carrot = this.add.image(cx, this.groundY + 12 + (Math.random() * 6 - 3), 'carrot')
-        .setOrigin(0.5, 1).setScale(1.2 + Math.random() * 0.3).setDepth(4);
+      const carrot = this.add.image(cx, this.groundY + 5 + Math.round(Math.random() * 2), 'woods-carrot')
+        .setOrigin(0.5, 1).setScale(ART).setDepth(4);
       carrot.itemX = cx;
       carrot.fieldIndex = index;
       this.tweens.add({ targets: carrot, angle: { from: -4, to: 4 }, duration: 1200 + Math.random() * 400,
         yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      const dirt = Math.random() < 0.5 ? [0x4e4136, 0x5d5044] : [0x483c31, 0x554839];
-      const moundW = 17 + Math.random() * 6;
-      const mound = this.add.graphics().setDepth(4);
-      mound.fillStyle(dirt[0]);
-      mound.fillEllipse(cx, this.groundY + 3, moundW, 12);
-      mound.fillStyle(dirt[1]);
-      mound.fillEllipse(cx, this.groundY + 1, moundW * 0.7, 6);
+      prop(Math.random() < 0.5 ? 'mound-a' : 'mound-b', cx, 4, Math.random() < 0.5, this.groundY + 8);
       this.carrotSprites.push(carrot);
     });
 
@@ -297,8 +258,7 @@ export default class ForestScene extends Phaser.Scene {
     this.player.setDragX(800);
     this.player.setMaxVelocity(220, 700);
     this.player.setScale(FOREST_SCALE);
-    this.player.setSize(20, 34);
-    this.player.setOffset(22, 26);
+    setTravelerBody(this.player);
     this.player.setDepth(10);
     this.physics.add.collider(this.player, this.platforms);
 
@@ -306,7 +266,7 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── river crossing: an invisible floor across the gap, solid ONLY while riding ──
     // ride over it and the horse carries you across the surface; on foot it passes and you fall in
-    this.riverBridge = this.add.rectangle(this.riverX, this.groundY + 30, this.riverWidth + 8, 12).setVisible(false);
+    this.riverBridge = this.add.rectangle(this.riverX, this.groundY + 50, this.riverWidth + 8, 12).setVisible(false);
     this.physics.add.existing(this.riverBridge, true);
     this.physics.add.collider(this.player, this.riverBridge, null, () => this.riding, this);
 
@@ -329,26 +289,16 @@ export default class ForestScene extends Phaser.Scene {
     // (no torch on the cliff top — there's nothing to fall into here, so no
     // checkpoint is needed; the mushroom hill is a gentle, no-death section.)
 
-    // ── third torch on the ground past the cliff — checkpoint before the bramble ──
-    // (brambleTorchX defined with the other checkpoint torches above)
-    this.brambleTorchSprite = this.add.image(this.brambleTorchX, this.groundY + 2, 'torch')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(6);
-    this.brambleTorchSprite.setTint(0x555555);   // dark/unlit look
-    this.brambleTorchFlame = this.add.image(this.brambleTorchX, this.groundY - 52, 'flame')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(7).setVisible(false);
-    this.brambleTorchGlow = this.add.circle(this.brambleTorchX, this.groundY - 60, 34, 0xffb347, 0).setDepth(5);
-    this.brambleTorchLit = false;
-
     this.physics.add.collider(this.player, this.ledges);
 
     // ── stone wall behind the cat — grounded on the cliff top, blocks the
     // right edge so the mushrooms are the only way down ──
-    this.rockWall = this.add.image(this.cliffTopX + 100, this.cliffTopY + 6, 'rock')
-      .setOrigin(0.5, 1).setScale(2.2).setDepth(8);
+    this.rockWall = this.add.image(this.cliffTopX + 100, this.cliffTopY + 6, 'woods-boulder')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(8);
     // seat the rock into the grass — tufts against its base in front
     [-26, -4, 18, 34].forEach((dx, i) => {
-      this.add.image(this.cliffTopX + 100 + dx, this.cliffTopY + 4, 'tallgrass-day')
-        .setOrigin(0.5, 1).setScale(0.26 + (i % 2) * 0.1).setDepth(9);
+      this.add.image(this.cliffTopX + 100 + dx, this.cliffTopY + 4, i % 2 ? 'woods-tuft-b' : 'woods-tuft-a')
+        .setOrigin(0.5, 1).setScale(ART).setDepth(9);
     });
     const rockBody = this.add.rectangle(this.cliffTopX + 108, this.cliffTopY - 45, 24, 100).setVisible(false);
     this.physics.add.existing(rockBody, true);
@@ -358,8 +308,9 @@ export default class ForestScene extends Phaser.Scene {
     this.mushrooms = this.physics.add.staticGroup();
     const makeBounce = (x, groundTopY, scale, power, solid = true) => {
       const capY = groundTopY - 12;
-      const m = this.add.image(x, capY, 'mushroom').setOrigin(0.5, 1).setScale(scale).setDepth(7);
-      this.tweens.add({ targets: m, scaleX: { from: scale, to: scale + 0.08 }, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      // the drawing is shown at the art's own size; `scale` still sizes the bounce pad
+      const m = this.add.image(x, capY + 4, 'woods-mushroom').setOrigin(0.5, 1).setScale(ART).setDepth(7);
+      this.tweens.add({ targets: m, scaleX: { from: ART, to: ART + 0.1 }, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       const pad = this.add.rectangle(x, capY - scale * 18, 34 * scale, 10, 0xff0000, 0).setDepth(7);
       this.physics.add.existing(pad, true);
       pad.bounceMush = m;
@@ -390,50 +341,20 @@ export default class ForestScene extends Phaser.Scene {
       return this.groundY - (this.groundY - peakTop) * eased;
     };
 
-    // draw the filled green slope: a ramp rising left->right that levels into a
-    // flat top at the peak (no overhang), ending just past the rock so the rock
-    // sits on the ground with no orphan green behind it. one continuous shape.
-    // draw the whole hill as ONE filled polygon: ground-left, up the curve, across
-    // the flat top, down the right edge. one shape = no seams, no lips possible.
-    const platRight = this.cliffTopX + 230;          // extends under the whole rock
-    const pts = [{ x: mtnLeft, y: this.groundY + 6 }];
-    for (let x = mtnLeft; x <= platRight; x += 4) {
-      const curve = surfaceTopY(x);
-      const top = curve <= this.cliffTopY + 14 ? this.cliffTopY : curve;
-      pts.push({ x, y: top });
-    }
-    // clean top-right corner, then a single straight vertical drop to the ground
-    pts.push({ x: platRight, y: this.cliffTopY });
-    pts.push({ x: platRight, y: this.groundY + 6 });
-    const slopeG = this.add.graphics().setDepth(3);
-    slopeG.fillStyle(0x3f6d4e);                      // grass green body
-    slopeG.fillPoints(pts, true);
-    // a single light edge stroke along the top surface only (not the sides)
-    slopeG.lineStyle(5, 0x5a8f63);
-    slopeG.beginPath();
-    for (let i = 1; i < pts.length - 1; i++) {
-      if (i === 1) slopeG.moveTo(pts[i].x, pts[i].y);
-      else slopeG.lineTo(pts[i].x, pts[i].y);
-    }
-    slopeG.strokePath();
-    // speckle the hillside like the terrain — small darker grass tufts
-    slopeG.fillStyle(0x35603f);
-    for (let i = 0; i < 130; i++) {
-      const spx = mtnLeft + 10 + Math.random() * (platRight - mtnLeft - 20);
-      const curve = surfaceTopY(spx);
-      const spTop = curve <= this.cliffTopY + 14 ? this.cliffTopY : curve;
-      if (this.groundY - spTop < 24) continue;
-      slopeG.fillRect(spx, spTop + 8 + Math.random() * (this.groundY - spTop - 14), 3, 2);
-    }
+    // the hill itself is one painting (tools/forest-art.mjs draws it to these
+    // same measurements): a ramp rising left->right that levels into a flat top
+    // at the peak and runs on under the whole rock to a sheer drop
+    const platRight = this.cliffTopX + 230;
+    this.add.image(mtnLeft, this.groundY + 6, 'woods-hill').setOrigin(0, 1).setScale(ART).setDepth(3);
 
     // scatter little flowers ALONG the whole green — up the slope, across the cliff
     // top by the cat, and behind the rock — so it's lush but never looks like a
     // bounce mushroom (only the real bounce mushrooms are mushrooms now).
     const plantFlower = (x) => {
       const top = surfaceTopY(x) + 2;   // returns the flat cliff height past the peak
-      const key = Math.random() < 0.5 ? 'flower-white' : 'flower-yellow';
+      const key = `woods-daisy-${Math.random() < 0.5 ? 'white' : 'yellow'}${Math.random() < 0.4 ? '-small' : ''}`;
       this.add.image(x + (Math.random() - 0.5) * 14, top, key)
-        .setOrigin(0.5, 1).setScale(0.85 + Math.random() * 0.4).setDepth(4);
+        .setOrigin(0.5, 1).setScale(ART).setDepth(4);
     };
     // denser flowers up the slope
     for (let x = mtnLeft + 20; x < peakX - 60; x += 22) {
@@ -466,37 +387,51 @@ export default class ForestScene extends Phaser.Scene {
     });
 
     // ── the scared cat, stranded on the cliff top — too afraid to climb down ──
-    this.catSprite = this.add.image(this.cliffTopX, this.cliffTopY, 'cat-stand')
-      .setOrigin(0.5, 1).setScale(1.4).setDepth(9);
+    this.catSprite = makeCat(this, this.cliffTopX, this.cliffTopY).setDepth(9);
+    this.catSprite.play('cat-scared');
     this.catRescued = false;
-    this.catBreathe = this.tweens.add({ targets: this.catSprite, y: this.cliffTopY - 4,
-      duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.inOut' });   // anxious little breathing
+    this.catBreathe = this.tweens.add({ targets: this.catSprite, scaleY: ART * 1.06,
+      duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });   // quick, anxious little breaths
 
     // ── the meadow: other horses grazing (your horse's future friends) ──
     this.meadowHorses = [];
     const meadowData = [
-      { x: this.meadowX - 80, key: 'horse-grey', scale: 2 },
-      { x: this.meadowX + 90, key: 'horse-dark', scale: 2 },
-      { x: this.meadowX + 30, key: 'foal', scale: 1.8 }
+      { x: this.meadowX - 130, key: 'horse-grey' },
+      { x: this.meadowX + 140, key: 'horse-dark', flip: true },
+      { x: this.meadowX + 40, key: 'foal' }
     ];
-    meadowData.forEach((h) => {
-      const m = this.add.image(h.x, this.groundY + 2, h.key).setOrigin(0.5, 1).setScale(h.scale).setDepth(4);
-      this.tweens.add({ targets: m, y: this.groundY - 2, duration: 1500 + Math.random() * 600,
-        yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    meadowData.forEach((h, i) => {
+      const m = this.add.sprite(h.x, this.groundY + 2, `woods-${h.key}`)
+        .setOrigin(0.5, 1).setScale(ART).setDepth(4).setFlipX(!!h.flip);
+      m.animKey = h.key;
       m.baseX = h.x;
+      m.play({ key: `${h.key}-graze`, startFrame: i * 2 });
+      // heads down in the grass, and up now and then to look around
+      this.time.addEvent({ delay: 5200 + i * 1700, loop: true, callback: () => {
+        if (m.anims.currentAnim?.key === `${h.key}-eat`) return;
+        m.play(m.anims.currentAnim?.key === `${h.key}-graze` ? `${h.key}-idle` : `${h.key}-graze`);
+      } });
       this.meadowHorses.push(m);
     });
 
-    // ── tall-grass gate (only passable on horseback) ──
+    // ── tall-grass gate (only passable on horseback) — the tallest of it stands
+    // behind you and a lower row in front, so you wade through it rather than
+    // walk past it ──
     this.grassBlades = [];
+    const grassRows = [
+      [3, 0, ['tallgrass-a', 'tallgrass-b', 'tallgrass-c']],
+      [11, 11, ['tallgrass-low-a', 'tallgrass-low-b']]
+    ];
     for (let gx = this.grassX - this.grassWidth / 2; gx <= this.grassX + this.grassWidth / 2; gx += 22) {
-      const blade = this.add.image(gx, this.groundY + 4, 'tallgrass-day')
-        .setOrigin(0.5, 1).setScale(1.5 + Math.random() * 0.3).setDepth(11);
-      blade.baseX = gx;
-      // gentle idle sway
-      this.tweens.add({ targets: blade, angle: { from: -3, to: 3 },
-        duration: 1600 + Math.random() * 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.grassBlades.push(blade);
+      grassRows.forEach(([depth, shift, kinds]) => {
+        const blade = this.add.image(gx + shift, this.groundY + 4, `woods-${pick(kinds)}`)
+          .setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(Math.random() < 0.5);
+        blade.baseX = gx + shift;
+        // gentle idle sway
+        this.tweens.add({ targets: blade, angle: { from: -2, to: 2 },
+          duration: 1600 + Math.random() * 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        this.grassBlades.push(blade);
+      });
     }
     // wall at the grass — a real physics wall (can't be pushed through),
     // removed once you've learned the grass is safe by riding through it
@@ -508,59 +443,56 @@ export default class ForestScene extends Phaser.Scene {
     this.grassLearnedShown = false;
 
 
-    // ── bramble thicket past the cliff — a frightened bird is tangled inside ──
+    // ── bramble thicket past the cliff — a frightened bird is tangled inside.
+    // tall canes behind you and low runners in front, so you're IN the thorns ──
     this.brambleX = 7200;
     this.brambleWidth = 280;
     this.brambleBlades = [];
-    for (let bx = this.brambleX - this.brambleWidth / 2; bx <= this.brambleX + this.brambleWidth / 2; bx += 20) {
-      const thorn = this.add.image(bx, this.groundY + 4, 'bramble')
-        .setOrigin(0.5, 1).setScale(1.5 + Math.random() * 0.3).setDepth(7);
+    const brambleKinds = ['bramble-a', 'bramble-b', 'bramble-c'];
+    const thicket = (key, bx, depth) => {
+      const thorn = this.add.image(bx, this.groundY + 4, `woods-${key}`)
+        .setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(Math.random() < 0.5);
       thorn.baseX = bx;
-      this.tweens.add({ targets: thorn, angle: { from: -2, to: 2 },
-        duration: 1800 + Math.random() * 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       this.brambleBlades.push(thorn);
+    };
+    for (let bx = this.brambleX - this.brambleWidth / 2 + 10; bx <= this.brambleX + this.brambleWidth / 2; bx += 52) {
+      thicket(brambleKinds[this.brambleBlades.length % 3], bx, 7);
+    }
+    for (let bx = this.brambleX - this.brambleWidth / 2 + 30; bx <= this.brambleX + this.brambleWidth / 2; bx += 84) {
+      thicket('bramble-low', bx, 11);
     }
     // the trapped bird, low in the thorns near the far side
     this.birdX = 7280;
     this.birdFreed = false;
     this.birdHintShown = false;
     this.birdPanicking = false;
-    this.birdSprite = this.add.image(this.birdX, this.groundY - 28, 'bird')
-      .setOrigin(0.5, 1).setScale(1.6).setDepth(8);
-    // an anxious little flutter — it's struggling to get free
-    this.tweens.add({ targets: this.birdSprite, angle: { from: -6, to: 6 },
-      duration: 220, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    this.birdSprite = this.add.sprite(this.birdX, this.groundY - 28, 'woods-bird')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(8);
+    this.birdSprite.play('bird-struggle');   // beating its wings — it's struggling to get free
 
     // ── resting field — trees, bushes, grass, and flowers, a wide quiet place after the bird ──
     this.restTreeX = 8000;
     // a smaller tree close beside the big one, slightly behind — a natural pair, not a row
-    this.add.image(this.restTreeX - 75, this.groundY + 4, 'tree-lush-day')
-      .setOrigin(0.5, 1).setScale(0.6).setDepth(4).setTint(0xc9d9c2);
-    this.add.image(this.restTreeX, this.groundY + 4, 'tree-lush-day')
-      .setOrigin(0.5, 1).setScale(1.1).setDepth(6);
+    prop('birch-a', this.restTreeX - 120, 4, true);
+    prop('oak-a', this.restTreeX, 6);
     // bushes scattered at a few points, mid-height texture between flowers and trees
     const restBushXs = [-300, -210, -50, 90, 190, 300, 480, 680, 900, 1150];
     restBushXs.forEach((dx) => {
-      this.add.image(this.restTreeX + dx + (Math.random() * 20 - 10), this.groundY + 4, 'bush-day')
-        .setOrigin(0.5, 1).setScale(0.9 + Math.random() * 0.4).setDepth(5);
+      prop(pick(['bush-a', 'bush-b']), this.restTreeX + dx + (Math.random() * 20 - 10), 5, Math.random() < 0.5, this.groundY + 3);
     });
     // tufts of grass scattered through the field, uneven and low
     const restGrassXs = [-320, -270, -220, -170, -120, -70, -20, 30, 80, 130, 180, 230, 280, 320,
                           360, 400, 440, 490, 540, 590, 650, 700, 760, 820, 880, 940,
                           1000, 1070, 1140, 1200, 1265, 1330];
     restGrassXs.forEach((dx) => {
-      this.add.image(this.restTreeX + dx + (Math.random() * 14 - 7), this.groundY + 4, 'tallgrass-day')
-        .setOrigin(0.5, 1).setScale(0.5 + Math.random() * 0.25).setDepth(5).setAlpha(0.9);
+      prop(pick(['tuft-b', 'tuft-c', 'tuft-c']), this.restTreeX + dx + (Math.random() * 14 - 7), 5, Math.random() < 0.5, this.groundY + 3);
     });
     // flowers scattered unevenly through the field — not a neat row
     const restFlowerXs = [-330, -300, -260, -230, -195, -160, -130, -95, -65, -30, 5, 40,
                            75, 110, 145, 180, 215, 250, 285, 315,
                            380, 460, 550, 650, 760, 870, 990, 1120, 1260, 1390];
     restFlowerXs.forEach((dx) => {
-      const key = Math.random() < 0.5 ? 'flower-white' : 'flower-yellow';
-      const fx = this.restTreeX + dx + (Math.random() * 16 - 8);
-      const scale = 1.0 + Math.random() * 0.5;
-      this.add.image(fx, this.groundY + 4, key).setOrigin(0.5, 1).setScale(scale).setDepth(5);
+      prop(pick(['flower-white', 'flower-yellow', 'flower-pink']), this.restTreeX + dx + (Math.random() * 16 - 8), 5, false, this.groundY + 2);
     });
     this.restEntryShown = false;
     this.resting = false;
@@ -570,10 +502,9 @@ export default class ForestScene extends Phaser.Scene {
     this.restRabbitsVisited = false;
 
     // ── the horse + its gate ──
-    this.horseSprite = this.add.image(this.horseX, this.groundY + 2, 'horse')
-      .setOrigin(0.5, 1).setScale(2).setDepth(4);
-    this.tweens.add({ targets: this.horseSprite, y: this.groundY - 2,
-      duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    this.horseSprite = this.add.sprite(this.horseX, this.groundY + 2, 'woods-horse')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(4);
+    this.horseSprite.play('horse-idle');
     // invisible gate just past the horse — blocks you until it's fed
     this.horseGate = this.add.rectangle(this.horseX + 70, this.groundY - 300, 12, 640).setVisible(false);
     this.physics.add.existing(this.horseGate, true);
@@ -589,9 +520,10 @@ export default class ForestScene extends Phaser.Scene {
     // the lerped follow lands on fractional scroll positions; snap rendering to the pixel grid
     this.cameras.main.setRoundPixels(true);
 
-    // ── carried bucket (follows player) ──
-    this.heldBucket = this.add.image(0, 0, 'bucket-empty')
-      .setOrigin(0.5, 1).setScale(1.2).setDepth(6).setVisible(false);
+    // ── carried bucket (follows player) — just behind the traveler, in front of
+    // everything they walk past ──
+    this.heldBucket = this.add.image(0, 0, 'woods-bucket-empty')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(9.5).setVisible(false);
 
     // ── input ──
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -632,9 +564,9 @@ export default class ForestScene extends Phaser.Scene {
     if (has(FLAGS.tree)) {
       this.treeWatered = true;
       this.bucketPicked = true;
-      this.treeSprite.setTexture('tree-healthy');
+      this.treeSprite.setTexture('woods-sapling-healthy');
       // the empty bucket was left by the tree
-      this.groundBucket.setPosition(this.treeX + 34, this.groundY + 5).setScale(1.3);
+      this.groundBucket.setPosition(this.treeX + 34, this.groundY + 5);
       this.bucketShadow.setPosition(this.treeX + 34, this.groundY + 4);
       this.bucketTufts.forEach((t) => t.setVisible(false));
     }
@@ -651,6 +583,7 @@ export default class ForestScene extends Phaser.Scene {
     if (has(FLAGS.goodbye)) {
       this.saidGoodbye = true;
       this.horseSprite.x = this.meadowX - 30;
+      this.horseSprite.play('horse-graze');
     } else if (this.horseFed) {
       this.horseSprite.x = this.player.x - 70;   // waiting beside you
     }
@@ -658,13 +591,13 @@ export default class ForestScene extends Phaser.Scene {
     if (has(FLAGS.cat)) {
       this.catRescued = true;
       this.catFollowing = true;
-      if (this.catBreathe) { this.catBreathe.stop(); this.catBreathe = null; }
-      this.catSprite.setPosition(this.player.x - 50, this.groundY);
+      this.calmCat();
+      this.catSprite.setPosition(this.player.x - 50, this.groundY + 2);
+      this.catSprite.play('cat-stand');
     }
     if (has(FLAGS.bird)) {
       this.birdFreed = true;
-      this.tweens.killTweensOf(this.birdSprite);
-      this.birdSprite.setVisible(false);
+      this.birdSprite.stop().setVisible(false);
     }
   }
 
@@ -701,486 +634,64 @@ export default class ForestScene extends Phaser.Scene {
     }
   }
 
-  makeTextures() {
-    const make = (cb, w, h, key) => {
-      if (this.textures.exists(key)) return;
-      const g = this.make.graphics({ x: 0, y: 0, add: false });
-      cb(g);
-      g.generateTexture(key, w, h);
-      g.destroy();
+  // a checkpoint torch — unlit until you walk past it
+  makeTorch(x) {
+    const post = this.add.image(x, this.groundY + 2, 'woods-torch').setOrigin(0.5, 1).setScale(ART).setDepth(6);
+    const flame = this.add.sprite(x, this.groundY - 58, 'woods-flame')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(7).setVisible(false);
+    const glow = this.add.circle(x, this.groundY - 70, 34, 0xffb347, 0).setDepth(5);
+    return { x, post, flame, glow, lit: false };
+  }
+
+  lightTorch(torch) {
+    torch.lit = true;
+    torch.flame.setVisible(true).play('flame-burn');
+    this.tweens.add({ targets: torch.glow, alpha: 0.18, duration: 600, ease: 'Sine.out',
+      onComplete: () => {
+        this.tweens.add({ targets: torch.glow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
+          duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      } });
+    // a little whoosh of sparks
+    for (let i = 0; i < 10; i++) {
+      const sp = this.add.rectangle(torch.x, this.groundY - 68, 2, 2, 0xffd27a, 0.9).setDepth(7);
+      const a = Math.random() * Math.PI * 2;
+      this.tweens.add({ targets: sp, x: torch.x + Math.cos(a) * 26, y: this.groundY - 68 + Math.sin(a) * 26 - 14,
+        alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
+    }
+  }
+
+  // the cat stops trembling once it's safe with you
+  calmCat() {
+    if (this.catBreathe) { this.catBreathe.stop(); this.catBreathe = null; }
+    this.catSprite.setScale(ART);
+  }
+
+  // a rabbit crosses the resting field in hops: in from behind you, a pause
+  // where you can see it — and it looks back at you — then on its way
+  sendRabbit(index) {
+    const floor = this.groundY + 2;
+    const dir = this.player.flipX ? -1 : 1;
+    const rabbit = this.add.sprite(this.player.x - dir * (300 + index * 30), floor, 'woods-rabbit', 0)
+      .setOrigin(0.5, 1).setScale(ART).setDepth(9);
+    const pauseX = this.player.x + dir * (74 + index * 40), exitX = this.player.x + dir * 720;
+    const hopTo = (targetX, then) => {
+      const left = targetX - rabbit.x;
+      if (Math.abs(left) < 6) { then(); return; }
+      const step = Math.sign(left) * Math.min(Math.abs(left), 42);
+      rabbit.setFlipX(step > 0);                                      // the art faces left
+      rabbit.play('rabbit-hop');
+      this.tweens.add({ targets: rabbit, x: rabbit.x + step, duration: 320 });
+      this.tweens.add({ targets: rabbit, y: floor - 14, duration: 160, yoyo: true, ease: 'Quad.out',
+        onComplete: () => {
+          rabbit.setFrame(0);
+          this.time.delayedCall(110, () => hopTo(targetX, then));     // a breath between hops
+        } });
     };
-
-    // layered earth — grass cap over dirt, with speckles and buried stones
-    // (same technique as EndingScene's terrain-dirt, in the forest's cool daylight)
-    make((g) => {
-      g.fillStyle(0x4e4136); g.fillRect(0, 0, 64, 96);                 // dirt body
-      for (let i = 0; i < 30; i++) {
-        g.fillStyle(Math.random() < 0.5 ? 0x3e332a : 0x5d5044);
-        g.fillRect(Math.random() * 62, 18 + Math.random() * 74, 2, 2);
-      }
-      g.fillStyle(0x707a84);
-      g.fillEllipse(14, 66, 8, 5); g.fillEllipse(46, 82, 10, 6); g.fillEllipse(33, 48, 6, 4);
-      g.fillStyle(0x59616b);
-      g.fillEllipse(15, 68, 5, 3); g.fillEllipse(48, 84, 6, 3);
-      g.fillStyle(0x3f6d4e); g.fillRect(0, 0, 64, 12);                 // grass cap
-      for (let x = 0; x < 64; x += 8) {                                // ragged cap edge
-        g.fillTriangle(x, 12, x + 8, 12, x + 4, 15 + Math.random() * 5);
-      }
-      g.fillStyle(0x4f815b); g.fillRect(0, 0, 64, 7);
-      g.fillStyle(0x5f9668); g.fillRect(0, 0, 64, 3);                  // lit top edge
-    }, 64, 96, 'terrain-dirt-day');
-
-    // grass blades standing up along the ground line
-    make((g) => {
-      const greens = [0x3f6d4e, 0x4f815b, 0x5f9668];
-      for (let x = 0; x < 64; x += 5) {
-        g.fillStyle(greens[Math.floor(Math.random() * greens.length)]);
-        const h = 4 + Math.random() * 9;
-        g.fillTriangle(x, 14, x + 4, 14, x + 2, 14 - h);
-      }
-    }, 64, 14, 'grass-fringe-day');
-
-    // the weak tree and the healthy tree share the SAME trunk and branches —
-    // an upright ordinary tree — so watering changes only the foliage.
-    // weak: sparse dull yellow-brown clumps (thirsty, autumn-sick), and a
-    // few fallen yellow leaves at its base
-    make((g) => {
-      g.fillStyle(0x5a4a34);
-      g.fillRect(31, 40, 9, 100);                                      // trunk
-      g.fillTriangle(31, 140, 22, 140, 32, 112);                       // root flare
-      g.fillTriangle(40, 140, 49, 140, 39, 112);
-      g.fillTriangle(32, 66, 16, 48, 20, 44);                          // left branch
-      g.fillTriangle(39, 60, 52, 42, 56, 46);                          // right branch
-      g.fillStyle(0x453724);
-      g.fillRect(35, 46, 2, 68);                                       // bark shadow
-      g.fillStyle(0x6d5b40);
-      g.fillRect(31, 44, 2, 60);                                       // bark light
-      g.fillStyle(0x6e6242);                                           // sparse clumps, dark
-      g.fillEllipse(17, 44, 22, 14);
-      g.fillEllipse(55, 42, 20, 13);
-      g.fillEllipse(35, 32, 26, 16);
-      g.fillStyle(0x84744a);                                           // mid, dry
-      g.fillEllipse(15, 41, 14, 8);
-      g.fillEllipse(53, 39, 12, 8);
-      g.fillEllipse(33, 29, 16, 10);
-      g.fillStyle(0x9a8752);                                           // the last pale leaves
-      g.fillEllipse(31, 26, 10, 6);
-      g.fillEllipse(14, 38, 7, 4);
-      g.fillStyle(0x9a8752);                                           // fallen leaves at the base
-      g.fillEllipse(18, 141, 7, 3); g.fillEllipse(52, 142, 8, 3); g.fillEllipse(60, 139, 5, 2);
-      g.fillStyle(0x84744a);
-      g.fillEllipse(26, 143, 6, 2); g.fillEllipse(44, 140, 5, 2);
-    }, 70, 145, 'tree-weak');
-
-    // healthy: the same silhouette in full green three-tone leaf, with small
-    // white and pink blossoms — watering makes it bloom
-    make((g) => {
-      g.fillStyle(0x5a4a34);
-      g.fillRect(31, 40, 9, 100);                                      // trunk (same as tree-weak)
-      g.fillTriangle(31, 140, 22, 140, 32, 112);                       // root flare
-      g.fillTriangle(40, 140, 49, 140, 39, 112);
-      g.fillTriangle(32, 66, 16, 48, 20, 44);                          // left branch
-      g.fillTriangle(39, 60, 52, 42, 56, 46);                          // right branch
-      g.fillStyle(0x453724);
-      g.fillRect(35, 46, 2, 68);                                       // bark shadow
-      g.fillStyle(0x6d5b40);
-      g.fillRect(31, 44, 2, 60);                                       // bark light
-      g.fillStyle(0x2f5f44);                                           // canopy, dark
-      g.fillEllipse(35, 40, 60, 46);
-      g.fillEllipse(16, 52, 28, 24); g.fillEllipse(55, 50, 28, 24);
-      g.fillStyle(0x43815a);                                           // canopy, mid
-      g.fillEllipse(33, 35, 48, 36);
-      g.fillEllipse(18, 47, 22, 17); g.fillEllipse(52, 44, 22, 18);
-      g.fillStyle(0x5aa374);                                           // canopy, light
-      g.fillEllipse(30, 27, 30, 20);
-      g.fillEllipse(45, 31, 18, 13);
-      g.fillStyle(0x70ba88);                                           // top glints
-      g.fillCircle(25, 20, 4); g.fillCircle(37, 18, 3);
-      g.fillStyle(0xf4f4ee);                                           // white blossoms
-      g.fillCircle(20, 34, 2); g.fillCircle(42, 24, 2); g.fillCircle(54, 44, 2); g.fillCircle(30, 46, 2);
-      g.fillStyle(0xe8b4c8);                                           // pink blossoms
-      g.fillCircle(48, 36, 2); g.fillCircle(16, 46, 2); g.fillCircle(35, 30, 2);
-    }, 70, 145, 'tree-healthy');
-
-    // a full forest tree — EndingScene's tree-lush, in the day's cool greens
-    make((g) => {
-      g.fillStyle(0x5a4a34);
-      g.fillRect(77, 130, 16, 110);                                    // trunk
-      g.fillTriangle(77, 240, 61, 240, 79, 198);                       // root flare
-      g.fillTriangle(93, 240, 109, 240, 91, 198);
-      g.fillTriangle(78, 152, 52, 122, 60, 116);                       // branch stubs
-      g.fillTriangle(92, 168, 120, 140, 126, 147);
-      g.fillStyle(0x453724);
-      g.fillRect(84, 138, 3, 44); g.fillRect(80, 190, 3, 34);          // bark shadow
-      g.fillStyle(0x6d5b40);
-      g.fillRect(77, 134, 3, 92);                                      // bark light
-      g.fillStyle(0x2f5f44);                                           // canopy, dark
-      g.fillEllipse(85, 86, 150, 110);
-      g.fillEllipse(38, 112, 70, 60); g.fillEllipse(132, 110, 72, 62);
-      g.fillStyle(0x43815a);                                           // canopy, mid
-      g.fillEllipse(80, 74, 120, 86);
-      g.fillEllipse(42, 100, 56, 44); g.fillEllipse(126, 98, 58, 46);
-      g.fillStyle(0x5aa374);                                           // canopy, light
-      g.fillEllipse(72, 58, 76, 50);
-      g.fillEllipse(110, 64, 44, 34); g.fillEllipse(52, 76, 36, 26);
-      g.fillStyle(0x70ba88);                                           // top glints
-      g.fillCircle(66, 42, 8); g.fillCircle(92, 38, 6); g.fillCircle(112, 52, 5);
-    }, 170, 240, 'tree-lush-day');
-
-    // bare tree — thin and leafless, for the cold spaces between
-    // (EndingScene's tree-bare with cooler daytime bark)
-    make((g) => {
-      g.fillStyle(0x6e5f4a);
-      g.fillRect(27, 40, 8, 100);                                      // trunk
-      g.fillTriangle(27, 44, 35, 44, 31, 6);                           // tapering up
-      g.fillTriangle(29, 54, 8, 20, 12, 18);                           // left branch
-      g.fillTriangle(33, 66, 52, 30, 56, 34);                          // right branch
-      g.fillTriangle(30, 40, 20, 14, 24, 12);                          // small upper branch
-      g.fillStyle(0x574a38);
-      g.fillRect(31, 48, 3, 88);                                       // shaded side
-    }, 60, 140, 'tree-bare-day');
-
-    // bucket empty — banded metal pail with a lit and a shaded side
-    make((g) => {
-      g.fillStyle(0x9aa0a6);
-      g.fillPoints([{ x: 4, y: 7 }, { x: 22, y: 7 }, { x: 19, y: 29 }, { x: 7, y: 29 }], true);
-      g.fillStyle(0x7c828a);
-      g.fillPoints([{ x: 16, y: 7 }, { x: 22, y: 7 }, { x: 19, y: 29 }, { x: 15, y: 29 }], true);  // shaded side
-      g.fillStyle(0xb4bac0);
-      g.fillPoints([{ x: 5, y: 8 }, { x: 8, y: 8 }, { x: 9, y: 28 }, { x: 7, y: 28 }], true);      // lit side
-      g.fillStyle(0x666c74); g.fillRect(5, 24, 15, 2);   // lower band
-      g.fillStyle(0x7c828a); g.fillRect(3, 5, 20, 4);
-      g.fillStyle(0x8f959c); g.fillRect(3, 5, 20, 2);    // rim light
-      g.lineStyle(2, 0x7c828a); g.beginPath(); g.arc(13, 7, 9, Math.PI, 0); g.strokePath();
-    }, 26, 32, 'bucket-empty');
-
-    // bucket full — same pail, water with a glint
-    make((g) => {
-      g.fillStyle(0x9aa0a6);
-      g.fillPoints([{ x: 4, y: 7 }, { x: 22, y: 7 }, { x: 19, y: 29 }, { x: 7, y: 29 }], true);
-      g.fillStyle(0x7c828a);
-      g.fillPoints([{ x: 16, y: 7 }, { x: 22, y: 7 }, { x: 19, y: 29 }, { x: 15, y: 29 }], true);  // shaded side
-      g.fillStyle(0xb4bac0);
-      g.fillPoints([{ x: 5, y: 8 }, { x: 8, y: 8 }, { x: 9, y: 28 }, { x: 7, y: 28 }], true);      // lit side
-      g.fillStyle(0x666c74); g.fillRect(5, 24, 15, 2);   // lower band
-      g.fillStyle(0x4a90c2); g.fillRect(5, 9, 16, 5);    // water
-      g.fillStyle(0x7fb8dc); g.fillRect(6, 9, 6, 2);     // glint on the water
-      g.fillStyle(0x7c828a); g.fillRect(3, 5, 20, 4);
-      g.fillStyle(0x8f959c); g.fillRect(3, 5, 20, 2);    // rim light
-      g.lineStyle(2, 0x7c828a); g.beginPath(); g.arc(13, 7, 9, Math.PI, 0); g.strokePath();
-    }, 26, 32, 'bucket-full');
-
-    // carrot — item icon with a lit and a shaded flank, and taller tops in
-    // the same soft greens as the grass so they don't glow against it
-    make((g) => {
-      g.fillStyle(0xe8772e);
-      g.fillTriangle(9, 9, 14, 9, 11, 29);
-      g.fillStyle(0xc25f22);
-      g.fillTriangle(12, 9, 14, 9, 11, 27);              // shaded flank
-      g.fillStyle(0xf29a55);
-      g.fillTriangle(9, 9, 10, 9, 10, 23);               // lit flank
-      g.fillStyle(0x4c7250);
-      g.fillRect(8, 0, 2, 10); g.fillRect(14, 0, 2, 10);
-      g.fillStyle(0x5d8a60);
-      g.fillRect(11, 0, 2, 10);                          // lit middle leaf
-    }, 22, 31, 'carrot');
-
-    // rope — a coiled loop of rope
-    make((g) => {
-      g.fillStyle(0xb08850);
-      g.fillEllipse(13, 14, 22, 18);            // outer coil
-      g.fillStyle(0x2b2620);
-      g.fillEllipse(13, 14, 10, 8);             // hole in the middle
-      g.fillStyle(0x8a6a3c);
-      g.fillRect(6, 7, 3, 3); g.fillRect(18, 9, 3, 3);   // little strand marks
-      g.fillRect(9, 19, 3, 3); g.fillRect(16, 18, 3, 3);
-    }, 26, 28, 'rope');
-
-    // water — a little flask/bottle
-    make((g) => {
-      g.fillStyle(0x6b5d4d);
-      g.fillRect(8, 0, 6, 4);                   // cork
-      g.fillStyle(0x9aa6ae);
-      g.fillRect(7, 4, 8, 3);                   // neck
-      g.fillStyle(0x4a90c2);
-      g.fillEllipse(11, 18, 16, 18);            // rounded bottle body, water-blue
-      g.fillStyle(0x7fb8dc);
-      g.fillEllipse(8, 15, 4, 6);               // shine
-    }, 22, 30, 'water');
-
-    // bread — a small loaf
-    make((g) => {
-      g.fillStyle(0xc79a5b);
-      g.fillEllipse(13, 15, 24, 14);            // loaf body
-      g.fillStyle(0xa87d42);
-      g.fillRect(6, 9, 2, 8); g.fillRect(11, 8, 2, 9); g.fillRect(16, 9, 2, 8);  // score marks
-      g.fillStyle(0xe0c089);
-      g.fillEllipse(13, 12, 18, 5);             // floury top
-    }, 26, 26, 'bread');
-
-    // torch POST only (no flame — flame is its own sprite so it can dance)
-    make((g) => {
-      g.fillStyle(0x4e3c2a);
-      g.fillRect(7, 14, 4, 30);            // wooden post
-      g.fillStyle(0x5f4b34);
-      g.fillRect(7, 14, 1, 30);            // lit edge
-      g.fillStyle(0x3a2c1e);
-      g.fillRect(10, 14, 1, 30);           // shaded edge
-      g.fillStyle(0x3a2e20);
-      g.fillRect(5, 12, 8, 5);             // holder
-      g.fillStyle(0x55452e);
-      g.fillRect(5, 12, 8, 2);             // holder rim catching light
-      g.fillStyle(0x2b2118);
-      g.fillRect(6, 26, 6, 2);             // binding band
-    }, 18, 44, 'torch');
-
-    // flame — its own little sprite, origin at the bottom so it sways from the base
-    make((g) => {
-      g.fillStyle(0xff8c3a);
-      g.fillTriangle(7, 0, 1, 16, 13, 16); // outer
-      g.fillStyle(0xffc14d);
-      g.fillTriangle(7, 4, 3, 15, 11, 15); // mid
-      g.fillStyle(0xfff3c4);
-      g.fillTriangle(7, 9, 5, 14, 9, 14);  // hot core
-    }, 14, 16, 'flame');
-
-    // flower — a tiny five-petal bloom (white or yellow), for the green slope
-    const makeFlower = (key, petal) => make((g) => {
-      g.fillStyle(petal);
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2;
-        g.fillCircle(8 + Math.cos(a) * 4, 8 + Math.sin(a) * 4, 3);   // petals
-      }
-      g.fillStyle(0xffd23f);
-      g.fillCircle(8, 8, 2.4);                                       // golden center
-    }, 16, 16, key);
-    makeFlower('flower-white', 0xf4f4ee);
-    makeFlower('flower-yellow', 0xffe680);
-
-    // stepping stone — a rounded river boulder: lit crown, shaded underside,
-    // wet base sunk in the water, and a pale waterline where they meet
-    // (same layering as EndingScene's fire-ring stones)
-    make((g) => {
-      g.fillStyle(0x6b7278);
-      g.fillEllipse(24, 10, 44, 20);                                   // body — same footprint as before
-      g.fillStyle(0x878e94);
-      g.fillEllipse(20, 6, 28, 9);                                     // lit crown
-      g.fillStyle(0x9aa1a6);
-      g.fillEllipse(16, 4, 12, 4);                                     // top highlight
-      g.fillStyle(0x545b61);
-      g.fillEllipse(28, 15, 34, 9);                                    // shaded underside
-      g.fillStyle(0x3d4a52);
-      g.fillEllipse(24, 22, 40, 12);                                   // wet base, sunk in the water
-      g.fillStyle(0x9fd4e0, 0.5);
-      g.fillEllipse(24, 20, 46, 4);                                    // waterline catching light
-    }, 48, 30, 'stepping-stone');
-
-    // rock — a split angular boulder: three flat facets (lit, mid, shadow)
-    // with straight seams, moss along the top edge only, and a dark contact
-    // shadow seating it in the grass
-    make((g) => {
-      g.fillStyle(0x2c332e, 0.85);
-      g.fillEllipse(28, 45, 46, 6);                                    // contact shadow
-      g.fillStyle(0x767d86);                                           // mid face — whole silhouette
-      g.fillPoints([{ x: 4, y: 44 }, { x: 8, y: 22 }, { x: 22, y: 8 }, { x: 42, y: 10 }, { x: 52, y: 30 }, { x: 50, y: 44 }], true);
-      g.fillStyle(0x99a0a8);                                           // lit face, top-left plane
-      g.fillPoints([{ x: 8, y: 22 }, { x: 22, y: 8 }, { x: 30, y: 24 }, { x: 14, y: 34 }], true);
-      g.fillStyle(0x565d66);                                           // shadow face, right plane
-      g.fillPoints([{ x: 42, y: 10 }, { x: 52, y: 30 }, { x: 50, y: 44 }, { x: 34, y: 44 }, { x: 30, y: 24 }], true);
-      g.lineStyle(1.5, 0x464d55);                                      // straight facet seams
-      g.beginPath(); g.moveTo(22, 8); g.lineTo(30, 24); g.lineTo(34, 44); g.strokePath();
-      g.beginPath(); g.moveTo(30, 24); g.lineTo(14, 34); g.strokePath();
-      g.fillStyle(0x4f815b);                                           // moss along the top edge only
-      g.fillEllipse(20, 9, 16, 5); g.fillEllipse(34, 9, 12, 4);
-      g.fillStyle(0x5f9668);
-      g.fillEllipse(18, 7, 8, 3);
-    }, 56, 48, 'rock');
-
-    // bounce mushroom — a chunky cartoon toadstool: sturdy flaring stem,
-    // gills in shadow under the cap, and a glossy highlighted dome
-    // (same size and cap footprint as before, so the bounce pads line up)
-    make((g) => {
-      g.fillStyle(0xd8ccb0);
-      g.fillPoints([{ x: 15, y: 22 }, { x: 25, y: 22 }, { x: 27, y: 38 }, { x: 13, y: 38 }], true);  // stem, flaring down
-      g.fillStyle(0xb8ac90);
-      g.fillPoints([{ x: 22, y: 22 }, { x: 25, y: 22 }, { x: 27, y: 38 }, { x: 23, y: 38 }], true);  // stem shadow side
-      g.fillEllipse(20, 38, 16, 4);                                    // base ring
-      g.fillStyle(0x7a3a34);
-      g.fillEllipse(20, 24, 34, 8);                                    // gills, in shadow under the cap
-      g.fillStyle(0x9c453e);
-      g.fillEllipse(20, 18, 38, 22);                                   // cap, dark under-curve
-      g.fillStyle(0xb5524a);
-      g.fillEllipse(20, 15, 34, 17);                                   // cap, main dome
-      g.fillStyle(0xc9695e);
-      g.fillEllipse(16, 11, 22, 9);                                    // cap, lit side
-      g.fillStyle(0xdd8a7a);
-      g.fillEllipse(13, 9, 10, 4);                                     // glossy highlight
-      g.fillStyle(0xf0e6d2);
-      g.fillCircle(13, 16, 3); g.fillCircle(27, 15, 3); g.fillCircle(20, 21, 2);  // spots
-    }, 40, 40, 'mushroom');
-
-    // rabbit (sitting) — one clean shape: round body, head, two tall ears,
-    // dot eye, bright tail. less detail reads better at this size
-    make((g) => {
-      g.fillStyle(0xc9bba5);
-      g.fillEllipse(11, 15, 16, 13);                // body
-      g.fillCircle(6, 8, 5);                        // head
-      g.fillRect(2, 0, 3, 9);                       // tall ear
-      g.fillRect(7, 0, 3, 9);                       // tall ear
-      g.fillStyle(0xe8e2d6);
-      g.fillCircle(17, 14, 2.5);                    // tail
-      g.fillStyle(0x2b2620);
-      g.fillRect(3, 7, 2, 2);                       // eye
-    }, 20, 22, 'rabbit-sit');
-
-    // rabbit (hop) — mid-leap: one stretched body, head low, ears swept back,
-    // legs reaching, bright tail
-    make((g) => {
-      g.fillStyle(0xc9bba5);
-      g.fillEllipse(13, 11, 19, 10);                // body, stretched low
-      g.fillCircle(4, 8, 4);                        // head, forward
-      g.fillTriangle(4, 6, 11, 0, 13, 3);           // ear, swept back
-      g.fillTriangle(3, 8, 10, 2, 12, 5);           // ear, swept back
-      g.fillRect(3, 15, 3, 4);                      // front leg, reaching
-      g.fillRect(18, 14, 3, 5);                     // back leg, pushing off
-      g.fillStyle(0xe8e2d6);
-      g.fillCircle(21, 8, 2.5);                     // tail
-      g.fillStyle(0x2b2620);
-      g.fillRect(2, 7, 2, 2);                       // eye
-    }, 24, 20, 'rabbit-hop');
-
-    // bush — a low flowering shrub, layered dark-to-light with a shaded side
-    // (a cool daytime cousin of EndingScene's bush — its own key so the ending keeps its night one)
-    make((g) => {
-      g.fillStyle(0x3e5c44);                                           // base, dark
-      g.fillEllipse(16, 18, 30, 22);
-      g.fillEllipse(6, 14, 18, 16);
-      g.fillEllipse(26, 14, 18, 16);
-      g.fillStyle(0x365040);
-      g.fillEllipse(24, 17, 16, 14);                                   // shaded side
-      g.fillStyle(0x4f7d55);                                           // mid crown
-      g.fillEllipse(14, 11, 22, 16);
-      g.fillStyle(0x639468);                                           // lit top
-      g.fillEllipse(11, 8, 14, 9);
-      g.fillStyle(0xf4f4ee);
-      g.fillCircle(9, 12, 2); g.fillCircle(22, 9, 2); g.fillCircle(16, 16, 2);
-    }, 32, 26, 'bush-day');
-
-    // horse — built in layers now (faces left, toward you): far legs in shadow,
-    // a round barrel with a lit back and shaded belly, an arched neck with a
-    // falling mane, a proper head with muzzle, eye and nostril, a flowing tail.
-    // same canvas and same hoof line as before, so riding/wading line up
-    const horseBody = (g, main, dark, light, mane) => {
-      g.fillStyle(dark);
-      g.fillRect(18, 36, 5, 21); g.fillRect(47, 36, 5, 21);        // far legs
-      g.fillStyle(main);
-      g.fillRect(26, 36, 5, 21); g.fillRect(55, 36, 5, 21);        // near legs
-      g.fillStyle(0x2b2620);
-      g.fillRect(18, 55, 5, 3); g.fillRect(47, 55, 5, 3);          // hooves
-      g.fillRect(26, 55, 5, 3); g.fillRect(55, 55, 5, 3);
-      g.fillStyle(main);
-      g.fillEllipse(40, 29, 46, 23);                               // barrel
-      g.fillPoints([{ x: 15, y: 32 }, { x: 10, y: 10 }, { x: 21, y: 10 }, { x: 29, y: 32 }], true);  // arched neck
-      g.fillEllipse(12, 10, 17, 12);                               // head
-      g.fillPoints([{ x: 2, y: 8 }, { x: 11, y: 5 }, { x: 11, y: 15 }, { x: 3, y: 13 }], true);      // muzzle
-      g.fillStyle(dark);
-      g.fillEllipse(42, 36, 38, 9);                                // shaded belly
-      g.fillEllipse(53, 30, 18, 15);                               // shaded haunch
-      g.fillStyle(light);
-      g.fillEllipse(40, 22, 34, 7);                                // lit line of the back
-      g.fillEllipse(12, 6, 11, 4);                                 // lit brow
-      g.fillStyle(mane);
-      g.fillTriangle(7, 5, 12, 4, 9, 0);                           // ear
-      g.fillPoints([{ x: 14, y: 2 }, { x: 22, y: 6 }, { x: 30, y: 28 }, { x: 24, y: 28 }, { x: 17, y: 8 }], true);  // mane down the neck
-      g.fillPoints([{ x: 58, y: 16 }, { x: 65, y: 20 }, { x: 63, y: 40 }, { x: 57, y: 34 }], true);  // tail
-      g.fillStyle(0x2b2620);
-      g.fillRect(7, 8, 2, 2);                                      // eye
-      g.fillRect(3, 11, 2, 1);                                     // nostril
-    };
-    make((g) => horseBody(g, 0x6b4f3a, 0x523a2a, 0x82644a, 0x3a2a1e), 68, 60, 'horse');
-
-    // meadow horses — the same build, their own coats
-    make((g) => horseBody(g, 0x8a7a5c, 0x6b5d44, 0xa49472, 0x4e4432), 68, 60, 'horse-grey');
-    make((g) => horseBody(g, 0x4a3a2c, 0x362a1f, 0x5f4c39, 0x241c14), 68, 60, 'horse-dark');
-
-    // a baby foal — the same layered build, small and long-legged
-    make((g) => {
-      g.fillStyle(0x7d603f);
-      g.fillRect(12, 24, 3, 13); g.fillRect(30, 24, 3, 13);        // far legs
-      g.fillStyle(0x9a7a52);
-      g.fillRect(17, 24, 3, 13); g.fillRect(35, 24, 3, 13);        // near legs
-      g.fillStyle(0x2b2620);
-      g.fillRect(12, 37, 3, 2); g.fillRect(30, 37, 3, 2);          // hooves
-      g.fillRect(17, 37, 3, 2); g.fillRect(35, 37, 3, 2);
-      g.fillStyle(0x9a7a52);
-      g.fillEllipse(26, 19, 28, 14);                               // body
-      g.fillPoints([{ x: 10, y: 21 }, { x: 7, y: 6 }, { x: 14, y: 6 }, { x: 19, y: 21 }], true);     // neck
-      g.fillEllipse(8, 6, 11, 8);                                  // head
-      g.fillStyle(0x7a5d3c);
-      g.fillEllipse(27, 23, 22, 6);                                // shaded belly
-      g.fillTriangle(4, 3, 8, 3, 6, 0);                            // ear
-      g.fillPoints([{ x: 11, y: 2 }, { x: 16, y: 5 }, { x: 20, y: 19 }, { x: 16, y: 19 }], true);    // short mane
-      g.fillPoints([{ x: 38, y: 12 }, { x: 42, y: 15 }, { x: 41, y: 27 }, { x: 37, y: 23 }], true);  // tail
-      g.fillStyle(0xb08c60);
-      g.fillEllipse(26, 14, 20, 5);                                // lit back
-      g.fillStyle(0x2b2620);
-      g.fillRect(5, 5, 2, 2);                                      // eye
-    }, 44, 40, 'foal');
-
-    // tall grass tuft — a blade cluster in three cool greens, deep to lit
-    // (its own key so EndingScene keeps its night tallgrass)
-    make((g) => {
-      g.fillStyle(0x3a5a40);
-      g.fillTriangle(2, 60, 6, 10, 10, 60);
-      g.fillTriangle(10, 60, 15, 2, 20, 60);
-      g.fillTriangle(18, 60, 24, 14, 30, 60);
-      g.fillTriangle(26, 60, 31, 6, 36, 60);
-      g.fillStyle(0x4c7250);
-      g.fillTriangle(6, 60, 11, 20, 16, 60);
-      g.fillTriangle(20, 60, 26, 10, 32, 60);
-      g.fillStyle(0x5d8a60);
-      g.fillTriangle(13, 60, 17, 12, 21, 60);                          // lit front blade
-    }, 38, 62, 'tallgrass-day');
-
-    // bramble — dark thorny cluster, a harsher cousin of the grass,
-    // layered deep-to-lit with a pale rim blade and glinting berries
-    make((g) => {
-      g.fillStyle(0x232e22);
-      g.fillTriangle(2, 60, 6, 8, 10, 60);
-      g.fillTriangle(10, 60, 15, 0, 20, 60);
-      g.fillTriangle(18, 60, 24, 12, 30, 60);
-      g.fillTriangle(26, 60, 31, 4, 36, 60);
-      g.fillStyle(0x35452f);
-      g.fillTriangle(6, 60, 11, 18, 16, 60);
-      g.fillTriangle(20, 60, 26, 8, 32, 60);
-      g.fillStyle(0x46593c);
-      g.fillTriangle(14, 60, 16, 14, 18, 60);                          // one pale rim blade
-      // little thorns poking off the stems
-      g.fillStyle(0x55402f);
-      g.fillTriangle(12, 30, 16, 28, 12, 34);
-      g.fillTriangle(24, 24, 28, 22, 24, 28);
-      g.fillTriangle(8, 44, 4, 42, 8, 48);
-      g.fillStyle(0x6b5540);
-      g.fillTriangle(28, 36, 32, 34, 28, 40);                          // lit thorn
-      // two tiny dark-red berries, each with a glint
-      g.fillStyle(0x7a2e2e);
-      g.fillCircle(18, 38, 3); g.fillCircle(27, 46, 2);
-      g.fillStyle(0xa85555);
-      g.fillCircle(17, 37, 1); g.fillCircle(26, 45, 1);
-    }, 38, 62, 'bramble');
-
-    // bird — small and brown, tucked low and frightened, facing left
-    make((g) => {
-      g.fillStyle(0x6b5135);
-      g.fillEllipse(13, 13, 18, 12);              // body
-      g.fillEllipse(6, 9, 9, 8);                  // head
-      g.fillTriangle(0, 9, 5, 7, 5, 11);          // beak
-      g.fillStyle(0x52402c);
-      g.fillEllipse(16, 13, 9, 7);                // folded wing
-      g.fillRect(20, 12, 5, 3);                   // short tail
-      g.fillStyle(0x2b2620);
-      g.fillRect(4, 7, 2, 2);                     // eye
-    }, 26, 22, 'bird');
+    hopTo(pauseX, () => {
+      rabbit.setFlipX(rabbit.x < this.player.x);
+      rabbit.play('rabbit-sit');
+      this.time.delayedCall(1700 + index * 350, () => hopTo(exitX, () => rabbit.destroy()));
+    });
   }
 
   showThought(text, ms = 2800) {
@@ -1275,83 +786,15 @@ export default class ForestScene extends Phaser.Scene {
       });
     }
 
-    // ── light the river torch as you approach the near bank ──
-    if (!this.riverTorchLit && Math.abs(px - this.riverTorchX) < 50) {
-      this.riverTorchLit = true;
-      this.respawnX = this.riverTorchX;       // this is your checkpoint now
+    // ── light a torch as you pass it (a warm point in the forest) — it's your checkpoint now ──
+    Object.entries(this.torches).forEach(([id, torch]) => {
+      if (torch.lit || Math.abs(px - torch.x) >= 50) return;
+      if (id === 'torch-3' && this.player.y <= this.groundY - 60) return;   // not from up on the hill
+      this.respawnX = torch.x;
       this.respawnY = this.standY;
-      this.setCheckpoint('torch-1');
-      this.riverTorchSprite.clearTint();
-      this.riverTorchFlame.setVisible(true);
-      this.tweens.add({ targets: this.riverTorchFlame, angle: { from: -4, to: 4 },
-        duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.riverTorchFlame, scaleY: { from: 1.8, to: 1.95 },
-        duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.riverTorchGlow, alpha: 0.18, duration: 600, ease: 'Sine.out',
-        onComplete: () => {
-          this.tweens.add({ targets: this.riverTorchGlow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
-            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-        } });
-      for (let i = 0; i < 10; i++) {
-        const sp = this.add.circle(this.riverTorchX, this.groundY - 50, 2, 0xffd27a, 0.9).setDepth(7);
-        const a = Math.random() * Math.PI * 2;
-        this.tweens.add({ targets: sp, x: this.riverTorchX + Math.cos(a) * 26, y: this.groundY - 50 + Math.sin(a) * 26 - 14,
-          alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
-      }
-    }
-
-    // ── light the torch as you pass it (a warm point in the cold forest) ──
-    if (!this.torchLit && Math.abs(px - this.torchX) < 50) {
-      this.torchLit = true;
-      this.respawnX = this.torchX;            // this is your checkpoint now
-      this.respawnY = this.standY;
-      this.setCheckpoint('torch-2');
-      this.torchSprite.clearTint();   // post catches warm light
-      this.torchFlame.setVisible(true);
-      // the flame sways gently, like the grass — slow and soft
-      this.tweens.add({ targets: this.torchFlame, angle: { from: -4, to: 4 },
-        duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.torchFlame, scaleY: { from: 1.8, to: 1.95 },
-        duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.torchGlow, alpha: 0.18, duration: 600, ease: 'Sine.out',
-        onComplete: () => {
-          this.tweens.add({ targets: this.torchGlow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
-            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-        } });
-      // a little whoosh of sparks
-      for (let i = 0; i < 10; i++) {
-        const sp = this.add.circle(this.torchX, this.groundY - 50, 2, 0xffd27a, 0.9).setDepth(7);
-        const a = Math.random() * Math.PI * 2;
-        this.tweens.add({ targets: sp, x: this.torchX + Math.cos(a) * 26, y: this.groundY - 50 + Math.sin(a) * 26 - 14,
-          alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
-      }
-    }
-
-    // light the bramble checkpoint torch as you pass it on the ground
-    if (!this.brambleTorchLit && Math.abs(px - this.brambleTorchX) < 50 &&
-        this.player.y > this.groundY - 60) {
-      this.brambleTorchLit = true;
-      this.respawnX = this.brambleTorchX;      // this is your checkpoint now
-      this.respawnY = this.standY;
-      this.setCheckpoint('torch-3');
-      this.brambleTorchSprite.clearTint();
-      this.brambleTorchFlame.setVisible(true);
-      this.tweens.add({ targets: this.brambleTorchFlame, angle: { from: -4, to: 4 },
-        duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.brambleTorchFlame, scaleY: { from: 1.8, to: 1.95 },
-        duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.tweens.add({ targets: this.brambleTorchGlow, alpha: 0.18, duration: 600, ease: 'Sine.out',
-        onComplete: () => {
-          this.tweens.add({ targets: this.brambleTorchGlow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
-            duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-        } });
-      for (let i = 0; i < 10; i++) {
-        const sp = this.add.circle(this.brambleTorchX, this.groundY - 50, 2, 0xffd27a, 0.9).setDepth(7);
-        const a = Math.random() * Math.PI * 2;
-        this.tweens.add({ targets: sp, x: this.brambleTorchX + Math.cos(a) * 26, y: this.groundY - 50 + Math.sin(a) * 26 - 14,
-          alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
-      }
-    }
+      this.setCheckpoint(id);
+      this.lightTorch(torch);
+    });
 
     // the cliff is a mushroom hill now — bounce up to the cat, bounce back down,
     // steer with left/right. there's no pit to fall into, so no respawn needed.
@@ -1377,6 +820,11 @@ export default class ForestScene extends Phaser.Scene {
     // ── parallax ──
     const camX = this.cameras.main.scrollX;
     this.bgLayers.forEach((l) => { l.tilePositionX = camX * l.parallaxFactor / l.tileScaleX; });
+    // the rivers drift, a whole pixel at a time
+    this.waters.forEach((w) => {
+      w.drift += w.flow * this.game.loop.delta / 1000;
+      w.tilePositionX = Math.round(w.drift);
+    });
 
     // ── movement ──
     // hold Shift to move slowly and gently (only on foot, not riding)
@@ -1403,21 +851,25 @@ export default class ForestScene extends Phaser.Scene {
       // ── the bird you freed comes to visit, quickly enough not to be missed ──
       if (this.restAtField && this.birdFreed && !this.restBirdVisited && this.restTimer > 1200) {
         this.restBirdVisited = true;
-        const bx = this.player.x + (this.player.flipX ? -60 : 60);
-        this.birdSprite.setPosition(bx + 40, this.groundY - 220).setAlpha(1).setVisible(true).setAngle(0);
-        this.tweens.add({ targets: this.birdSprite, x: bx, y: this.groundY - 28,
-          duration: 900, ease: 'Sine.out',
+        const side = this.player.flipX ? -1 : 1;
+        const bx = this.player.x + side * 60, floor = this.groundY + 2;
+        const bird = this.birdSprite;
+        this.tweens.killTweensOf(bird);                                // in case it's still on its way out of the thorns
+        bird.setPosition(bx + side * 60, this.groundY - 240).setAlpha(1).setVisible(true).setAngle(0)
+          .setFlipX(side < 0).play('bird-fly');                        // flying in toward you
+        this.tweens.add({ targets: bird, x: bx, y: floor, duration: 1100, ease: 'Sine.out',
           onComplete: () => {
+            bird.play('bird-perch').setFlipX(side > 0);                // landed, looking at you
             this.showThought('you again.', 2600);
-            this.tweens.add({ targets: this.birdSprite, angle: { from: -4, to: 4 },
-              duration: 260, yoyo: true, repeat: 4,
+            // a few glad little hops, then off into the trees
+            this.tweens.add({ targets: bird, y: floor - 12, duration: 150, yoyo: true, repeat: 2,
+              repeatDelay: 420, ease: 'Quad.out',
               onComplete: () => {
-                // a little grateful hop, then off into the trees
-                this.tweens.add({ targets: this.birdSprite, y: this.groundY - 60, duration: 300, yoyo: true,
-                  onComplete: () => {
-                    this.tweens.add({ targets: this.birdSprite, x: bx + 700, y: this.groundY - 480,
-                      duration: 2000, ease: 'Sine.in', onComplete: () => this.birdSprite.setVisible(false) });
-                  } });
+                this.time.delayedCall(500, () => {
+                  bird.play('bird-fly').setFlipX(true);
+                  this.tweens.add({ targets: bird, x: bx + 700, y: this.groundY - 480,
+                    duration: 2000, ease: 'Sine.in', onComplete: () => bird.setVisible(false) });
+                });
               } });
           } });
       }
@@ -1425,24 +877,7 @@ export default class ForestScene extends Phaser.Scene {
       // ── two rabbits pass through, unhurried, because the forest trusts stillness ──
       if (this.restAtField && !this.restRabbitsVisited && this.restTimer > 3400) {
         this.restRabbitsVisited = true;
-        const startX = this.player.x - 220, pauseX = this.player.x - 20, exitX = this.player.x + 600;
-        [0, 500].forEach((delay) => {
-          this.time.delayedCall(delay, () => {
-            const rb = this.add.image(startX, this.groundY - 2, 'rabbit-hop')
-              .setOrigin(0.5, 1).setScale(1.1).setDepth(9);
-            const hopY = this.groundY - 2;
-            const hopBounce = this.tweens.add({ targets: rb, y: hopY - 10, duration: 220,
-              yoyo: true, repeat: -1, ease: 'Sine.out' });
-            // hop in, pause a moment nearby, then hop off-screen and away
-            this.tweens.add({ targets: rb, x: pauseX, duration: 1400, ease: 'Sine.inOut',
-              onComplete: () => {
-                this.time.delayedCall(1000, () => {
-                  this.tweens.add({ targets: rb, x: exitX, duration: 2400, ease: 'Sine.in',
-                    onComplete: () => { hopBounce.stop(); rb.destroy(); } });
-                });
-              } });
-          });
-        });
+        [0, 1].forEach((index) => this.time.delayedCall(index * 700, () => this.sendRabbit(index)));
       }
     } else if (left) {
       this.player.setVelocityX(-speed); this.player.setFlipX(true);
@@ -1496,11 +931,8 @@ export default class ForestScene extends Phaser.Scene {
     // grass parts as you pass through it
     this.grassBlades.forEach((b) => {
       const dx = this.player.x - b.baseX;
-      if (Math.abs(dx) < 60) {
-        b.x = b.baseX + (dx > 0 ? -10 : 10);
-      } else {
-        b.x += (b.baseX - b.x) * 0.1;
-      }
+      const target = Math.abs(dx) < 60 ? b.baseX + (dx > 0 ? -10 : 10) : b.baseX;
+      b.x += (target - b.x) * 0.15;
     });
 
     // ── bramble: thorns part as you pass, and the bird reacts to how you move ──
@@ -1508,11 +940,8 @@ export default class ForestScene extends Phaser.Scene {
     const brambleR = this.brambleX + this.brambleWidth / 2;
     this.brambleBlades.forEach((b) => {
       const dx = this.player.x - b.baseX;
-      if (Math.abs(dx) < 50) {
-        b.x = b.baseX + (dx > 0 ? -8 : 8);
-      } else {
-        b.x += (b.baseX - b.x) * 0.1;
-      }
+      const target = Math.abs(dx) < 50 ? b.baseX + (dx > 0 ? -8 : 8) : b.baseX;
+      b.x += (target - b.x) * 0.15;
     });
     // teaching hint as you near the thorns — re-arms when you walk away, so a
     // player who missed it the first time gets it again on their next approach.
@@ -1531,8 +960,8 @@ export default class ForestScene extends Phaser.Scene {
         onGround && Math.abs(this.player.body.velocity.x) > 130) {
       this.birdPanicking = true;
       this.showThought('too fast — it panicked.', 2200);
-      this.tweens.killTweensOf(this.birdSprite);
-      // the bird bolts up and away into the dark
+      // the bird beats its way up and out of sight
+      this.birdSprite.play('bird-fly');
       this.tweens.add({ targets: this.birdSprite, y: this.birdSprite.y - 180, alpha: 0,
         duration: 900, ease: 'Quad.in' });
       // send you back to the checkpoint, then the bird returns to try again
@@ -1541,36 +970,33 @@ export default class ForestScene extends Phaser.Scene {
         this.player.setPosition(this.respawnX, this.respawnY);
       });
       this.time.delayedCall(1600, () => {
-        this.birdSprite.setPosition(this.birdX, this.groundY - 28).setAlpha(1);
-        this.tweens.add({ targets: this.birdSprite, angle: { from: -6, to: 6 },
-          duration: 220, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        this.birdSprite.setPosition(this.birdX, this.groundY - 28).setAlpha(1).play('bird-struggle');
         this.birdPanicking = false;
       });
     }
 
     if (this.carryingCat) {
       // held in your arms — the only way it's coming down from the cliff
-      this.catSprite.x = this.player.x + (this.player.flipX ? -6 : 6) * FOREST_SCALE;
-      this.catSprite.y = this.player.y + 20 * FOREST_SCALE;
+      this.catSprite.x = this.player.x + (this.player.flipX ? -7 : 7) * FOREST_SCALE;
+      this.catSprite.y = this.player.y + 21 * FOREST_SCALE;
       this.catSprite.setFlipX(!this.player.flipX);
     } else if (this.catFollowing) {
       updateCatFollow(this, this.catSprite, this.player, this.groundY);
     }
 
+    const horse = this.horseSprite;
     if (this.riding) {
-      this.horseSprite.x = this.player.x + 4;
-      this.horseSprite.setFlipX(!this.player.flipX);
-      // normal riding — anchored to the body so the hoof line stays where it always was,
-      // even though the sprite itself is lifted onto the horse's back
-      this.horseSprite.y = this.player.body.bottom - 6;
+      // the horse under you: hooves on whatever you're standing on, its back
+      // under your seat — on the road and in the river alike
+      const facing = this.player.flipX ? -1 : 1;
+      let bob = 0;
       if (wading) {
-        // wading the river ONLY — the horse sinks chest-deep and bobs, water hiding its legs
-        const bob = Math.sin(this.time.now / 200) * 3;
-        this.horseSprite.y = this.player.body.bottom + 22 + bob;   // sinks lower into the water while crossing
+        // the river comes up to its belly; you rise and fall with it as it wades
+        bob = Math.round(Math.sin(this.time.now / 220) * 2);
         // ripples trailing at the waterline as the horse moves
         if (Math.abs(this.player.body.velocity.x) > 20 && this.time.now % 6 < 1) {
-          const rip = this.add.ellipse(this.horseSprite.x, this.groundY + 8, 20, 5, 0x9fd4e0, 0.5).setDepth(5);
-          this.tweens.add({ targets: rip, scaleX: 2.4, scaleY: 1.4, alpha: 0,
+          const rip = this.add.rectangle(horse.x, this.groundY + 20, 18, 2, 0xc9ecec, 0.7).setDepth(12);
+          this.tweens.add({ targets: rip, scaleX: 2.6, alpha: 0,
             duration: 900, ease: 'Sine.out', onComplete: () => rip.destroy() });
         }
         if (!this.riverThoughtShown) {
@@ -1578,19 +1004,31 @@ export default class ForestScene extends Phaser.Scene {
           this.showThought("steady. i've got you.", 3000);
         }
       }
+      setTravelerBody(this.player, this.rideLift - bob);
+      horse.x = this.player.x + facing * 8;
+      horse.y = this.player.body.bottom + 2 + bob;
+      horse.setFlipX(!this.player.flipX);
+      horse.play(Math.abs(this.player.body.velocity.x) > 20 ? 'horse-walk' : 'horse-idle', true);
+      horse.anims.timeScale = wading ? 0.7 : 1.3;                  // a slow wade, a quick trot
     } else if (this.horseFed && !this.saidGoodbye) {
       // dismounted companion — the horse gently trails behind you
       const behind = this.player.x - (this.player.flipX ? -70 : 70);
-      this.horseSprite.x += (behind - this.horseSprite.x) * 0.04;
-      this.horseSprite.setFlipX(this.horseSprite.x < this.player.x);
+      const gap = behind - horse.x;
+      horse.x += gap * 0.04;
+      horse.y = this.groundY + 2;
+      horse.anims.timeScale = 1;
+      if (horse.anims.currentAnim?.key !== 'horse-eat' || !horse.anims.isPlaying) {
+        horse.setFlipX(horse.x < this.player.x);
+        horse.play(Math.abs(gap) > 10 ? 'horse-walk' : 'horse-idle', true);
+      }
     }
 
     // ── carried bucket follows player ──
     if (this.carrying) {
       this.heldBucket.setVisible(true);
-      this.heldBucket.setTexture(this.carrying === 'full' ? 'bucket-full' : 'bucket-empty');
-      this.heldBucket.x = this.player.x + (this.player.flipX ? 16 : -16) * FOREST_SCALE;
-      this.heldBucket.y = this.player.y + 14 * FOREST_SCALE;
+      this.heldBucket.setTexture(this.carrying === 'full' ? 'woods-bucket-full' : 'woods-bucket-empty');
+      this.heldBucket.x = this.player.x + (this.player.flipX ? 13 : -13) * FOREST_SCALE;
+      this.heldBucket.y = this.player.y + 25 * FOREST_SCALE;
     } else {
       this.heldBucket.setVisible(false);
     }
@@ -1655,7 +1093,7 @@ export default class ForestScene extends Phaser.Scene {
         this.showThought("the grass is too tall — i shouldn't get down here.");
       } else {
         this.riding = false;
-        this.player.setOffset(22, 26);
+        setTravelerBody(this.player);
         this.player.y += this.rideLift;
         this.showThought('back on your feet.');
       }
@@ -1691,8 +1129,9 @@ export default class ForestScene extends Phaser.Scene {
     } else {
       items.forEach((name, i) => {
         const y = H / 2 - 50 + i * 36;
-        if (this.textures.exists(name.replace(/s$/, ''))) {
-          const icon = this.add.image(W / 2 - 110, y, name.replace(/s$/, '')).setOrigin(0.5).setScale(1.4);
+        const iconKey = 'woods-icon-' + name.replace(/s$/, '');
+        if (this.textures.exists(iconKey)) {
+          const icon = this.add.image(W / 2 - 110, y, iconKey).setOrigin(0.5).setScale(ART);
           panel.add(icon);
         }
         const label = this.add.text(W / 2 - 80, y, name + '  ×' + this.inventory[name], {
@@ -1732,17 +1171,19 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (action === 'freebird') {
       this.birdFreed = true;
-      this.tweens.killTweensOf(this.birdSprite);
       this.addKindness(this.birdX, this.groundY - 60);
       this.showThought('there you go. carefully now.', 3200);
-      // a gentle lift — perch a beat, then rise and fly off into the canopy
-      this.tweens.add({ targets: this.birdSprite, y: this.groundY - 70, duration: 600, ease: 'Quad.out',
+      // a gentle lift — it hangs in the air a beat, finding its wings, then flies off into the canopy
+      const bird = this.birdSprite;
+      bird.play('bird-fly');
+      this.tweens.add({ targets: bird, y: this.groundY - 76, duration: 600, ease: 'Quad.out',
         onComplete: () => {
-          this.tweens.add({ targets: this.birdSprite, y: this.groundY - 90, duration: 500, yoyo: true,
+          this.tweens.add({ targets: bird, y: this.groundY - 92, duration: 500, yoyo: true, ease: 'Sine.inOut',
             onComplete: () => {
-              this.tweens.add({ targets: this.birdSprite, x: this.birdX + 900, y: this.groundY - 520,
+              bird.setFlipX(true);                                    // away, to the right
+              this.tweens.add({ targets: bird, x: this.birdX + 900, y: this.groundY - 520,
                 duration: 3200, ease: 'Sine.in',
-                onComplete: () => this.birdSprite.setVisible(false) });
+                onComplete: () => bird.setVisible(false) });
             } });
         } });
       return;
@@ -1751,7 +1192,7 @@ export default class ForestScene extends Phaser.Scene {
       this.saidGoodbye = true;
       if (this.riding) {
         this.riding = false;
-        this.player.setOffset(22, 26);
+        setTravelerBody(this.player);
         this.player.y += this.rideLift;
       }
       // a heart floats up between you and the horse
@@ -1763,18 +1204,19 @@ export default class ForestScene extends Phaser.Scene {
         duration: 2200, ease: 'Sine.out', onComplete: () => heart.destroy() });
       this.showThought("go on. i'll be alright. you found them.", 4000);
       this.addKindness(this.horseSprite.x, this.groundY - 60);
-      // the horse trots off to join the meadow
-      this.tweens.add({ targets: this.horseSprite, x: this.meadowX - 30, duration: 2600,
-        ease: 'Sine.inOut', onComplete: () => {
-          this.tweens.add({ targets: this.horseSprite, y: this.groundY - 6,
-            duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-        } });
+      // the horse trots off to join the meadow, and puts its head down with the others
+      const horse = this.horseSprite;
+      horse.y = this.groundY + 2;
+      horse.anims.timeScale = 1;
+      horse.setFlipX(this.meadowX - 30 > horse.x).play('horse-walk');
+      this.tweens.add({ targets: horse, x: this.meadowX - 30, duration: 2600,
+        ease: 'Sine.inOut', onComplete: () => horse.play('horse-graze') });
       return;
     }
     if (action === 'mount') {
       this.riding = true;
       // lift the sprite (offset + y cancel out, so the body stays put) to seat it on the horse's back
-      this.player.setOffset(22, 26 + this.rideLift / FOREST_SCALE);
+      setTravelerBody(this.player, this.rideLift);
       this.player.y -= this.rideLift;
       this.horseX = this.player.x;   // track from here
       this.showThought('up you go.');
@@ -1786,8 +1228,8 @@ export default class ForestScene extends Phaser.Scene {
       this.horseFed = true;
       this.physics.world.removeCollider(this.horseGateCollider);
       this.addKindness(this.horseX, this.groundY - 60);
-      this.tweens.add({ targets: this.horseSprite, y: this.groundY - 14,
-        duration: 220, yoyo: true, repeat: 2, ease: 'Quad.out' });
+      // it takes the carrot from your hand
+      this.horseSprite.setFlipX(this.player.x > this.horseSprite.x).play('horse-eat');
       this.showThought('the horse eats happily. the way is clear.');
       return;
     }
@@ -1796,8 +1238,8 @@ export default class ForestScene extends Phaser.Scene {
       this.inventory.carrots -= 1;
       this._nearMeadow.fed = true;
       this.sparkle(this._nearMeadow.x, this.groundY - 30);
-      this.tweens.add({ targets: this._nearMeadow, y: this.groundY - 16,
-        duration: 200, yoyo: true, repeat: 1, ease: 'Quad.out' });
+      this._nearMeadow.setFlipX(this.player.x > this._nearMeadow.x)
+        .play(`${this._nearMeadow.animKey}-eat`).chain(`${this._nearMeadow.animKey}-graze`);
       this.addKindness(this._nearMeadow.x, this.groundY - 40);
       this._nearMeadow = null;
       return;
@@ -1806,8 +1248,8 @@ export default class ForestScene extends Phaser.Scene {
       // too scared to climb down by itself — you carry it
       this.carryingCat = true;
       this.catRescued = true;
-      this.catSprite.setTexture('cat-held');
-      if (this.catBreathe) { this.catBreathe.stop(); this.catBreathe = null; }
+      this.calmCat();
+      this.catSprite.play('cat-held').setDepth(10.5);              // in your arms, in front of you
       this.addKindness(this.catSprite.x, this.catSprite.y - 20);
       this.showThought("there you are. i've got you.", 3200);
       return;
@@ -1817,8 +1259,8 @@ export default class ForestScene extends Phaser.Scene {
       this.carryingCat = false;
       this.catFollowing = true;
       this.catSprite.stillMs = 0;
-      this.catSprite.setTexture('cat-stand');
-      this.catSprite.setPosition(Math.round(this.player.x) + (this.player.flipX ? -24 : 24), this.groundY);
+      this.catSprite.play('cat-stand').setDepth(9);
+      this.catSprite.setPosition(Math.round(this.player.x) + (this.player.flipX ? -30 : 30), this.groundY + 2);
       this.showThought('there. safe on the ground.', 2400);
       return;
     }
@@ -1827,12 +1269,12 @@ export default class ForestScene extends Phaser.Scene {
       this.carrying = null;
       this.bucketPicked = false;
       this.bucketX = Math.round(this.player.x);
-      this.groundBucket.setTexture(this.groundBucketState === 'full' ? 'bucket-full' : 'bucket-empty');
+      this.groundBucket.setTexture(this.groundBucketState === 'full' ? 'woods-bucket-full' : 'woods-bucket-empty');
       this.groundBucket.setPosition(this.bucketX, this.groundY + 5);
       this.groundBucket.setVisible(true);
       this.bucketShadow.setPosition(this.bucketX, this.groundY + 4).setVisible(true);
-      this.bucketTufts[0].setPosition(this.bucketX - 9, this.groundY + 5).setVisible(true);
-      this.bucketTufts[1].setPosition(this.bucketX + 10, this.groundY + 5).setVisible(true);
+      this.bucketTufts[0].setPosition(this.bucketX - 10, this.groundY + 4).setVisible(true);
+      this.bucketTufts[1].setPosition(this.bucketX + 11, this.groundY + 4).setVisible(true);
       this.showThought('set it down for now.', 2200);
       return;
     }
@@ -1861,12 +1303,12 @@ export default class ForestScene extends Phaser.Scene {
       this.treeWatered = true;
       this.carrying = null;
       this.heldBucket.setVisible(false);
-      this.add.ellipse(this.treeX + 34, this.groundY + 4, 32, 7, 0x2c332e, 0.5).setDepth(2);
-      this.add.image(this.treeX + 34, this.groundY + 5, 'bucket-empty')
-        .setOrigin(0.5, 1).setScale(1.3).setDepth(2);
-      this.add.image(this.treeX + 26, this.groundY + 5, 'tallgrass-day')
-        .setOrigin(0.5, 1).setScale(0.14).setDepth(3);
-      this.treeSprite.setTexture('tree-healthy');
+      this.add.ellipse(this.treeX + 34, this.groundY + 4, 26, 6, 0x2c332e, 0.5).setDepth(2);
+      this.add.image(this.treeX + 34, this.groundY + 5, 'woods-bucket-empty')
+        .setOrigin(0.5, 1).setScale(ART).setDepth(2);
+      this.add.image(this.treeX + 24, this.groundY + 4, 'woods-tuft-a')
+        .setOrigin(0.5, 1).setScale(ART).setDepth(3);
+      this.treeSprite.setTexture('woods-sapling-healthy');
       this.treeSprite.setScale(this.treeScale * 0.9, this.treeScale * 0.78);
       this.tweens.add({ targets: this.treeSprite, scaleX: this.treeScale, scaleY: this.treeScale,
         duration: 750, ease: 'Back.out' });
