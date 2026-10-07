@@ -69,6 +69,13 @@ export default class BootScene extends Phaser.Scene {
     ].forEach((name) => this.load.image(`woods-${name}`, `assets/woods/${name}.png`));
     loadAnimals(this);
 
+    // The guide — drawn by tools/ui-art.mjs: the note, the task tag, the keys,
+    // and the game's own pixel font (plain for paper, edged for over the world)
+    ['note', 'tag', 'marker', 'checkbox', 'tick', 'key-e', 'key-i', 'key-left', 'key-right', 'key-up', 'key-shift', 'key-esc']
+      .forEach((name) => this.load.image(`ui-${name}`, `assets/ui/${name}.png`));
+    this.load.bitmapFont('px', 'assets/ui/font.png', 'assets/ui/font.xml');
+    this.load.bitmapFont('px-edged', 'assets/ui/font-edged.png', 'assets/ui/font-edged.xml');
+
     const dirtGfx = this.make.graphics({ x: 0, y: 0, add: false });
     dirtGfx.fillStyle(0x3a2d1f);
     dirtGfx.fillRect(0, 0, 16, 16);

@@ -2,13 +2,16 @@ import Phaser from 'phaser';
 import { game } from '../services/game.js';
 import { tickClock } from '../services/progress.js';
 import { CABIN_SCALE, FEET } from '../characters/lpc.js';
+import Guide from '../ui/guide.js';
 
 // Beat 1 — the morning. A small log cabin in its clearing at dawn, seen as a
-// cutaway: the whole house with the front wall taken off. Walk with arrows,
-// press E at a station. Make coffee and sit a while, make breakfast (cereal +
-// milk from the fridge), then head out the door. Nature wakes you; the
-// curtains warm the room. The bird at the window is planted here and pays off
-// in the ending.
+// cutaway: the whole house with the front wall taken off. You wake to a note
+// with the day's plan and work through it in order — curtains, teeth, coffee,
+// cereal, then breakfast and the coffee together on the sofa — and head out
+// the door. It's also
+// where the game teaches itself: E to do things, arrows to walk, and a marker
+// over whatever comes next. The bird at the window is planted here and pays
+// off in the ending.
 //
 // The art is drawn small by tools/cabin-art.mjs and shown at 2.5x, so the house
 // is a little wider than the screen and the camera follows you along it.
@@ -33,8 +36,8 @@ const AT = {
   curtainOpenL: [238, 238], curtainOpenR: [279, 238],
   bird: [268, 263], sunlight: [230, 241],
   sofa: [293, 286], mug: [355, 286],
-  glowLantern: [281, 204], glowStove: [367, 266], glowPorch: [538, 187],
-  steam: [381, 263], bowl: [434, 281],
+  glowLantern: [281, 204], glowStove: [367, 271], glowPorch: [538, 187],
+  steam: [381, 272], bowl: [434, 281],
   fridge: [473, 258], fridgePlant: [478, 250],
   bag: [510, 267], doorShut: [533, 257], doorOpen: [538, 257],
   chimney: [391, 106], head: [121.1, 283.4], mirror: [214, 258]
@@ -42,6 +45,26 @@ const AT = {
 
 // where you stand to use each thing (art x)
 const STATION = { teeth: 214, curtains: 264, sofa: 323, coffee: 391, cereal: 440, fridge: 486, door: 525 };
+// how high the marker hangs over each of them (art y)
+const MARK = { teeth: 250, curtains: 234, drink: 276, coffee: 268, cereal: 272, fridge: 250, leave: 250 };
+
+// the morning, in order: what the tag says, and the station that does it
+const TODAY = [
+  { id: 'curtains', text: 'open the curtains', station: 'curtains' },
+  { id: 'teeth', text: 'brush your teeth', station: 'teeth' },
+  { id: 'coffee', text: 'put the coffee on', station: 'coffee' },
+  { id: 'cereal', text: 'pour some cereal', station: 'cereal' },
+  { id: 'milk', text: 'get the milk from the fridge', station: 'fridge' },
+  { id: 'breakfast', text: 'sit down and have breakfast', station: 'drink' },
+  { id: 'leave', text: 'take your bag and head north', station: 'leave' }
+];
+// the same plan as you wrote it on the note by the bed
+const NOTE = {
+  title: 'today',
+  lines: ['open the curtains', 'brush my teeth', 'coffee and breakfast', 'sit a while', 'take the bag, go north'],
+  sign: 'no hurry.',
+  keys: [[['left', 'right'], 'walk'], [['up'], 'jump'], [['e'], 'use']]
+};
 
 export default class MorningScene extends Phaser.Scene {
   constructor() {
@@ -78,6 +101,8 @@ export default class MorningScene extends Phaser.Scene {
     this.inventory = {};
     this.busy = false;
     this.sitting = false;
+    this.asleep = true;
+    this.walked = false;       // until you've taken a step, the arrow keys are shown
 
     this.startAsleep();
   }
@@ -176,16 +201,7 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   buildUI() {
-    const { W } = this;
-    this.thought = this.add.text(W / 2, 92, '', {
-      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#ece8dc',
-      fontStyle: 'italic', align: 'center',
-      wordWrap: { width: W - 220 }, stroke: '#12161a', strokeThickness: 4
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(60);
-    this.prompt = this.add.text(0, 0, '', {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '14px', color: '#f4ead6',
-      backgroundColor: '#00000088', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5, 1).setDepth(60).setVisible(false);
+    this.guide = new Guide(this);
   }
 
   startAsleep() {
@@ -208,34 +224,57 @@ export default class MorningScene extends Phaser.Scene {
     this.time.delayedCall(3400, () => this.chirp());
     this.tweens.add({ targets: this.roomDim, alpha: 0.4, duration: 5000, ease: 'Sine.inOut' });
     this.tweens.add({ targets: this.dawn, alpha: 0.14, duration: 7000, ease: 'Sine.inOut' });
-    this.time.delayedCall(5000, () => {
-      this.thought.setText('morning already. a bird singing somewhere outside.');
-      // rise: leave the bed and stand up beside it
-      this.snore.remove();
-      this.quiltLump.destroy();
-      this.sleeper.destroy();
-      this.quilt.setVisible(true);
-      this.player.setPosition(190 * ART, this.standY);
-      this.player.body.setAllowGravity(true);
-      this.player.setAlpha(0).setVisible(true);
-      this.player.play(`${this.characterId}-idle`);
-      this.tweens.add({
-        targets: this.player, alpha: 1, duration: 700, ease: 'Sine.inOut',
-        onComplete: () => { this.canMove = true; this.thoughtIdle(); }
+    // the first thing the game asks of you is the key you'll use for everything
+    this.time.delayedCall(1800, () => {
+      if (this.asleep) this.guide.prompt(['e'], 'wake up', AT.head[0] * ART + 44, AT.head[1] * ART - 70);
+    });
+    this.time.delayedCall(14000, () => this.wakeUp());      // …or sleep in, and wake on your own
+  }
+
+  wakeUp() {
+    if (!this.asleep) return;
+    this.asleep = false;
+    this.guide.hidePrompt();
+    this.guide.say('morning already. a bird singing somewhere outside.');
+    // rise: leave the bed and stand up beside it
+    this.snore.remove();
+    this.quiltLump.destroy();
+    this.sleeper.destroy();
+    this.quilt.setVisible(true);
+    this.player.setPosition(190 * ART, this.standY);
+    this.player.body.setAllowGravity(true);
+    this.player.setAlpha(0).setVisible(true);
+    this.player.play(`${this.characterId}-idle`);
+    this.tweens.add({ targets: this.player, alpha: 1, duration: 700, ease: 'Sine.inOut' });
+    // the note you left yourself last night — the plan for the morning
+    this.time.delayedCall(1900, () => {
+      this.guide.showNote(NOTE, () => {
+        this.canMove = true;
+        this.guide.setTasks(TODAY.map((t) => ({ ...t, where: () => this.markSpot(t.station) })));
+        this.thoughtIdle();
       });
     });
   }
 
+  // where the marker should hang for a station — nowhere while you're busy with something
+  markSpot(name) {
+    if (!this.canMove || this.busy) return null;
+    const s = this.stations.find((st) => st.name === name);
+    return s ? [s.x, MARK[name] * ART] : null;
+  }
+
   thoughtIdle() {
     this.time.delayedCall(2000, () => {
-      if (!this.busy && this.canMove) this.thought.setText('a quiet morning. i should get ready before i head north.');
+      if (!this.busy && this.canMove) this.guide.say('a quiet morning. i should get ready before i head north.');
     });
   }
 
   nearestStation() {
     if (!this.canMove) return null;
+    const task = this.guide.task;
     let best = null, bestD = 75;
     for (const s of this.stations) {
+      if (!s.extra && !(task && task.station === s.name)) continue;
       const d = Math.abs(this.player.x - s.x);
       if (d < bestD) { bestD = d; best = s; }
     }
@@ -243,6 +282,8 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   tryInteract() {
+    if (this.guide.blocking) return;
+    if (this.asleep) return this.wakeUp();
     if (this.sitting) return this.standUp();
     if (this.busy || !this.canMove) return;
     const s = this.nearestStation();
@@ -258,9 +299,19 @@ export default class MorningScene extends Phaser.Scene {
     }
   }
 
+  // step in front of something on the back wall and turn to it — we see your back
+  turnTo(stationX) {
+    this.player.setVelocity(0, 0);
+    this.player.setFlipX(false);
+    this.tweens.add({ targets: this.player, x: stationX * ART, duration: 160 });
+    this.player.anims.stop();
+    this.player.setTexture(`${this.characterId}-idle-sheet`, 0);
+  }
+
   // a station you're finished with stops offering itself
   retire(name) { this.stations = this.stations.filter((s) => s.name !== name); }
-  relabel(name, label) { const s = this.stations.find((st) => st.name === name); if (s) s.label = label; }
+  // a finished station that still has something to say stays, as an extra
+  relabel(name, label) { const s = this.stations.find((st) => st.name === name); if (s) { s.label = label; s.extra = true; } }
 
   setBusy(ms, cb) {
     this.busy = true;
@@ -268,25 +319,40 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   doCurtains() {
-    if (this.done.curtains) { this.thought.setText('the morning light is nice. and the little bird is still there.'); return; }
+    if (this.done.curtains) {
+      // already open — stand at the glass a moment and look out
+      this.turnTo(STATION.curtains);
+      this.guide.say('the morning light is nice. and the little bird is still there.');
+      this.time.delayedCall(700, () => this.birdHop());
+      this.setBusy(2600);
+      return;
+    }
     this.done.curtains = true;
+    this.guide.complete('curtains');
     this.relabel('curtains', 'look out the window');
-    this.thought.setText('there. let the morning in.');
-    // each half slides to its own side of the rod, then hangs gathered there
-    const rightEdge = (AT.curtainShutR[0] + 23) * ART;
-    this.curtainR.setOrigin(1, 0).setX(rightEdge);
-    this.tweens.add({ targets: [this.curtainL, this.curtainR], scaleX: ART * 0.45, duration: 650, ease: 'Sine.inOut',
-      onComplete: () => {
-        this.curtainL.setTexture('home-curtain-open').setScale(ART).setPosition(AT.curtainOpenL[0] * ART, AT.curtainOpenL[1] * ART);
-        this.curtainR.setTexture('home-curtain-open').setScale(ART).setOrigin(0, 0)
-          .setPosition(AT.curtainOpenR[0] * ART, AT.curtainOpenR[1] * ART);
-      } });
-    this.tweens.add({ targets: this.roomDim, alpha: 0.04, duration: 1300, ease: 'Sine.inOut' });
-    this.tweens.add({ targets: this.sunlight, alpha: 1, duration: 1300, ease: 'Sine.inOut' });
-    this.tweens.add({ targets: this.dawn, alpha: 0, duration: 2600, ease: 'Sine.inOut' });
-    this.time.addEvent({ delay: 700, loop: true, callback: () => this.mote() });
+    this.guide.say('there. let the morning in.');
+    // at the window, arms out: one half of the curtain in each hand
+    this.turnTo(STATION.curtains);
+    this.player.play(`${this.characterId}-part-curtains`);
+    this.setBusy(2300);
+    this.time.delayedCall(1050, () => { this.player.anims.stop(); this.player.setTexture(`${this.characterId}-idle-sheet`, 0); });
+    this.time.delayedCall(330, () => {
+      // each half slides to its own side of the rod, then hangs gathered there
+      const rightEdge = (AT.curtainShutR[0] + 23) * ART;
+      this.curtainR.setOrigin(1, 0).setX(rightEdge);
+      this.tweens.add({ targets: [this.curtainL, this.curtainR], scaleX: ART * 0.45, duration: 650, ease: 'Sine.inOut',
+        onComplete: () => {
+          this.curtainL.setTexture('home-curtain-open').setScale(ART).setPosition(AT.curtainOpenL[0] * ART, AT.curtainOpenL[1] * ART);
+          this.curtainR.setTexture('home-curtain-open').setScale(ART).setOrigin(0, 0)
+            .setPosition(AT.curtainOpenR[0] * ART, AT.curtainOpenR[1] * ART);
+        } });
+      this.tweens.add({ targets: this.roomDim, alpha: 0.04, duration: 1300, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.sunlight, alpha: 1, duration: 1300, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: this.dawn, alpha: 0, duration: 2600, ease: 'Sine.inOut' });
+      this.time.addEvent({ delay: 700, loop: true, callback: () => this.mote() });
+    });
     // and there's the singer, on the sill
-    this.time.delayedCall(1500, () => this.chirp());
+    this.time.delayedCall(1800, () => this.chirp());
     this.time.addEvent({ delay: 4200, loop: true, callback: () => this.birdHop() });
   }
 
@@ -297,48 +363,72 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   doTeeth() {
-    this.thought.setText('brushing… (a fresh start).');
-    this.setBusy(1800, () => {
+    this.guide.say('brushing… (a fresh start).');
+    // at the mirror, elbow going, a little foam
+    this.turnTo(STATION.teeth);
+    this.player.play(`${this.characterId}-brush`);
+    const foam = this.time.addEvent({ delay: 240, loop: true, callback: () => {
+      const dot = this.add.rectangle(this.player.x + Phaser.Math.Between(-10, 12), this.player.y - Phaser.Math.Between(8, 20), 3, 3, 0xf4fbff)
+        .setDepth(11);
+      this.tweens.add({ targets: dot, y: dot.y - Phaser.Math.Between(8, 16), alpha: 0, duration: 520, onComplete: () => dot.destroy() });
+    } });
+    this.setBusy(2300, () => {
+      foam.remove();
+      this.player.anims.stop();
       this.done.teeth = true;
+      this.guide.complete('teeth');
       this.retire('teeth');
-      this.thought.setText('minty. good.');
+      this.guide.say('minty. good.');
       this.floatUp('sparkle', AT.mirror[0] * ART - 8, AT.mirror[1] * ART - 6, { rise: 10, ms: 700 });
       this.time.delayedCall(180, () => this.floatUp('sparkle', AT.mirror[0] * ART + 12, AT.mirror[1] * ART + 8, { rise: 10, ms: 700 }));
     });
   }
 
   doCoffee() {
-    this.thought.setText('coffee brewing…');
+    this.guide.say('coffee brewing…');
     const brewing = this.time.addEvent({ delay: 380, loop: true, callback: () => this.steam(AT.steam[0] * ART, AT.steam[1] * ART) });
     this.setBusy(2600, () => {
       brewing.remove();
       this.done.coffee = true;
+      this.guide.complete('coffee');
       this.retire('coffee');
-      this.stations.push({ name: 'drink', x: STATION.sofa * ART, label: 'sit and drink your coffee' });
-      this.thought.setText('a hot cup. i should sit and drink it.');
+      this.stations.push({ name: 'drink', x: STATION.sofa * ART, label: 'sit down with breakfast' });
+      this.guide.say("a hot cup. something to eat with it, then i'll sit.");
     });
   }
 
+  // on the sofa with the bowl in your lap and the coffee beside you. the eating
+  // itself happens behind a short fade: full bowl, a moment of dark, empty bowl
   sitWithCoffee() {
-    this.canMove = false; this.busy = true; this.prompt.setVisible(false);
-    this.cameras.main.fadeOut(600, 21, 17, 12);
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      // on the sofa, facing the room: hips on the seat cushion, feet on the rug
-      this.player.setPosition(STATION.sofa * ART, (ROOM.feet - 1) * ART - 29 * CABIN_SCALE);
-      this.player.body.setAllowGravity(false);
-      this.player.setVelocity(0, 0);
-      this.player.setFlipX(false);
-      this.player.anims.stop();
-      this.player.setTexture(`${this.characterId}-sit-sheet`, 28);
+    this.canMove = false; this.busy = true; this.guide.hidePrompt();
+    const cam = this.cameras.main;
+    const dark = (ms, then) => { cam.fadeOut(ms, 21, 17, 12); cam.once('camerafadeoutcomplete', then); };
+    const light = (ms, then) => { cam.fadeIn(ms, 21, 17, 12); cam.once('camerafadeincomplete', then); };
+    dark(600, () => {
+      // hips on the seat cushion, feet on the rug, facing the room
+      const p = this.player;
+      p.setPosition(STATION.sofa * ART, (ROOM.feet - 1) * ART - 29 * CABIN_SCALE);
+      p.body.setAllowGravity(false);
+      p.setVelocity(0, 0);
+      p.setFlipX(false);
+      p.anims.stop();
+      p.setTexture(`${this.characterId}-sit-sheet`, 28);
       this.mug.setVisible(true);
-      this.cameras.main.fadeIn(700, 21, 17, 12);
-      this.cameras.main.once('camerafadeincomplete', () => {
-        this.sitting = true; this.busy = false;
-        this.thought.setText('a few quiet minutes before the forest.');
-        this.prompt.setText('▸ e  get up');
-        this.prompt.setPosition(this.player.x, this.player.y - 56).setVisible(true);
-        this.sipTimer = this.time.addEvent({ delay: 1100, loop: true,
-          callback: () => this.steam(AT.mug[0] * ART + 6, AT.mug[1] * ART - 2) });
+      this.bowl.setVisible(false);                      // you carried it over with you
+      this.lapBowl = this.add.image(p.x, p.y + 30, 'home-bowl-milk').setOrigin(0.5, 1).setScale(ART).setDepth(11);
+      this.sipTimer = this.time.addEvent({ delay: 1100, loop: true,
+        callback: () => this.steam(AT.mug[0] * ART + 6, AT.mug[1] * ART - 2) });
+      light(700, () => {
+        this.guide.say('a few quiet minutes before the forest.');
+        this.time.delayedCall(2000, () => dark(500, () => {
+          this.lapBowl.setTexture('home-bowl');           // eaten
+          this.sipTimer.remove();                         // and the coffee's gone too
+          light(650, () => {
+            this.sitting = true; this.busy = false;
+            this.guide.complete('breakfast');
+            this.guide.prompt(['e'], 'get up', p.x, p.y - 74);
+          });
+        }));
       });
     });
   }
@@ -347,8 +437,11 @@ export default class MorningScene extends Phaser.Scene {
     this.sitting = false;
     this.stations = this.stations.filter((s) => s.name !== 'drink');
     if (this.sipTimer) this.sipTimer.remove();
-    this.prompt.setVisible(false);
-    this.thought.setText('alright. onward.');
+    this.guide.hidePrompt();
+    this.guide.say('alright. onward.');
+    // the empty bowl goes back on the counter on your way up
+    if (this.lapBowl) { this.lapBowl.destroy(); this.lapBowl = null; }
+    this.bowl.setTexture('home-bowl').setVisible(true);
     this.player.setPosition(STATION.sofa * ART, this.standY);
     this.player.body.setAllowGravity(true);
     this.player.play(`${this.characterId}-idle`);
@@ -356,20 +449,22 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   doCereal() {
-    if (this.done.cereal && this.done.milk) { this.thought.setText("breakfast's ready. good."); return; }
-    if (this.done.cereal) { this.thought.setText("cereal's in the bowl. just the milk now — from the fridge."); return; }
+    if (this.done.cereal && this.done.milk) { this.guide.say("breakfast's ready. good."); return; }
+    if (this.done.cereal) { this.guide.say("cereal's in the bowl. just the milk now — from the fridge."); return; }
     this.done.cereal = true;
+    this.guide.complete('cereal');
     this.relabel('cereal', 'look at breakfast');
     this.bowl.setTexture('home-bowl-cereal');
-    this.thought.setText('cereal in the bowl. now the milk from the fridge.');
+    this.guide.say('cereal in the bowl. now the milk from the fridge.');
   }
 
   doFridge() {
-    if (this.done.milk) { this.thought.setText("breakfast's ready. good."); return; }
-    if (!this.done.cereal) { this.thought.setText('cereal in the bowl first, then the milk.'); this.openFridgeBriefly(); return; }
+    if (this.done.milk) { this.guide.say("breakfast's ready. good."); return; }
+    if (!this.done.cereal) { this.guide.say('cereal in the bowl first, then the milk.'); this.openFridgeBriefly(); return; }
     this.openFridgeBriefly();
-    this.thought.setText('milk in the bowl… there. breakfast.');
+    this.guide.say('milk in the bowl… there. breakfast.');
     this.done.milk = true;
+    this.guide.complete('milk');
     this.time.delayedCall(700, () => this.bowl.setTexture('home-bowl-milk'));
     this.time.delayedCall(1200, () => { this.retire('fridge'); this.retire('cereal'); });
   }
@@ -386,13 +481,14 @@ export default class MorningScene extends Phaser.Scene {
       if (!this.done.teeth) left.push('brush my teeth');
       if (!this.done.coffee) left.push('have my coffee');
       if (!this.done.cereal || !this.done.milk) left.push('finish breakfast');
-      this.thought.setText('not yet — i should ' + left.join(', ') + ' first.');
+      this.guide.say('not yet — i should ' + left.join(', ') + ' first.');
       return;
     }
     this.canMove = false; this.busy = true;
     this.inventory = { bread: 1, water: 1, rope: 1 };   // the bag on its hook, packed last night
-    this.thought.setText('bag on my shoulder — bread, water, rope. time to go north.');
-    this.prompt.setVisible(false);
+    this.guide.complete('leave');
+    this.guide.say('bag on my shoulder — bread, water, rope. time to go north.');
+    this.guide.hidePrompt();
     // hand control to the tweens: stop physics fighting the walk out
     this.player.body.setVelocity(0, 0);
     this.player.body.setAllowGravity(false);
@@ -456,7 +552,7 @@ export default class MorningScene extends Phaser.Scene {
     tickClock(this);
     if (!this.canMove || this.busy) {
       if (this.player && this.player.body) this.player.setVelocityX(0);
-      if (this.busy) this.prompt.setVisible(false);     // nothing to press while something's happening
+      if (this.busy) this.guide.hidePrompt();     // nothing to press while something's happening
       return;
     }
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
@@ -477,12 +573,10 @@ export default class MorningScene extends Phaser.Scene {
       if (this.player.anims.currentAnim?.key !== `${this.characterId}-idle` || !this.player.anims.isPlaying) this.player.play(`${this.characterId}-idle`);
     }
 
+    if (moving) this.walked = true;
     const s = this.nearestStation();
-    if (s) {
-      this.prompt.setText('▸ e  ' + s.label);
-      this.prompt.setPosition(this.player.x, this.player.y - 56).setVisible(true);
-    } else {
-      this.prompt.setVisible(false);
-    }
+    if (s) this.guide.prompt(['e'], s.label, this.player.x, this.player.y - 74);
+    else if (!this.walked) this.guide.prompt(['left', 'right'], 'walk', this.player.x, this.player.y - 74);
+    else this.guide.hidePrompt();
   }
 }

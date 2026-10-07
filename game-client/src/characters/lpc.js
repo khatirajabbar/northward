@@ -17,7 +17,7 @@ export function setTravelerBody(sprite, lift = 0) {
 
 export function loadLpcCharacter(scene, characterId) {
   // hurt.png is a single 13-frame row (832x64), not the usual 4-direction sheet
-  const sheets = ['idle', 'walk', 'sit', 'jump', 'hurt', 'watering', 'slash'];
+  const sheets = ['idle', 'walk', 'sit', 'jump', 'hurt', 'watering', 'slash', 'spellcast'];
   sheets.forEach((name) => {
     scene.load.spritesheet(`${characterId}-${name}-sheet`, `assets/characters/${characterId}/standard/${name}.png`, {
       frameWidth: 64,
@@ -74,6 +74,22 @@ export function createLpcAnims(scene, characterId) {
     frames: scene.anims.generateFrameNumbers(`${characterId}-watering-sheet`, { start: 39, end: 46 }),
     frameRate: 8,
     repeat: 0
+  });
+
+  // seen from behind, at the window: both arms out to draw the curtains apart
+  scene.anims.create({
+    key: `${characterId}-part-curtains`,
+    frames: [1, 2, 3, 4, 4, 4, 4, 3].map((frame) => ({ key: `${characterId}-spellcast-sheet`, frame })),
+    frameRate: 8,
+    repeat: 0
+  });
+
+  // seen from behind, at the mirror: an elbow working back and forth
+  scene.anims.create({
+    key: `${characterId}-brush`,
+    frames: [3, 4, 5, 4].map((frame) => ({ key: `${characterId}-watering-sheet`, frame })),
+    frameRate: 9,
+    repeat: -1
   });
 
   // a handful of earth: crouch to gather it, then a throw from the shoulder

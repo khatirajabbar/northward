@@ -358,26 +358,29 @@ function hangingLantern() {
 
 // ── kitchen ──
 
+// how tall the stove stands — about to your waist, so the pot on top is in reach
+export const STOVE_H = 21;
+
 export function stove() {
-  return piece(28, 30, (g) => {
+  return piece(28, STOVE_H, (g) => {
     const i = C.iron;
     g.rect(0, 0, 28, 3, i[3]); g.hline(0, 0, 28, i[4]); g.hline(0, 2, 28, i[1]);
-    g.rect(2, 3, 24, 23, i[2]);
-    g.vline(2, 3, 23, i[3]); g.vline(3, 3, 23, i[3], 0.5); g.vline(25, 3, 23, i[1]); g.vline(24, 3, 23, i[1], 0.6);
+    g.rect(2, 3, 24, 15, i[2]);
+    g.vline(2, 3, 15, i[3]); g.vline(3, 3, 15, i[3], 0.5); g.vline(25, 3, 15, i[1]); g.vline(24, 3, 15, i[1], 0.6);
     g.hline(2, 4, 24, i[1]);
     // the fire door, with its barred window
-    g.rect(6, 6, 16, 14, i[1]); g.hline(6, 6, 16, i[3]); g.vline(6, 6, 14, i[3]);
-    g.rect(8, 9, 12, 8, C.fire[0]);
-    g.rect(8, 11, 12, 6, C.fire[1]); g.rect(9, 13, 10, 4, C.fire[2]); g.rect(11, 15, 5, 2, C.fire[3]);
-    g.put(10, 10, C.fire[1]); g.put(14, 9, C.fire[1]); g.put(17, 10, C.fire[2]); g.put(12, 12, C.fire[2]); g.put(16, 12, C.fire[3]);
-    [10, 13, 16].forEach((x) => g.vline(x + 1, 9, 8, i[0]));
-    g.put(23, 12, C.mustard[2]); g.put(23, 13, C.mustard[0]);
+    g.rect(6, 5, 16, 9, i[1]); g.hline(6, 5, 16, i[3]); g.vline(6, 5, 9, i[3]);
+    g.rect(8, 7, 12, 5, C.fire[0]);
+    g.rect(8, 8, 12, 4, C.fire[1]); g.rect(9, 9, 10, 3, C.fire[2]); g.rect(11, 10, 5, 2, C.fire[3]);
+    g.put(10, 7, C.fire[1]); g.put(14, 7, C.fire[1]); g.put(17, 8, C.fire[2]); g.put(12, 8, C.fire[2]); g.put(16, 9, C.fire[3]);
+    [10, 13, 16].forEach((x) => g.vline(x + 1, 7, 5, i[0]));
+    g.put(23, 9, C.mustard[2]); g.put(23, 10, C.mustard[0]);
     // ash drawer
-    g.rect(8, 21, 12, 3, i[1]); g.hline(8, 21, 12, i[3]);
-    for (let x = 10; x < 19; x += 2) g.put(x, 22, i[0]);
+    g.rect(8, 15, 12, 2, i[1]); g.hline(8, 15, 12, i[3]);
+    for (let x = 10; x < 19; x += 2) g.put(x, 16, i[0]);
     // legs
-    g.rect(3, 26, 3, 4, i[1]); g.rect(22, 26, 3, 4, i[1]); g.hline(2, 29, 5, i[1]); g.hline(21, 29, 5, i[1]);
-    g.vline(3, 26, 3, i[3]); g.vline(22, 26, 3, i[3]);
+    g.rect(3, 18, 3, 3, i[1]); g.rect(22, 18, 3, 3, i[1]); g.hline(2, 20, 5, i[1]); g.hline(21, 20, 5, i[1]);
+    g.vline(3, 18, 2, i[3]); g.vline(22, 18, 2, i[3]);
   }, C.iron[0]);
 }
 
@@ -839,11 +842,11 @@ export function furnish(scene, rnd, drawStones) {
   scene.hline(370, 232, 42, C.ink); scene.hline(370, 236, 42, C.ink);
   scene.rect(370, L.floorBack, 42, 5, C.stone[2]); scene.hline(370, L.floorBack, 42, C.stone[3]); scene.hline(370, L.floorBack + 4, 42, C.stone[0]);
   for (let x = 376; x < 410; x += 9) scene.vline(x, L.floorBack + 1, 3, C.stone[1]);
-  put(stovePipe(base - 30 - L.ceiling), 389, base - 30);
+  put(stovePipe(base - STOVE_H - L.ceiling), 389, base - STOVE_H);
   put(stove(), 377); floorShadow(377, 28);
-  put(coffeePot(), 379, base - 30);
-  PLACE['glow-stove'] = [391 - 24, base - 17 - 24];
-  PLACE.steam = [381, base - 30 - 14];
+  put(coffeePot(), 379, base - STOVE_H);
+  PLACE['glow-stove'] = [391 - 24, base - 12 - 24];
+  PLACE.steam = [381, base - STOVE_H - 14];
   // mantel things: a painted horse and a candle
   put(dalaHorse(), 376, 233);
   put(candle(), 401, 233);
