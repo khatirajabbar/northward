@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { game } from '../services/game.js';
-import { tickClock } from '../services/progress.js';
+import { tickClock, withCurrentTime } from '../services/progress.js';
 import { CABIN_SCALE, FEET } from '../characters/lpc.js';
 import Guide from '../ui/guide.js';
 
@@ -235,7 +235,8 @@ export default class MorningScene extends Phaser.Scene {
     if (!this.asleep) return;
     this.asleep = false;
     this.guide.hidePrompt();
-    this.guide.say('morning already. a bird singing somewhere outside.');
+    // the reason for the whole walk, said before anything else
+    this.guide.say("that bird again. every morning it sings at my window, and then it flies north. today i'm going to see where it goes.", 6000);
     // rise: leave the bed and stand up beside it
     this.snore.remove();
     this.quiltLump.destroy();
@@ -246,13 +247,19 @@ export default class MorningScene extends Phaser.Scene {
     this.player.setAlpha(0).setVisible(true);
     this.player.play(`${this.characterId}-idle`);
     this.tweens.add({ targets: this.player, alpha: 1, duration: 700, ease: 'Sine.inOut' });
-    // the note you left yourself last night — the plan for the morning
-    this.time.delayedCall(1900, () => {
-      this.guide.showNote(NOTE, () => {
-        this.canMove = true;
-        this.guide.setTasks(TODAY.map((t) => ({ ...t, where: () => this.markSpot(t.station) })));
-        this.thoughtIdle();
-      });
+    // then the note you left yourself last night — the plan for the morning.
+    // (E brings it up sooner, for anyone who doesn't want to wait)
+    this.noteTimer = this.time.delayedCall(6500, () => this.openNote());
+  }
+
+  openNote() {
+    if (!this.noteTimer) return;
+    this.noteTimer.remove();
+    this.noteTimer = null;
+    this.guide.showNote(NOTE, () => {
+      this.canMove = true;
+      this.guide.setTasks(TODAY.map((t) => ({ ...t, where: () => this.markSpot(t.station) })));
+      this.thoughtIdle();
     });
   }
 
@@ -284,6 +291,7 @@ export default class MorningScene extends Phaser.Scene {
   tryInteract() {
     if (this.guide.blocking) return;
     if (this.asleep) return this.wakeUp();
+    if (this.noteTimer) return this.openNote();
     if (this.sitting) return this.standUp();
     if (this.busy || !this.canMove) return;
     const s = this.nearestStation();
@@ -507,7 +515,9 @@ export default class MorningScene extends Phaser.Scene {
         this.cameras.main.fadeOut(1300, 21, 17, 12);
         this.registry.set('inventory', this.inventory);
         const sessionId = this.registry.get('sessionId');
-        if (sessionId) game.updateProgress(sessionId, 'ForestScene', 0).catch((err) => console.warn('could not save progress:', err.message));
+        // saved with a real "start of the forest" state (and the time so far), so
+        // continuing this journey later doesn't arrive with nothing
+        if (sessionId) game.updateProgress(sessionId, 'ForestScene', 0, withCurrentTime(null)).catch((err) => console.warn('could not save progress:', err.message));
         this.time.delayedCall(1400, () => this.scene.start('ForestScene'));
       });
     });

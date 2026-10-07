@@ -52,7 +52,8 @@ export default class FoxCubPuzzle {
     const scene = this.scene;
     if (this.done || scene.riding || scene.resting || !onGround) return null;
     if (this.stage === 'hiding') {
-      if (Math.abs(px - this.logX) < 110 && (scene.inventory.bread || 0) > 0) {
+      // anywhere along the log, and a good step out in front of the hollow
+      if (px > this.logX - 200 && px < this.logX + 110 && (scene.inventory.bread || 0) > 0) {
         return { label: 'leave some bread by the log', action: 'fox-bread' };
       }
       return null;

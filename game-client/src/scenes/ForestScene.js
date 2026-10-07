@@ -5,6 +5,7 @@ import { FOREST_SCALE, FEET, setTravelerBody } from '../characters/lpc.js';
 import { HORSE_BACK } from '../characters/animals.js';
 import { FLAGS, tickClock, encodeProgress, decodeProgress } from '../services/progress.js';
 import FoxCubPuzzle from '../puzzles/foxCub.js';
+import Guide, { INK, PENCIL } from '../ui/guide.js';
 
 // The forest's art is drawn small by tools/forest-art.mjs (the same palette and
 // trees as the cabin) and shown at 2x.
@@ -269,6 +270,17 @@ export default class ForestScene extends Phaser.Scene {
     this.riverBridge = this.add.rectangle(this.riverX, this.groundY + 50, this.riverWidth + 8, 12).setVisible(false);
     this.physics.add.existing(this.riverBridge, true);
     this.physics.add.collider(this.player, this.riverBridge, null, () => this.riding, this);
+
+    // ── the horse goes no further than the far edge of the meadow: the stones
+    // are yours to cross alone. an invisible stop, solid only while riding ──
+    this.horseStopX = this.torchX - 90;
+    const horseStop = this.add.rectangle(this.horseStopX + 16, this.groundY - 300, 12, 640).setVisible(false);
+    this.physics.add.existing(horseStop, true);
+    this.physics.add.collider(this.player, horseStop, () => {
+      if (this.horseStopShown) return;
+      this.horseStopShown = true;
+      this.showThought("it won't go any further. this is where it belongs.", 3600);
+    }, () => this.riding, this);
 
     // ── cat-on-cliff: the final cliff top (reached by climbing mushrooms) ──
     this.ledges = this.physics.add.staticGroup();
@@ -542,24 +554,30 @@ export default class ForestScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-P', openPause);
     this.input.keyboard.on('keydown-ESC', openPause);
 
-    // ── prompt ──
-    this.prompt = this.add.text(0, 0, '', {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '15px',
-      color: '#f0ece0', backgroundColor: '#00000066', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(150).setVisible(false);
+    // ── the guide: the task in hand, its marker, the key prompts, the thoughts ──
+    this.guide = new Guide(this);
 
     this.player.play(`${this.characterId}-idle`);
     // ── the fox cub in the hollow log, between the carrot field and the lake ──
     this.fox = new FoxCubPuzzle(this, 1680);
 
     this.restoreProgress();
-    if (this.saved.place === 'start') this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
+    this.buildTasks();
+    if (this.saved.place === 'start') {
+      this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
+      this.time.delayedCall(4200, () => this.guide.tip(['i'], 'open your bag'));
+    }
   }
 
   // put the world back the way the saved run left it
   restoreProgress() {
     const saved = this.saved;
-    if (!saved.saved) return;
+    if (!saved.saved) {
+      // nothing saved yet (or a journey continued from before the forest was
+      // ever saved): you still left home with your bag packed
+      if (!Object.keys(this.inventory).length) this.inventory = { bread: 1, water: 1, rope: 1 };
+      return;
+    }
     const has = (flag) => (saved.flags & flag) !== 0;
 
     // the bag you packed at home, minus whatever the saved run already gave away
@@ -591,7 +609,7 @@ export default class ForestScene extends Phaser.Scene {
       this.horseSprite.x = this.meadowX - 30;
       this.horseSprite.play('horse-graze');
     } else if (this.horseFed) {
-      this.horseSprite.x = this.player.x - 70;   // waiting beside you
+      this.horseSprite.x = Math.min(this.player.x - 70, this.horseStopX);   // waiting beside you, or at the meadow's edge
     }
     this.meadowHorses.forEach((m, i) => { if (saved.meadow & (1 << i)) m.fed = true; });
     if (has(FLAGS.cat)) {
@@ -701,16 +719,99 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   showThought(text, ms = 2800) {
-    if (this.thought) this.thought.destroy();
-    this.thought = this.add.text(this.W / 2, 92, text, {
-      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#ece8dc',
-      fontStyle: 'italic', stroke: '#12161a', strokeThickness: 4,
-      align: 'center', wordWrap: { width: this.W - 220 }
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(160).setAlpha(0);
-    this.tweens.add({ targets: this.thought, alpha: 1, duration: 400 });
-    this.time.delayedCall(ms, () => {
-      if (this.thought) this.tweens.add({ targets: this.thought, alpha: 0, duration: 700 });
-    });
+    this.guide.say(text, ms + 1200);
+  }
+
+  // What needs you along the road, in the order you come to it. A task is in
+  // hand while it applies (`when`) and isn't done, until you've walked on past
+  // it (`until`) — the tag and the marker follow, but helping is always your
+  // choice. `where` is the spot the marker hangs over.
+  buildTasks() {
+    const g = this.groundY;
+    const px = () => this.player.x;
+    const carrots = () => this.inventory.carrots || 0;
+    const firstCarrot = () => this.carrotSprites.find((c) => c.active);
+    const grassRight = this.grassX + this.grassWidth / 2;
+    const riverRight = this.riverX + this.riverWidth / 2;
+    const stonesRight = this.crossX + this.crossWidth / 2;
+    const withHorse = () => this.horseFed && !this.saidGoodbye;
+    this.tasks = [
+      { id: 'bucket', text: 'pick up the old bucket',
+        done: () => this.bucketPicked || this.treeWatered, until: () => this.bucketX + 300,
+        where: () => [this.bucketX, g - 46] },
+      { id: 'carrots', text: 'pick a carrot or two',
+        done: () => carrots() > 0 || this.horseFed || !firstCarrot(), until: () => 1300,
+        where: () => { const c = firstCarrot(); return c ? [c.itemX, g - 44] : null; } },
+      { id: 'fox-bread', text: 'leave some bread by the hollow log',
+        when: () => (this.inventory.bread || 0) > 0 || this.fox.stage !== 'hiding',
+        done: () => this.fox.stage !== 'hiding', until: () => this.fox.logX + 240,
+        where: () => [this.fox.logX, g - 76] },
+      { id: 'fox-wait', text: 'step well back, sit down and wait',
+        when: () => this.fox.stage !== 'hiding',
+        done: () => this.fox.done, until: () => this.fox.logX + 420,
+        where: () => (this.resting ? null : [this.fox.breadX - 190, g - 46]) },
+      { id: 'fill', text: 'fill the bucket at the pond',
+        when: () => this.carrying !== null && !this.treeWatered,
+        done: () => this.carrying === 'full',
+        where: () => [this.lakeFillX, g - 40] },
+      { id: 'water', text: 'take the water back to the little tree',
+        when: () => this.carrying === 'full',
+        done: () => this.treeWatered,
+        where: () => [this.treeX, g - 130] },
+      { id: 'horse-carrot', text: 'the horse is hungry — go back for a carrot',
+        when: () => !this.horseFed && this.metHorse && !!firstCarrot(),
+        done: () => carrots() > 0,
+        where: () => { const c = firstCarrot(); return c ? [c.itemX, g - 44] : null; } },
+      { id: 'horse', text: 'give the hungry horse a carrot',
+        done: () => this.horseFed,
+        where: () => [this.horseSprite.x, g - 96] },
+      { id: 'mount', text: 'climb onto the horse',
+        when: withHorse,
+        done: () => this.riding || px() > riverRight + 30,
+        where: () => [this.horseSprite.x, g - 96] },
+      { id: 'grass', text: 'ride through the tall grass',
+        when: withHorse,
+        done: () => px() > grassRight + 30,
+        where: () => [grassRight + 80, g - 70] },
+      { id: 'river', text: 'ride across the river',
+        when: withHorse,
+        done: () => px() > riverRight + 30,
+        where: () => [riverRight + 80, g - 70] },
+      { id: 'goodbye', text: 'say goodbye at the meadow',
+        when: () => this.horseFed,
+        done: () => this.saidGoodbye, until: () => stonesRight,
+        where: () => [this.meadowX, g - 110] },
+      { id: 'stones', text: 'jump across the stones',
+        done: () => px() > stonesRight + 10,
+        where: () => [stonesRight + 60, g - 60] },
+      { id: 'cat', text: 'climb the mushrooms up to the cat',
+        done: () => this.catRescued, until: () => 6790,
+        where: () => [this.catSprite.x, this.catSprite.y - 50] },
+      { id: 'cat-down', text: 'carry the cat down and set it on the ground',
+        when: () => this.carryingCat || this.catFollowing,
+        done: () => this.catFollowing,
+        where: () => null },
+      { id: 'bird', text: 'free the bird — gently, through the thorns',
+        done: () => this.birdFreed, until: () => this.brambleX + this.brambleWidth / 2 + 220,
+        where: () => [this.birdX, g - 84] },
+      { id: 'rest', text: 'rest a while under the big tree',
+        done: () => !!this.hasRested, until: () => this.restTreeX + 320,
+        where: () => [this.restTreeX, g - 76] },
+      { id: 'north', text: 'keep walking north', done: () => false, where: () => null }
+    ];
+    this.guide.setTasks(this.tasks, { counted: false });
+    this.taskInHand = this.tasks[0].id;
+  }
+
+  // which task is in hand right now
+  followTasks() {
+    const x = this.player.x;
+    const next = this.tasks.find((t) => (!t.when || t.when()) && !t.done() && !(t.until && x > t.until()));
+    const id = next ? next.id : null;
+    if (id === this.taskInHand) return;
+    const before = this.tasks.find((t) => t.id === this.taskInHand);
+    this.guide.focus(id, !!before && before.done());       // a tick if the last one got done, none if you walked on
+    this.taskInHand = id;
   }
 
   sparkle(x, y) {
@@ -732,6 +833,16 @@ export default class ForestScene extends Phaser.Scene {
     this.saveProgress();
   }
 
+  // back to the last torch you lit — on your own feet, whatever you were doing
+  respawn() {
+    if (this.riding) {
+      this.riding = false;
+      setTravelerBody(this.player);
+    }
+    this.player.setVelocity(0, 0);
+    this.player.setPosition(this.respawnX, this.standY);
+  }
+
   // record the torch you just passed as the active checkpoint and save,
   // only when it actually changes
   setCheckpoint(id) {
@@ -745,6 +856,10 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── bag toggle (I) ──
     if (Phaser.Input.Keyboard.JustDown(this.keyI)) this.toggleBag();
+    this.followTasks();
+    if (this.player.x < this.horseStopX - 200) this.horseStopShown = false;   // it will say so again next time
+    // a net under everything: nobody should ever be left falling out of sight
+    if (this.player.y > this.H + 240) this.respawn();
 
     const px = this.player.x;
     this.fox.update(px);
@@ -816,8 +931,7 @@ export default class ForestScene extends Phaser.Scene {
         this.tweens.add({ targets: drop, x: drop.x + Math.cos(a) * 30, y: drop.y - Math.abs(Math.sin(a)) * 30,
           alpha: 0, duration: 600, onComplete: () => drop.destroy() });
       }
-      this.player.setVelocity(0, 0);
-      this.player.setPosition(this.respawnX, this.standY);
+      this.respawn();
       this.showThought('cold! ... try again.', 1600);
     }
     const onGround = this.player.body.blocked.down;
@@ -971,10 +1085,7 @@ export default class ForestScene extends Phaser.Scene {
       this.tweens.add({ targets: this.birdSprite, y: this.birdSprite.y - 180, alpha: 0,
         duration: 900, ease: 'Quad.in' });
       // send you back to the checkpoint, then the bird returns to try again
-      this.time.delayedCall(700, () => {
-        this.player.setVelocity(0, 0);
-        this.player.setPosition(this.respawnX, this.respawnY);
-      });
+      this.time.delayedCall(700, () => this.respawn());
       this.time.delayedCall(1600, () => {
         this.birdSprite.setPosition(this.birdX, this.groundY - 28).setAlpha(1).play('bird-struggle');
         this.birdPanicking = false;
@@ -1018,7 +1129,7 @@ export default class ForestScene extends Phaser.Scene {
       horse.anims.timeScale = wading ? 0.7 : 1.3;                  // a slow wade, a quick trot
     } else if (this.horseFed && !this.saidGoodbye) {
       // dismounted companion — the horse gently trails behind you
-      const behind = this.player.x - (this.player.flipX ? -70 : 70);
+      const behind = Math.min(this.player.x - (this.player.flipX ? -70 : 70), this.horseStopX);
       const gap = behind - horse.x;
       horse.x += gap * 0.04;
       horse.y = this.groundY + 2;
@@ -1062,6 +1173,7 @@ export default class ForestScene extends Phaser.Scene {
       label = null;
       if (!this.horseHungryHintShown) {
         this.horseHungryHintShown = true;
+        this.metHorse = true;
         this.showThought('the horse looks hungry. maybe a carrot from the field would help.', 3600);
       }
     }
@@ -1071,23 +1183,20 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (this.horseHungryHintShown && !near(this.horseX, 95)) this.horseHungryHintShown = false;
 
-    // nothing else to do here? then you can set down whatever you're carrying
-    if (!label && this.carryingCat && onGround && this.player.body.bottom > this.groundY - 10) { label = 'put down the cat'; action = 'putdowncat'; }
-    else if (!label && this.carrying && onGround) { label = 'put down the bucket'; action = 'putdownbucket'; }
-
-    if (label) {
-      this.prompt.setText('▸ e  ' + label).setVisible(true);
-      this.prompt.setPosition(this.W / 2, this.H - 40);
-    } else if (foxOffer && foxOffer.hint) {
-      this.prompt.setText('▸ ' + foxOffer.label).setVisible(true);
-      this.prompt.setPosition(this.W / 2, this.H - 40);
-    } else if (this.atBrambleOnFoot) {
-      // stuck at the thorns without holding shift? always show the full reminder.
-      this.prompt.setText('▸ hold shift to move gently').setVisible(true);
-      this.prompt.setPosition(this.W / 2, this.H - 40);
-    } else {
-      this.prompt.setVisible(false);
+    // nothing else to do here? then you can set down whatever you're carrying —
+    // offered once you've stood still a moment, so it isn't over your head the whole walk
+    this.stillMs = onGround && vx < 5 ? (this.stillMs || 0) + this.game.loop.delta : 0;
+    if (!label && this.stillMs > 900) {
+      if (this.carryingCat && this.player.body.bottom > this.groundY - 10) { label = 'put down the cat'; action = 'putdowncat'; }
+      else if (this.carrying) { label = 'put down the bucket'; action = 'putdownbucket'; }
     }
+
+    // the key and what it does, just over the traveler's head
+    const over = [this.player.x, this.player.y - 66];
+    if (label) this.guide.prompt(['e'], label, ...over);
+    else if (foxOffer && foxOffer.hint) this.guide.prompt([], foxOffer.label, ...over);
+    else if (this.atBrambleOnFoot) this.guide.prompt(['shift'], 'hold to move gently', ...over);
+    else this.guide.hidePrompt();
 
     if (this.riding && action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
       // a mounted action takes priority over dismounting, so E does the action instead of getting off
@@ -1116,42 +1225,25 @@ export default class ForestScene extends Phaser.Scene {
 
   drawBag() {
     if (this.bagPanel) this.bagPanel.destroy();
-    const W = this.W, H = this.H;
-    const panel = this.add.container(0, 0).setScrollFactor(0).setDepth(300);
-
-    const box = this.add.rectangle(W / 2, H / 2, 360, 240, 0x12181c, 0.94)
-      .setStrokeStyle(2, 0x3a5a6e);
-    const title = this.add.text(W / 2, H / 2 - 92, 'bag', {
-      fontFamily: 'Georgia, serif', fontSize: '24px', color: '#ece8dc'
-    }).setOrigin(0.5);
-    panel.add([box, title]);
-
+    const u = 3;                                           // the paper's pixels, on screen
     const items = Object.keys(this.inventory).filter((k) => this.inventory[k] > 0);
-    if (items.length === 0) {
-      const empty = this.add.text(W / 2, H / 2, 'empty for now.', {
-        fontFamily: 'Helvetica Neue, sans-serif', fontSize: '15px', color: '#7c8a8e', fontStyle: 'italic'
-      }).setOrigin(0.5);
-      panel.add(empty);
-    } else {
-      items.forEach((name, i) => {
-        const y = H / 2 - 50 + i * 36;
-        const iconKey = 'woods-icon-' + name.replace(/s$/, '');
-        if (this.textures.exists(iconKey)) {
-          const icon = this.add.image(W / 2 - 110, y, iconKey).setOrigin(0.5).setScale(ART);
-          panel.add(icon);
-        }
-        const label = this.add.text(W / 2 - 80, y, name + '  ×' + this.inventory[name], {
-          fontFamily: 'Helvetica Neue, sans-serif', fontSize: '16px', color: '#dce8e0'
-        }).setOrigin(0, 0.5);
-        panel.add(label);
-      });
-    }
-
-    const hint = this.add.text(W / 2, H / 2 + 96, 'press i to close', {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '12px', color: '#5a6a6e'
-    }).setOrigin(0.5);
-    panel.add(hint);
-
+    const w = 84, h = 40 + Math.max(1, items.length) * 14;
+    const panel = this.add.container(Math.round(this.W / 2 - (w * u) / 2), Math.round(this.H / 2 - (h * u) / 2))
+      .setScrollFactor(0).setDepth(300);
+    const write = (x, y, str, tint = INK) => this.guide.text(x * u, y * u, str, { size: u, tint, edged: false });
+    panel.add(this.add.nineslice(0, 0, 'ui-tag', undefined, w, h, 5, 5, 5, 6).setOrigin(0, 0).setScale(u));
+    panel.add(write(9, 7, 'bag'));
+    if (items.length === 0) panel.add(write(9, 22, 'empty for now.', PENCIL));
+    items.forEach((name, i) => {
+      const y = 22 + i * 14;
+      const iconKey = 'woods-icon-' + name.replace(/s$/, '');
+      if (this.textures.exists(iconKey)) panel.add(this.add.image(15 * u, (y + 4) * u, iconKey).setScale(u));
+      panel.add(write(26, y, name));
+      panel.add(write(26, y, `×${this.inventory[name]}`, PENCIL).setX((w - 22) * u));
+    });
+    const cap = this.add.image(9 * u, (h - 11) * u, 'ui-key-i').setOrigin(0, 0.5).setScale(2);
+    panel.add(cap);
+    panel.add(this.guide.text(9 * u + cap.displayWidth + 8, (h - 11) * u - 9, 'close', { tint: PENCIL, edged: false }));
     this.bagPanel = panel;
   }
 
@@ -1164,6 +1256,7 @@ export default class ForestScene extends Phaser.Scene {
     if (action === 'restdown') {
       this.resting = true;
       this.restAtField = true;
+      this.hasRested = true;
       this.restTimer = 0;
       this.player.setVelocity(0, 0);
       this.player.body.setAllowGravity(false);   // stay put on the ground while resting
@@ -1203,9 +1296,7 @@ export default class ForestScene extends Phaser.Scene {
       }
       // a heart floats up between you and the horse
       const hx = (this.player.x + this.horseSprite.x) / 2;
-      const heart = this.add.text(hx, this.groundY - 70, '❤', {
-        fontSize: '28px', color: '#e58a9a'
-      }).setOrigin(0.5).setDepth(80);
+      const heart = this.guide.text(hx, this.groundY - 70, '♥', { size: 5 }).setTint(0xe58a9a).setOrigin(0.5).setDepth(80);
       this.tweens.add({ targets: heart, y: this.groundY - 140, alpha: 0,
         duration: 2200, ease: 'Sine.out', onComplete: () => heart.destroy() });
       this.showThought("go on. i'll be alright. you found them.", 4000);

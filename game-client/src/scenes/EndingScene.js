@@ -5,6 +5,7 @@ import { makeCat, updateCatFollow } from '../characters/cat.js';
 import { FOREST_SCALE, FEET, setTravelerBody } from '../characters/lpc.js';
 import { FLAGS, clock, tickClock, decodeProgress } from '../services/progress.js';
 import { CREDITS } from '../credits.js';
+import Guide, { INK } from '../ui/guide.js';
 
 // The last field is drawn by tools/forest-art.mjs like the rest of the forest
 // and shown at 2x; this scene tints it from cold night to warm dusk.
@@ -269,11 +270,21 @@ export default class EndingScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-P', openPause);
     this.input.keyboard.on('keydown-ESC', openPause);
 
-    // ── prompt ──
-    this.prompt = this.add.text(0, 0, '', {
-      fontFamily: 'Helvetica Neue, sans-serif', fontSize: '15px',
-      color: '#f0ece0', backgroundColor: '#00000066', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(150).setVisible(false);
+    // ── the guide: what to do next, shown the same way as everywhere else.
+    // nothing here can be skipped, so the tasks simply run in order ──
+    this.guide = new Guide(this);
+    const quiet = (spot) => () => (this.busy || this.dialogueActive || this.sitting ? null : spot());
+    this.guide.setTasks([
+      { id: 'talk', text: 'someone is crying. go to them', where: quiet(() => [this.figure.x, this.groundY - 96]) },
+      { id: 'offerbury', text: 'ask about burying the bird', where: quiet(() => [this.birdX, this.groundY - 44]) },
+      { id: 'bury', text: 'cover the bird with earth, together', where: quiet(() => [this.birdX, this.groundY - 44]) },
+      { id: 'offerfire', text: 'ask about lighting a fire', where: quiet(() => [this.fireX, this.groundY - 50]) },
+      { id: 'wood', text: 'lay the wood', where: quiet(() => [this.fireX, this.groundY - 50]) },
+      { id: 'light', text: 'light the fire together', where: quiet(() => [this.fireX, this.groundY - 60]) },
+      { id: 'sit', text: 'sit down with them', where: quiet(() => [this.seatX, this.groundY - 96]) },
+      { id: 'goodbye', text: 'stay as long as you like', where: () => null },
+      { id: 'home', text: 'walk back home', where: quiet(() => [this.leaveX - 200, this.groundY - 60]) }
+    ], { counted: false });
 
     this.applyWarmth(0);
     this.player.play(`${this.characterId}-idle`);
@@ -310,16 +321,7 @@ export default class EndingScene extends Phaser.Scene {
   }
 
   showThought(text, ms = 2800) {
-    if (this.thought) this.thought.destroy();
-    this.thought = this.add.text(this.W / 2, 92, text, {
-      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#ece8dc',
-      fontStyle: 'italic', stroke: '#12161a', strokeThickness: 4,
-      align: 'center', wordWrap: { width: this.W - 220 }
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(160).setAlpha(0);
-    this.tweens.add({ targets: this.thought, alpha: 1, duration: 400 });
-    this.time.delayedCall(ms, () => {
-      if (this.thought) this.tweens.add({ targets: this.thought, alpha: 0, duration: 700 });
-    });
+    this.guide.say(text, ms + 1200);
   }
 
   lerpColor(a, b, t) {
@@ -420,12 +422,8 @@ export default class EndingScene extends Phaser.Scene {
       else if (this.sitting && this.sitTimer > 8000) { label = 'say goodbye'; action = 'goodbye'; }
     }
 
-    if (label) {
-      this.prompt.setText('▸ e  ' + label).setVisible(true);
-      this.prompt.setPosition(this.W / 2, this.H - 40);
-    } else if (!this.dialogueActive) {
-      this.prompt.setVisible(false);
-    }
+    if (label) this.guide.prompt(['e'], label, this.player.x, this.player.y - 66);
+    else if (!this.dialogueActive) this.guide.hidePrompt();
 
     if (action && Phaser.Input.Keyboard.JustDown(this.keyE)) this.doAction(action);
   }
@@ -442,6 +440,7 @@ export default class EndingScene extends Phaser.Scene {
       ], () => {
         this.talked = true;
         this.busy = false;
+        this.guide.complete('talk');
       });
       return;
     }
@@ -459,6 +458,7 @@ export default class EndingScene extends Phaser.Scene {
           this.figure.setFlipX(true);                 // standing over the bird, facing it
           this.buryOffered = true;
           this.busy = false;
+          this.guide.complete('offerbury');
         });
       });
       return;
@@ -502,6 +502,7 @@ export default class EndingScene extends Phaser.Scene {
       ], () => {
         this.fireOffered = true;
         this.busy = false;
+        this.guide.complete('offerfire');
       });
       return;
     }
@@ -512,7 +513,7 @@ export default class EndingScene extends Phaser.Scene {
       // you lay the wood in the ring
       this.fireLogs.setVisible(true).setAlpha(0);
       this.tweens.add({ targets: this.fireLogs, alpha: 1, duration: 400,
-        onComplete: () => { this.woodLaid = true; this.busy = false; } });
+        onComplete: () => { this.woodLaid = true; this.busy = false; this.guide.complete('wood'); } });
       return;
     }
     if (action === 'light') {
@@ -535,6 +536,7 @@ export default class EndingScene extends Phaser.Scene {
     if (action === 'sit') {
       this.sitting = true;
       this.sitTimer = 0;
+      this.guide.complete('sit');
       this.player.setVelocity(0, 0);
       this.player.body.setAllowGravity(false);
       this.player.setPosition(this.seatX, this.groundY + 1 - FEET * FOREST_SCALE);
@@ -568,6 +570,7 @@ export default class EndingScene extends Phaser.Scene {
       this.tweens.add({ targets: this.moundFlower, x: this.birdX, y: this.groundY - 12,
         duration: 800, ease: 'Sine.inOut' });
       this.buried = true;
+      this.guide.complete('bury');
       this.warmTo(0.2, 8000);
     });
     // then they go back to their place and sit — quieter than before
@@ -586,6 +589,7 @@ export default class EndingScene extends Phaser.Scene {
     this.saidGoodbye = true;
     this.sitting = false;
     this.busy = true;
+    this.guide.complete('goodbye');
     this.player.body.setAllowGravity(true);
     this.player.setAngle(0);
     // TODO: audio — the theme thins back to a single line, resolved (sound pass)
@@ -611,38 +615,32 @@ export default class EndingScene extends Phaser.Scene {
     const line = this.dialogueLines[this.dialogueIndex];
     const fromPlayer = line.who === 'player';
     if (this.dialogueBox) this.dialogueBox.destroy();
-    const border = fromPlayer ? 0xece8dc : 0xcfe0ec;
-    const text = this.add.text(0, 0, line.text, {
-      fontFamily: 'Georgia, serif', fontSize: '15px',
-      color: fromPlayer ? '#ece8dc' : '#cfe0ec',
-      fontStyle: 'italic', align: 'center', wordWrap: { width: 260 }
-    }).setOrigin(0.5);
-    const boxW = text.width + 16;
-    const boxH = text.height + 12;
-    const g = this.add.graphics();
-    g.fillStyle(0x12161a, 0.85);
-    g.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
-    g.fillTriangle(-6, boxH / 2, 6, boxH / 2, 0, boxH / 2 + 6);   // tail down toward the speaker
-    g.lineStyle(2, border, 1);
-    g.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
-    this.dialogueBox = this.add.container(0, 0, [g, text]).setDepth(160).setAlpha(0);
+    const u = 3;                                          // the paper's pixels, on screen
+    const words = this.guide.text(0, 0, line.text, { size: u, tint: INK, edged: false }).setMaxWidth(520).setCenterAlign();
+    const boxW = Math.ceil(words.width / u) * u + 14 * u, boxH = Math.ceil(words.height / u) * u + 9 * u;
+    words.setPosition(Math.round(-words.width / 2), Math.round(-words.height / 2) - u);
+    const paper = this.add.nineslice(0, 0, 'ui-tag', undefined, boxW / u, boxH / u, 5, 5, 5, 6).setScale(u);
+    if (!fromPlayer) paper.setTint(0xd7e6ee);              // their words on a cooler paper than yours
+    this.dialogueBox = this.add.container(0, 0, [paper, words]).setDepth(160).setAlpha(0);
     this.dialogueBox.boxW = boxW;
     this.dialogueBox.boxH = boxH;
     this.dialogueSpeaker = fromPlayer ? this.player : this.figure;
     this.positionDialogueBox();
     this.tweens.add({ targets: this.dialogueBox, alpha: 1, duration: 250 });
-    this.prompt.setText('▸ e  continue').setVisible(true);
-    this.prompt.setPosition(this.W / 2, this.H - 40);
   }
 
-  // keep the box over the speaker's head, fully inside the camera view
+  // keep the slip over the speaker's head, fully inside the camera view, with
+  // the key that moves the talk along just above it
   positionDialogueBox() {
     if (!this.dialogueBox) return;
     const cam = this.cameras.main;
     const half = this.dialogueBox.boxW / 2;
-    const top = this.dialogueSpeaker.getBounds().top;
+    const seated = this.dialogueSpeaker.texture.key.endsWith('-sit-sheet');
+    const head = this.dialogueSpeaker.getBounds().bottom - (seated ? 52 : 66) * FOREST_SCALE;
     const x = Phaser.Math.Clamp(this.dialogueSpeaker.x, cam.scrollX + half + 8, cam.scrollX + this.W - half - 8);
-    this.dialogueBox.setPosition(x, top - 16 - this.dialogueBox.boxH / 2);
+    const y = Math.round(head - 10 - this.dialogueBox.boxH / 2);
+    this.dialogueBox.setPosition(Math.round(x), y);
+    this.guide.prompt(['e'], 'continue', Math.round(x), y - this.dialogueBox.boxH / 2 - 34);
   }
 
   advanceDialogue() {
@@ -652,6 +650,7 @@ export default class EndingScene extends Phaser.Scene {
       return;
     }
     this.dialogueActive = false;
+    this.guide.hidePrompt();
     if (this.dialogueBox) { this.dialogueBox.destroy(); this.dialogueBox = null; }
     const done = this.dialogueDone;
     this.dialogueDone = null;
@@ -691,10 +690,13 @@ export default class EndingScene extends Phaser.Scene {
     this.warmTo(0.6, 10000);
     this.fireBuilt = true;
     this.busy = false;
+    this.guide.complete('light');
   }
 
   finishGame() {
     this.ended = true;
+    this.guide.complete('home');
+    this.guide.hidePrompt();
     this.finalKindness = this.registry.get('kindness') || 0;
     this.finalTime = formatTime(clock.seconds);
     this.submitKindnessScore();
