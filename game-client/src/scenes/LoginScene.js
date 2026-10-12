@@ -1,4 +1,22 @@
 import Phaser from 'phaser';
+import { FOREST_SCALE } from '../characters/lpc.js';
+import { CREAM } from '../ui/guide.js';
+
+// The title — the first thing anyone sees. The road north, early in the day,
+// sliding slowly by: a traveler walking, and a little way ahead of them the
+// bird they are following. The game's name is written over it. The sign-in
+// form (a wooden board on two ropes, in index.html) hangs on top, on the
+// right; main.js lets it down when this scene says it's ready.
+const ART = 2;                // the forest's art is shown at 2x
+const STROLL = 0.42;          // how unhurried: a fraction of the forest's walking pace
+const STRIP = 3200;           // the roadside comes round again after this many pixels
+const MARGIN = 340;           // …and things swap ends this far off the left edge, out of sight
+
+const TREES = [
+  [90, 'spruce-b'], [270, 'birch-a'], [440, 'spruce-a'], [650, 'pine-a'], [770, 'spruce-c'], [1010, 'birch-b'],
+  [1180, 'spruce-a'], [1330, 'spruce-b'], [1580, 'oak-a'], [1830, 'spruce-a'], [1960, 'spruce-c'], [2190, 'birch-a'],
+  [2360, 'pine-a'], [2540, 'spruce-b'], [2760, 'birch-b'], [2930, 'spruce-a'], [3090, 'spruce-c']
+];
 
 export default class LoginScene extends Phaser.Scene {
   constructor() {
@@ -7,128 +25,96 @@ export default class LoginScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    const groundTop = height - 80;
+    this.groundY = height - 60;
+    this.travel = 0;            // how far the road has slid by
 
-    this.cameras.main.setBackgroundColor('#1a2228');
-    const skyColors = [0x1a2228, 0x232f36, 0x2e3d44, 0x3a4a50];
-    const bandHeight = groundTop / skyColors.length;
-    skyColors.forEach((color, i) => {
-      this.add.rectangle(width / 2, i * bandHeight + bandHeight / 2, width, bandHeight, color)
-        .setDepth(-10);
+    // ── sky, and the three lines of trees behind the road ──
+    this.cameras.main.setBackgroundColor('#6fa3bd');
+    this.add.image(0, 0, 'woods-sky').setOrigin(0, 0).setScale(ART).setDepth(-30);
+    this.layers = [['woods-far', 0.1, -24], ['woods-mid', 0.22, -23], ['woods-near', 0.4, -22]].map(([key, factor, depth]) => {
+      const layer = this.add.tileSprite(0, 0, width, height, key).setOrigin(0, 0).setTileScale(ART, ART).setDepth(depth);
+      layer.factor = factor;
+      return layer;
+    });
+    // morning mist, lying between the tree lines and along the foot of the road's own trees
+    this.add.rectangle(0, this.groundY - 150, width, 150, 0xeaf4f1, 0.1).setOrigin(0, 0).setDepth(-22.5);
+    this.add.rectangle(0, this.groundY - 84, width, 84, 0xeaf4f1, 0.13).setOrigin(0, 0).setDepth(-21);
+
+    // ── the road ──
+    this.ground = this.add.tileSprite(0, this.groundY, width, 80, 'woods-ground').setOrigin(0, 0).setTileScale(ART, ART).setDepth(2);
+    this.fringe = this.add.tileSprite(0, this.groundY + 2, width, 12, 'woods-fringe').setOrigin(0, 1).setTileScale(ART, ART).setDepth(5);
+
+    // ── the roadside: everything here slides by and comes round again ──
+    this.roadside = [];
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+    const put = (key, at, depth, y = this.groundY + 4, pace = 1) => {
+      const thing = this.add.image(-999, y, `woods-${key}`).setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(Math.random() < 0.5);
+      thing.at = at;
+      thing.pace = pace;
+      this.roadside.push(thing);
+      return thing;
+    };
+    TREES.forEach(([at, key]) => put(key, at, 1));
+    for (let at = 180; at < STRIP; at += 430) put(pick(['bush-a', 'bush-b']), at + Math.random() * 120, 4, this.groundY + 3);
+    for (let at = 40; at < STRIP; at += 90) {
+      if (Math.random() < 0.75) put(pick(['tuft-a', 'tuft-b', 'tuft-b', 'tuft-c']), at + Math.random() * 30, 5, this.groundY + 3);
+      if (Math.random() < 0.45) put(pick(['flower-white', 'flower-yellow', 'flower-pink']), at + Math.random() * 60, 5, this.groundY + 2);
+      if (Math.random() < 0.12) put('fern', at + Math.random() * 40, 4, this.groundY + 3);
+    }
+    // a few things close to the eye, dark and quick, passing in front of everything
+    [300, 1350, 2200, 2900].forEach((at, i) => {
+      put(i % 2 ? 'bush-a' : 'fern', at, 20, height + 12, 1.7).setScale(ART * 2).setTint(0x23403a);
     });
 
-    const sun = this.add.circle(width * 0.7, groundTop - 180, 70, 0xdce8e0, 0.15);
-    sun.setDepth(-9);
-    const sunCore = this.add.circle(width * 0.7, groundTop - 180, 45, 0xeef4ee, 0.25);
-    sunCore.setDepth(-9);
-    this.tweens.add({
-      targets: [sun, sunCore],
-      alpha: { from: 0.15, to: 0.35 },
-      duration: 4000, yoyo: true, repeat: -1, ease: 'Sine.inOut'
-    });
+    // ── the traveler, and the bird that flies north every morning ──
+    this.traveler = this.add.sprite(310, this.groundY + 5, 'lpc-khatira-walk-sheet').setOrigin(0.5, 1).setScale(FOREST_SCALE).setDepth(10);
+    this.traveler.play('lpc-khatira-walk');
+    this.traveler.anims.timeScale = STROLL;
+    this.bird = this.add.sprite(0, 0, 'woods-bird').setScale(ART).setFlipX(true).setDepth(11).play('bird-fly');
 
-    this.farTrees = [];
-    for (let i = 0; i < 30; i++) {
-      const x = i * 110 + Phaser.Math.Between(-30, 30);
-      const tree = this.add.image(x, groundTop, 'tree');
-      tree.setOrigin(0.5, 1);
-      tree.setScale(0.6);
-      tree.setTint(0x2a363a);
-      tree.setAlpha(0.4);
-      tree.setDepth(-7);
-      this.farTrees.push(tree);
+    // ── motes in the morning light ──
+    this.motes = [];
+    for (let i = 0; i < 26; i++) {
+      const mote = this.add.rectangle(Math.random() * width, 120 + Math.random() * (this.groundY - 160), 2, 2, 0xfff4d6,
+        0.25 + Math.random() * 0.35).setDepth(12);
+      mote.drift = 5 + Math.random() * 9;
+      mote.sway = Math.random() * Math.PI * 2;
+      this.motes.push(mote);
     }
 
-    this.fog1 = this.add.rectangle(width / 2, groundTop - 120, width * 2, 120, 0xaab8bc, 0.06);
-    this.fog1.setDepth(-6);
+    // ── the name of the game ──
+    const title = this.add.image(92, 104, 'ui-title').setOrigin(0, 0).setScale(4).setDepth(41).setAlpha(0);
+    const words = this.add.bitmapText(98, 246, 'px-edged', 'a small walk north. no hurry.').setScale(3).setTint(CREAM).setDepth(41).setAlpha(0);
+    this.tweens.add({ targets: title, alpha: 1, duration: 900, delay: 250 });
+    this.tweens.add({ targets: words, alpha: 1, duration: 900, delay: 900 });
 
-    this.midTrees = [];
-    for (let i = 0; i < 22; i++) {
-      const x = i * 160 + Phaser.Math.Between(-40, 40);
-      const tree = this.add.image(x, groundTop, 'tree');
-      tree.setOrigin(0.5, 1);
-      tree.setScale(0.85);
-      tree.setTint(0x1e2a2c);
-      tree.setAlpha(0.7);
-      tree.setDepth(-5);
-      this.midTrees.push(tree);
-    }
-
-    this.fog2 = this.add.rectangle(width / 2, groundTop - 60, width * 2, 100, 0xc0ccce, 0.05);
-    this.fog2.setDepth(-4);
-
-    for (let x = 0; x < width + 100; x += 16) {
-      this.add.image(x, groundTop, 'grass').setOrigin(0, 0).setDepth(-3);
-    }
-    for (let y = groundTop + 16; y < height; y += 16) {
-      for (let x = 0; x < width + 100; x += 16) {
-        this.add.image(x, y, 'dirt').setOrigin(0, 0).setDepth(-3);
-      }
-    }
-
-    this.bgPlayer = this.add.sprite(-50, groundTop + 8, 'player', 30);
-    this.bgPlayer.setOrigin(0.5, 1);
-    this.bgPlayer.setScale(1.5);
-    this.bgPlayer.setDepth(-2);
-    this.bgPlayer.setAlpha(0.85);
-    this.bgPlayer.play('walk');
-
-    this.foreTrees = [];
-    for (let i = 0; i < 10; i++) {
-      const x = i * 320 + Phaser.Math.Between(-60, 60);
-      const tree = this.add.image(x, groundTop + 8, 'tree');
-      tree.setOrigin(0.5, 1);
-      tree.setScale(1.2);
-      tree.setTint(0x0e1618);
-      tree.setDepth(2);
-      this.foreTrees.push(tree);
-    }
-
-    this.fog3 = this.add.rectangle(width / 2, height - 40, width * 2, 120, 0xd0dcde, 0.04);
-    this.fog3.setDepth(3);
-
-    this.particles = [];
-    for (let i = 0; i < 40; i++) {
-      const p = this.add.circle(
-        Phaser.Math.Between(0, width),
-        Phaser.Math.Between(0, height),
-        Phaser.Math.FloatBetween(0.5, 2),
-        0xffffff,
-        Phaser.Math.FloatBetween(0.1, 0.4)
-      );
-      p.vx = Phaser.Math.FloatBetween(-0.15, 0.15);
-      p.vy = Phaser.Math.FloatBetween(0.1, 0.3);
-      p.setDepth(10);
-      this.particles.push(p);
-    }
-
-    const vignette = this.add.graphics();
-    vignette.setDepth(5);
-    vignette.fillStyle(0x000000, 0.3);
-    vignette.fillRect(0, 0, width, 60);
-    vignette.fillRect(0, height - 60, width, 60);
-    vignette.fillRect(0, 0, 60, height);
-    vignette.fillRect(width - 60, 0, 60, height);
+    this.place(0);
+    this.cameras.main.fadeIn(700, 0, 0, 0);
+    this.game.events.emit('title-ready');
   }
 
-  update() {
-    this.bgPlayer.x += 0.5;
-    if (this.bgPlayer.x > this.scale.width + 50) this.bgPlayer.x = -50;
-
-    this.farTrees.forEach((t) => { t.x -= 0.08; if (t.x < -50) t.x = this.scale.width + 50; });
-    this.midTrees.forEach((t) => { t.x -= 0.15; if (t.x < -50) t.x = this.scale.width + 50; });
-    this.foreTrees.forEach((t) => { t.x -= 0.3; if (t.x < -100) t.x = this.scale.width + 100; });
-
-    this.fog1.x -= 0.1; if (this.fog1.x < -this.scale.width / 2) this.fog1.x = this.scale.width;
-    this.fog2.x -= 0.2; if (this.fog2.x < -this.scale.width / 2) this.fog2.x = this.scale.width;
-    this.fog3.x += 0.15; if (this.fog3.x > this.scale.width * 1.5) this.fog3.x = 0;
-
-    this.particles.forEach((p) => {
-      p.x += p.vx;
-      p.y += p.vy;
-      if (p.y > this.scale.height) { p.y = 0; p.x = Phaser.Math.Between(0, this.scale.width); }
-      if (p.x < 0) p.x = this.scale.width;
-      if (p.x > this.scale.width) p.x = 0;
+  // put everything where it is at this moment of the walk
+  place(time) {
+    const { width } = this.scale;
+    this.layers.forEach((layer) => { layer.tilePositionX = this.travel * layer.factor / ART; });
+    this.ground.tilePositionX = this.travel / ART;
+    this.fringe.tilePositionX = this.travel / ART;
+    this.roadside.forEach((thing) => {
+      thing.x = Math.round(Phaser.Math.Wrap(thing.at - this.travel * thing.pace, -MARGIN, STRIP - MARGIN));
     });
+    // the bird keeps ahead — now a little further, now waiting for you — and rides the air
+    this.bird.setPosition(
+      Math.round(this.traveler.x + 190 + Math.sin(time * 0.00043) * 80 + Math.sin(time * 0.0013) * 14),
+      Math.round(this.groundY - 150 + Math.sin(time * 0.0021) * 14 + Math.sin(time * 0.00061) * 30));
+    this.motes.forEach((mote) => {
+      mote.x -= mote.drift * 0.016;
+      mote.y += Math.sin(time * 0.0008 + mote.sway) * 0.12;
+      if (mote.x < -4) mote.x = width + 4;
+    });
+  }
+
+  update(time, delta) {
+    this.travel += 220 * STROLL * Math.min(delta, 50) / 1000;
+    this.place(time);
   }
 }

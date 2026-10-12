@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Img, rng, outlined, mix } from './pixel.mjs';
 import { C } from './palette.mjs';
-import { buildFont, drawText, textWidth } from './font.mjs';
+import { buildFont, buildWebFont, drawText, textWidth } from './font.mjs';
 
 const PAPER = [0xb9a888, 0xdccdaa, 0xefe4c8, 0xf8f1dc];
 const INK = 0x2b1b14;
@@ -70,6 +70,97 @@ function key(label, { wide = false } = {}) {
   }, INK);
 }
 
+// the game's name, for the title screen: the font's own letters cut three
+// times as large — so the ink round them stays thin — lit from above, and with
+// a little thickness under them like letters sawn out of board
+function title() {
+  const word = 'northward', k = 3, depth = 2;
+  const letters = new Img(textWidth(word), 9);
+  drawText(letters, word, 0, 0, 0xffffff);
+  const face = [0xfffdf2, 0xfffdf2, 0xf9f1da, 0xf9f1da, 0xf1e2b9, 0xf1e2b9, 0xe6ce97];   // top row of the letters → bottom
+  return outlined(letters.w * k, 7 * k + depth, (g) => {
+    const each = (draw) => { for (let y = 0; y < 7; y++) for (let x = 0; x < letters.w; x++) if (letters.alpha(x, y)) draw(x, y); };
+    each((x, y) => g.rect(x * k, y * k + depth, k, k, C.wood[1]));
+    each((x, y) => g.rect(x * k, y * k, k, k, face[y]));
+  }, INK);
+}
+
+// the sign-in page is a board hung by the road: six planks nailed together,
+// with an iron eye at each top corner for the ropes it hangs from. the words
+// and the fields are laid over it by the page (see style.css), which is why the
+// planks are the height they are
+const SIGN = { w: 156, plank: 22, planks: 6, eye: 5, eyes: [24, 131] };
+
+function sign() {
+  const rnd = rng(23);
+  const wd = C.wood, { w, plank, planks, eye } = SIGN;
+  const h = plank * planks;
+  const art = new Img(w + 2, eye + h + 2);
+  for (let i = 0; i < planks; i++) {
+    const y = eye + 1 + i * plank;
+    const x0 = 1 + rnd.int(0, 1), len = w - (x0 - 1) - rnd.int(0, 1);       // sawn by hand: the ends don't quite line up
+    const tone = mix(wd[2], wd[3], rnd());
+    art.rect(x0, y, len, plank, tone);
+    art.hline(x0, y, len, mix(tone, wd[5], 0.4));                           // light along the top edge
+    art.hline(x0, y + plank - 2, len, mix(tone, wd[0], 0.35));
+    art.hline(x0, y + plank - 1, len, mix(wd[0], INK, 0.35));               // the dark between two planks
+    for (let k = 0; k < 9; k++) {                                           // grain
+      const gx = x0 + rnd.int(8, len - 40), gy = y + rnd.int(3, plank - 5);
+      art.hline(gx, gy, rnd.int(8, 30), rnd.chance(0.25) ? mix(tone, wd[5], 0.25) : mix(tone, wd[0], 0.22));
+    }
+    if (rnd.chance(0.5)) {                                                  // a knot
+      const kx = x0 + rnd.int(20, len - 24), ky = y + rnd.int(7, plank - 8);
+      art.ellipse(kx, ky, 3, 2, mix(tone, wd[0], 0.3)); art.ellipse(kx, ky, 1.4, 0.8, mix(tone, wd[0], 0.65));
+    }
+    [x0 + 3, x0 + len - 5].forEach((nx) => {                                // nailed at both ends
+      art.rect(nx, y + 10, 2, 2, C.iron[2]); art.put(nx, y + 10, C.iron[4]);
+    });
+  }
+  SIGN.eyes.forEach((cx) => {
+    const x = cx - 1;
+    art.rect(x, 1, 5, eye + 2, C.iron[3]); art.rect(x + 1, 2, 3, eye - 1, [0, 0, 0, 0]);
+    art.put(x, 1, [0, 0, 0, 0]); art.put(x + 4, 1, [0, 0, 0, 0]); art.vline(x, 2, eye, C.iron[4]);
+  });
+  art.outline(INK);
+  const img = new Img(art.w + 3, art.h + 4);
+  for (let y = 0; y < art.h; y++) for (let x = 0; x < art.w; x++) if (art.alpha(x, y)) img.put(x + 3, y + 4, [10, 12, 18, 80]);
+  img.blit(art, 0, 0);
+  return img;
+}
+
+// a length of the rope it hangs from — a tile, repeated as far up as it has to go
+function rope() {
+  const img = new Img(5, 4);
+  const tan = [0x8a6a3c, 0xb89a62, 0xd9c08a];
+  for (let y = 0; y < 4; y++) {
+    img.put(0, y, INK); img.put(4, y, INK);
+    for (let x = 1; x < 4; x++) img.put(x, y, tan[(x + y) % 4 === 0 ? 0 : x === 1 ? 2 : 1]);    // the twist of the strands
+  }
+  return img;
+}
+
+// four corners pulled apart: fill the screen
+function fullscreen() {
+  return outlined(11, 11, (g) => {
+    [[0, 0, 1, 1], [10, 0, -1, 1], [0, 10, 1, -1], [10, 10, -1, -1]].forEach(([x, y, dx, dy]) => {
+      for (let k = 0; k < 4; k++) { g.put(x + dx * k, y, 0xf7efd9); g.put(x, y + dy * k, 0xf7efd9); g.put(x + dx * k, y + dy, 0xf7efd9); g.put(x + dx, y + dy * k, 0xf7efd9); }
+    });
+  }, 0x14161c);
+}
+
+// the button on the sign-in page: green as the road's grass, stretched to fit
+// its words like the tag. `down` is the same button pressed in
+function button({ down = false } = {}) {
+  const g = C.grass, drop = down ? 2 : 0;
+  const img = new Img(17, 17);
+  img.blit(outlined(15, 15 - drop, (b) => {
+    b.rect(0, 0, 15, 15 - drop, g[0]);                                        // the side you see from above…
+    b.rect(0, 0, 15, 11, g[2]); b.hline(1, 0, 13, g[4]); b.hline(0, 10, 15, g[1]);   // …and its top face
+    b.put(0, 0, g[1]); b.put(14, 0, g[1]);
+  }, INK), 0, drop);
+  return img;
+}
+
 // "this one" — a small arrow that hangs over the thing to go to
 function marker() {
   return outlined(11, 9, (g) => {
@@ -93,6 +184,7 @@ function tick() {
 export function buildAll() {
   return {
     note: note(), tag: tag(), marker: marker(), checkbox: checkbox(), tick: tick(),
+    title: title(), sign: sign(), rope: rope(), fullscreen: fullscreen(), button: button(), 'button-down': button({ down: true }),
     'key-e': key('E'), 'key-i': key('I'), 'key-left': key('←'), 'key-right': key('→'), 'key-up': key('↑'),
     'key-shift': key('shift', { wide: true }), 'key-esc': key('esc', { wide: true })
   };
@@ -108,5 +200,7 @@ if (isMain) {
   const plain = buildFont(), edged = buildFont({ outline: true });
   plain.img.save(path.join(out, 'font.png')); fs.writeFileSync(path.join(out, 'font.xml'), plain.xml);
   edged.img.save(path.join(out, 'font-edged.png')); fs.writeFileSync(path.join(out, 'font-edged.xml'), edged.xml.replace('font.png', 'font-edged.png'));
-  console.log(`wrote ${Object.keys(sprites).length} images and 2 fonts to ${out}`);
+  // …and once more as a font file, for the sign-in form on the page around the game
+  fs.writeFileSync(path.join(out, 'northward.ttf'), buildWebFont());
+  console.log(`wrote ${Object.keys(sprites).length} images and 3 fonts to ${out}`);
 }

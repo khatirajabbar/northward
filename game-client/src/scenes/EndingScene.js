@@ -778,7 +778,10 @@ export default class EndingScene extends Phaser.Scene {
       return words.height;
     };
 
-    write(84, 'northward', 8, CREAM);
+    const title = this.add.image(Math.round(this.W / 2), 76, 'ui-title').setOrigin(0.5, 0).setScale(4)
+      .setScrollFactor(0).setDepth(LIT + 40).setAlpha(0);
+    this.tweens.add({ targets: title, alpha: 1, duration: 1000 });
+    count++;
     let y = 216;
     CREDITS.forEach((block) => {
       y += write(y, block.heading, 2, SOFT) + 10;

@@ -9,16 +9,17 @@
   <body>
     <div id="game"></div>
 
+    <!-- the sign-in page: a wooden board hung by the road, over the title
+         screen. main.js keeps it exactly over the canvas, at its scale -->
     <div id="login-overlay">
-      <div class="login-card">
-        <h1>northward</h1>
-        <p class="login-subtitle">sign in to begin your journey.</p>
-
+      <form id="login-form" class="login-sign" novalidate>
+        <span class="login-rope"></span><span class="login-rope"></span>
+        <h1>who's walking today?</h1>
         <div id="login-error" class="login-error" hidden></div>
 
         <div class="login-field">
           <label for="login-email">email</label>
-          <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email" />
+          <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email" spellcheck="false" />
         </div>
 
         <div class="login-field">
@@ -26,12 +27,16 @@
           <input id="login-password" type="password" placeholder="your password" autocomplete="current-password" />
         </div>
 
-        <button id="login-submit" class="login-submit">enter the forest</button>
+        <button id="login-submit" class="login-submit" type="submit">enter the forest</button>
 
         <p class="login-link">
-          no account? <a href="http://localhost:5222/Account/Register" target="_blank">register on the website</a>
+          no account? <a id="login-register" href="http://localhost:5222/Account/Register" target="_blank" rel="noopener">register on the website</a>
         </p>
-      </div>
+      </form>
+
+      <button id="fullscreen-toggle" class="title-chip" type="button">
+        <img src="/assets/ui/fullscreen.png" alt="" /><span>full screen</span>
+      </button>
     </div>
 
     <script type="module" src="/src/main.js"></script>
