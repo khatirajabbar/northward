@@ -181,26 +181,42 @@ export default class Guide {
 
   // ── the note: a page over the game. E (or a click) puts it away ──
   // { title, lines: [...], sign, keys: [[['left', 'right'], 'walk'], ...] }
+  // a line is a string — or, on a page that looks back over the day,
+  // { text, ticked }: those get their ticks one after another, and what wasn't
+  // done stays in pencil. `foot` is a line of words under the page, `okay` what
+  // E is said to do, `dim` how dark the game goes behind it.
 
-  showNote({ title, lines, sign, keys = [] }, onClose) {
+  showNote({ title, lines, sign, keys = [], foot = null, okay = 'okay', dim: dark = 0.6 }, onClose) {
     const { scene, W, H } = this;
     this.blocking = true;
     this.hidePrompt();
     const box = scene.add.container(0, 0).setScrollFactor(0).setDepth(DEPTH + 20).setAlpha(0);
-    const dim = scene.add.rectangle(0, 0, W, H, 0x0a0d14, 0.6).setOrigin(0, 0);
+    const dim = scene.add.rectangle(0, 0, W, H, 0x0a0d14, dark).setOrigin(0, 0);
     const paper = scene.add.image(W / 2, H / 2 - 48, 'ui-note').setScale(3);
     const left = paper.x - paper.displayWidth / 2, top = paper.y - paper.displayHeight / 2;
     const on = (ax, ay) => [left + ax * 3, top + ay * 3];        // a spot on the page, in its own pixels
     const write = (ax, ay, str, tint = INK) => this.text(...on(ax, ay), str, { size: 3, tint, edged: false });
     const parts = [dim, paper, write(24, 19, title)];
-    lines.forEach((str, i) => {
+    lines.forEach((line, i) => {
+      const { text: str, ticked } = typeof line === 'string' ? { text: line } : line;
       parts.push(scene.add.image(...on(24, 39 + i * 11), 'ui-checkbox').setOrigin(0, 0).setScale(3));
-      parts.push(write(38, 41 + i * 11, str));
+      parts.push(write(38, 41 + i * 11, str, ticked === false ? PENCIL : INK));
+      if (ticked) {
+        const [tx, ty] = on(29, 43 + i * 11);
+        const tick = scene.add.image(tx, ty, 'ui-tick').setScale(7.5).setAlpha(0);
+        scene.tweens.add({ targets: tick, scale: 3, alpha: 1, duration: 220, delay: 700 + i * 300, ease: 'Back.out' });
+        parts.push(tick);
+      }
     });
     if (sign) parts.push(write(0, 118, sign, PENCIL).setOrigin(1, 0).setX(on(156, 0)[0]));
 
-    // under the page: how to play, and how to put the note away
+    // under the page: a line of words, how to play, and how to put the note away
     let ky = top + paper.displayHeight + 26;
+    if (foot) {
+      const words = this.text(0, ky - 9, foot);
+      parts.push(words.setX(Math.round(W / 2 - words.width / 2)));
+      ky += 48;
+    }
     if (keys.length) {
       const row = scene.add.container(0, ky);
       let kx = 0;
@@ -215,8 +231,8 @@ export default class Guide {
       ky += 50;
     }
     const cap = scene.add.image(0, 0, 'ui-key-e').setOrigin(0, 0.5).setScale(2);
-    const okay = this.text(cap.displayWidth + 8, -9, 'okay');
-    const go = scene.add.container(Math.round(W / 2 - (cap.displayWidth + 8 + okay.width) / 2), ky, [cap, okay]);
+    const does = this.text(cap.displayWidth + 8, -9, okay);
+    const go = scene.add.container(Math.round(W / 2 - (cap.displayWidth + 8 + does.width) / 2), ky, [cap, does]);
     scene.tweens.add({ targets: go, alpha: 0.45, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     parts.push(go);
     box.add(parts);

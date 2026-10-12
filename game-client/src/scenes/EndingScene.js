@@ -5,7 +5,7 @@ import { makeCat, updateCatFollow } from '../characters/cat.js';
 import { FOREST_SCALE, FEET, setTravelerBody } from '../characters/lpc.js';
 import { FLAGS, clock, tickClock, decodeProgress } from '../services/progress.js';
 import { CREDITS } from '../credits.js';
-import Guide, { INK } from '../ui/guide.js';
+import Guide, { INK, CREAM } from '../ui/guide.js';
 
 // The last field is drawn by tools/forest-art.mjs like the rest of the forest
 // and shown at 2x; this scene tints it from cold night to warm dusk.
@@ -19,6 +19,8 @@ const POSE = {
   standing: ['idle', 39, 44]
 };
 const CHARACTER_TYPE = { 'lpc-khatira': 'female', 'lpc-oliver': 'male' };
+const LIT = 91;                // above the veil drawn over the field at the very end: what still glows through it
+const SOFT = 0xcdbfa6;         // quieter writing than cream, for the small headings of the credits
 
 // Beat 5 — the ending. Someone is sitting under a tall tree, crying over a
 // bird that fell from its nest. There is nothing to fix and nothing to win
@@ -226,10 +228,10 @@ export default class EndingScene extends Phaser.Scene {
 
     // ── fireflies, once the evening turns gold ──
     this.time.addEvent({ delay: 800, loop: true, callback: () => {
-      if (this.warmth.t < 0.55 || this.ended) return;
+      if (this.warmth.t < 0.55) return;
       const fx = this.fireX - 480 + Math.random() * 960;
       const fy = this.groundY - 16 - Math.random() * 110;
-      const fly = this.add.rectangle(fx, fy, 2, 2, 0xffe58a, 0).setDepth(8);
+      const fly = this.add.rectangle(fx, fy, 2, 2, 0xffe58a, 0).setDepth(this.ended ? LIT : 8);   // still out at the very end
       this.tweens.add({ targets: fly, alpha: 0.85, duration: 600, yoyo: true, hold: 500, repeat: 1 });
       this.tweens.add({ targets: fly, x: fx + (Math.random() - 0.5) * 70, y: fy - 20 - Math.random() * 30,
         duration: 3600, ease: 'Sine.inOut', onComplete: () => fly.destroy() });
@@ -399,7 +401,12 @@ export default class EndingScene extends Phaser.Scene {
                  Phaser.Input.Keyboard.JustDown(this.wasd.W) ||
                  Phaser.Input.Keyboard.JustDown(this.cursors.space);
 
-    if (this.sitting) {
+    if (this.walkingHome) {
+      // on your way: you walk on by yourself, out of sight
+      this.player.setVelocityX(-this.walkSpeed); this.player.setFlipX(true);
+      if (onGround && this.player.anims.currentAnim?.key !== `${this.characterId}-walk`) this.player.play(`${this.characterId}-walk`);
+      if (px < this.cameras.main.scrollX - 150) { this.walkingHome = false; this.busy = true; }
+    } else if (this.sitting) {
       this.player.setVelocity(0, 0);
       this.sitTimer += this.game.loop.delta;
       // and far off, a small bird crosses the warm sky
@@ -695,8 +702,8 @@ export default class EndingScene extends Phaser.Scene {
     // embers rising, and now and then a wisp of smoke
     let puffCount = 0;
     this.time.addEvent({ delay: 1000, loop: true, callback: () => {
-      if (this.ended) return;
-      const ember = this.add.rectangle(this.fireX + (Math.random() - 0.5) * 16, this.groundY - 26, 2, 2, 0xffc27a, 0.8).setDepth(8);
+      const ember = this.add.rectangle(this.fireX + (Math.random() - 0.5) * 16, this.groundY - 26, 2, 2, 0xffc27a, 0.8)
+        .setDepth(this.ended ? LIT : 8);
       this.tweens.add({ targets: ember, y: ember.y - 50 - Math.random() * 30, x: ember.x + (Math.random() - 0.5) * 24,
         alpha: 0, duration: 1600, ease: 'Sine.out', onComplete: () => ember.destroy() });
       if (++puffCount % 3 === 0) {
@@ -722,52 +729,70 @@ export default class EndingScene extends Phaser.Scene {
     this.submitKindnessScore();
     const sessionId = this.registry.get('sessionId');
     if (sessionId) game.completeSession(sessionId).catch((err) => console.warn('could not complete session:', err.message));
-    // you keep walking as the dark comes up around you
-    const fade = this.add.rectangle(0, 0, this.W, this.H, 0x000000)
-      .setOrigin(0, 0).setScrollFactor(0).setDepth(250).setAlpha(0);
-    this.tweens.add({ targets: fade, alpha: 1, duration: 3200, ease: 'Sine.inOut',
-      onComplete: () => {
-        this.busy = true;
-        this.player.setVelocity(0, 0);
-        const title = this.add.text(this.W / 2, this.H / 2, 'northward', {
-          fontFamily: 'Georgia, serif', fontSize: '34px', color: '#ece8dc', fontStyle: 'italic'
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(260).setAlpha(0);
-        this.tweens.add({ targets: title, alpha: 1, duration: 1600 });
-        // the title rests a moment, then lifts to make room for the credits
-        this.time.delayedCall(3200, () => {
-          this.tweens.add({ targets: title, y: 110, duration: 1400, ease: 'Sine.inOut',
-            onComplete: () => this.showCredits() });
-        });
-      } });
+    // you walk on home, and the view stays behind with the fire
+    this.walkingHome = true;
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    this.tweens.add({ targets: cam, scrollX: this.fireX - 1080, duration: 5200, ease: 'Sine.inOut' });
+    // the field stays as you left it, gold and warm — only hushed a little, so
+    // the words to come can be read over it. the fire you lit burns on through
+    const veil = this.add.rectangle(0, 0, this.W, this.H, 0x1c1218)
+      .setOrigin(0, 0).setScrollFactor(0).setDepth(LIT - 1).setAlpha(0);
+    [this.fireGlow, this.fireGlowCore, this.flame].forEach((lit, i) => lit.setDepth(LIT + i));
+    this.tweens.add({ targets: veil, alpha: 0.46, duration: 3600, ease: 'Sine.inOut',
+      onComplete: () => this.time.delayedCall(900, () => this.showDay()) });
   }
 
+  // the day, looked back on — the same page as the one by the bed this morning,
+  // with what you stopped for ticked off and what you walked past left in pencil
+  showDay() {
+    const flags = decodeProgress(this.registry.get('checkpoint')).flags;
+    const did = (flag) => (flags & flag) !== 0;
+    const [hours, minutes, seconds] = this.finalTime.split(':');
+    this.guide.showNote({
+      title: 'today',
+      lines: [
+        { text: 'watered the little tree', ticked: did(FLAGS.tree) },
+        { text: 'fed a fox cub', ticked: did(FLAGS.fox) },
+        { text: 'carried a cat down', ticked: did(FLAGS.cat) },
+        { text: 'freed a bird', ticked: did(FLAGS.bird) },
+        { text: 'pulled a fawn out', ticked: did(FLAGS.fawn) },
+        { text: 'sat with an old stag', ticked: did(FLAGS.stag) },
+        { text: 'kept someone company', ticked: true }
+      ],
+      sign: 'a good day.',
+      foot: `♥ kindness ${this.finalKindness}   ·   time ${Number(hours) * 60 + Number(minutes)}:${seconds}`,
+      okay: 'continue',
+      dim: 0.1
+    }, () => this.showCredits());
+  }
+
+  // the title and the credits, written over the field with the fire still going
   showCredits() {
-    const text = (y, str, size, color, italic = false) => {
-      const t = this.add.text(this.W / 2, y, str, {
-        fontFamily: italic ? 'Georgia, serif' : 'Helvetica Neue, sans-serif', fontSize: size, color,
-        fontStyle: italic ? 'italic' : 'normal', align: 'center', lineSpacing: 5,
-        wordWrap: { width: this.W - 320 }
-      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(260).setAlpha(0);
-      this.tweens.add({ targets: t, alpha: 1, duration: 1200 });
-      return t;
+    let count = 0;
+    const write = (y, str, size, tint, wrap = 0) => {
+      const words = this.guide.text(0, y, str, { size, tint }).setScrollFactor(0).setDepth(LIT + 40).setAlpha(0);
+      if (wrap) words.setMaxWidth(wrap).setCenterAlign();
+      words.setX(Math.round((this.W - words.width) / 2));
+      this.tweens.add({ targets: words, alpha: 1, duration: 1000, delay: count++ * 160 });
+      return words.height;
     };
 
-    const [, minutes, seconds] = this.finalTime.split(':');
-    const hours = Number(this.finalTime.split(':')[0]);
-    const time = `${hours * 60 + Number(minutes)}:${seconds}`;
-    text(160, `kindness ${this.finalKindness}   ·   ${time}`, '15px', '#9fb0b6');
-
-    let y = 215;
+    write(84, 'northward', 8, CREAM);
+    let y = 216;
     CREDITS.forEach((block) => {
-      const heading = text(y, block.heading, '16px', '#ece8dc', true);
-      y += heading.height + 6;
-      const body = text(y, block.lines.join('\n'), '12px', '#8a9aa0');
-      y += body.height + 22;
+      y += write(y, block.heading, 2, SOFT) + 10;
+      block.lines.forEach((line) => { y += write(y, line, block.large ? 4 : 2, CREAM, 880) + 8; });
+      if (block.small) y += write(y + 4, block.small, 2, SOFT) + 4;
+      y += 34;
     });
 
     this.time.delayedCall(2500, () => {
-      const hint = text(this.H - 60, '▸ e  back to the title', '14px', '#ece8dc');
-      hint.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.returnToTitle());
+      const { parts, width } = this.guide.keyRow(['e'], 'back to the title', 2);
+      const back = this.add.container(Math.round(this.W / 2 - width / 2), this.H - 30, parts)
+        .setScrollFactor(0).setDepth(LIT + 40);
+      this.tweens.add({ targets: back, alpha: 0.45, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.input.once('pointerdown', () => this.returnToTitle());
       this.canLeave = true;
     });
   }
