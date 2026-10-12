@@ -185,7 +185,7 @@ export function buildAll() {
   return {
     note: note(), tag: tag(), marker: marker(), checkbox: checkbox(), tick: tick(),
     title: title(), sign: sign(), rope: rope(), fullscreen: fullscreen(), button: button(), 'button-down': button({ down: true }),
-    'key-e': key('E'), 'key-i': key('I'), 'key-left': key('←'), 'key-right': key('→'), 'key-up': key('↑'),
+    'key-e': key('E'), 'key-i': key('I'), 'key-f': key('F'), 'key-down': key('↓'), 'key-left': key('←'), 'key-right': key('→'), 'key-up': key('↑'),
     'key-shift': key('shift', { wide: true }), 'key-esc': key('esc', { wide: true })
   };
 }

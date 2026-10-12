@@ -99,12 +99,14 @@ async function attemptLogin() {
   try {
     const user = await auth.login(email, password);
     console.log('logged in as', user.username);
-    overlay.classList.add('hidden');
+    // the sign-in board is drawn back up, and the board with your journeys
+    // comes down in its place over the same road
+    overlay.classList.add('leaving');
     setTimeout(() => {
       overlay.style.display = 'none';
       game.scene.stop('LoginScene');
-      game.scene.start('SessionSelectScene');
-    }, 800);
+      game.scene.start('SessionSelectScene', { seamless: true });
+    }, 600);
   } catch (err) {
     showError(err.message);
     submitBtn.disabled = false;

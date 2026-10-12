@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import { game } from '../services/game.js';
 import { clock, withCurrentTime } from '../services/progress.js';
+import Board from '../ui/board.js';
 
-const MENU_ITEMS = ['resume', 'restart journey', 'fullscreen', 'save & quit', 'quit to title'];
+const MENU_ITEMS = ['resume', 'restart journey', 'full screen', 'save & quit', 'quit to title'];
 const STORY_SCENES = ['MorningScene', 'ForestScene', 'EndingScene'];
 
+// The game, stopped: a board let down over it with what you can do from here.
 export default class PauseScene extends Phaser.Scene {
   constructor() {
     super('PauseScene');
@@ -17,54 +19,26 @@ export default class PauseScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    this.add.rectangle(0, 0, width, height, 0x0a0e12, 0.75).setOrigin(0, 0);
+    this.add.rectangle(0, 0, width, height, 0x0a0e12, 0.6).setOrigin(0, 0);
+    this.board = new Board(this, { x: Math.round(width / 2 - 241), y: 128 }).drop();
+    this.board.heading('paused');
+    this.board.menu(MENU_ITEMS.map((label) => ({ label })), (item) => this.confirm(item.label));
+    this.board.keys([[['up', 'down'], 'choose'], [['e'], 'do it'], [['esc'], 'resume']]);
 
-    this.add.text(width / 2, height * 0.3, 'paused', {
-      fontFamily: 'Georgia, serif', fontSize: '30px', color: '#ece8dc', fontStyle: 'italic'
-    }).setOrigin(0.5);
-
-    const startY = Math.round(height * 0.44);
-    const lineH = 52;
-    this.items = MENU_ITEMS.map((label, i) => {
-      const text = this.add.text(width / 2, startY + i * lineH, label, {
-        fontFamily: 'Georgia, serif', fontSize: '20px', color: '#8a9aa0', fontStyle: 'italic'
-      }).setOrigin(0.5);
-      text.setInteractive({ useHandCursor: true });
-      text.on('pointerover', () => this.highlight(i));
-      text.on('pointerdown', () => { this.highlight(i); this.confirm(); });
-      return text;
-    });
-
-    this.underline = this.add.rectangle(width / 2, startY + 18, 80, 3, 0xece8dc);
-    this.highlight(0);
-
-    this.input.keyboard.on('keydown-UP', () => this.move(-1));
-    this.input.keyboard.on('keydown-W', () => this.move(-1));
-    this.input.keyboard.on('keydown-DOWN', () => this.move(1));
-    this.input.keyboard.on('keydown-S', () => this.move(1));
-    this.input.keyboard.on('keydown-ENTER', () => this.confirm());
-    this.input.keyboard.on('keydown-E', () => this.confirm());
+    this.input.keyboard.on('keydown-UP', () => this.board.move(-1));
+    this.input.keyboard.on('keydown-W', () => this.board.move(-1));
+    this.input.keyboard.on('keydown-DOWN', () => this.board.move(1));
+    this.input.keyboard.on('keydown-S', () => this.board.move(1));
+    this.input.keyboard.on('keydown-ENTER', () => this.board.pick());
+    this.input.keyboard.on('keydown-E', () => this.board.pick());
     this.input.keyboard.on('keydown-P', () => this.resumeCaller());
     this.input.keyboard.on('keydown-ESC', () => this.resumeCaller());
   }
 
-  move(dir) {
-    this.highlight(Phaser.Math.Clamp(this.selectedIndex + dir, 0, this.items.length - 1));
-  }
-
-  highlight(index) {
-    this.selectedIndex = index;
-    this.items.forEach((text, i) => text.setColor(i === index ? '#ece8dc' : '#8a9aa0'));
-    this.underline.setSize(Math.round(this.items[index].width * 0.6), 3);
-    this.tweens.add({ targets: this.underline, y: this.items[index].y + 18,
-      duration: 200, ease: 'Sine.out' });
-  }
-
-  confirm() {
-    const item = MENU_ITEMS[this.selectedIndex];
+  confirm(item) {
     if (item === 'resume') { this.resumeCaller(); return; }
     if (item === 'restart journey') { this.restartJourney(); return; }
-    if (item === 'fullscreen') { this.scale.toggleFullscreen(); return; }
+    if (item === 'full screen') { this.scale.toggleFullscreen(); return; }
     if (item === 'save & quit') { this.saveAndQuit(); return; }
     if (item === 'quit to title') this.quitToTitle();
   }

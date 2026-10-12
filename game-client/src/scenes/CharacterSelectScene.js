@@ -2,54 +2,46 @@ import Phaser from 'phaser';
 import { game, CHARACTER_TYPE_BY_ID } from '../services/game.js';
 import { auth } from '../services/auth.js';
 import { clock } from '../services/progress.js';
+import Roadside from '../ui/roadside.js';
+import Board, { BOARD, GOLD } from '../ui/board.js';
 
 const TRAVELERS = ['lpc-khatira', 'lpc-oliver'];
+const P = 3;                 // the board's art is shown at 3x
+const WELL = { xs: [12, 86], y: 28, w: 58, h: 94 };   // the two frames cut into the board, in its own pixels
 
+// Who is setting out — the two travelers, side by side in frames cut into the
+// board; the one you choose is the one walking the road underneath.
 export default class CharacterSelectScene extends Phaser.Scene {
   constructor() {
     super('CharacterSelectScene');
   }
 
+  init(data) {
+    this.seamless = !!(data && data.seamless);
+  }
+
   create() {
-    const { width, height } = this.scale;
-
-    this.cameras.main.setBackgroundColor('#1a2228');
-    const skyColors = [0x1a2228, 0x232f36, 0x2e3d44, 0x3a4a50];
-    const bandHeight = height / skyColors.length;
-    skyColors.forEach((color, i) => {
-      this.add.rectangle(width / 2, i * bandHeight + bandHeight / 2, width, bandHeight, color)
-        .setDepth(-10);
-    });
-
-    const maxGroupW = Math.min(width * 0.7, 900);
-    const k = Math.min(1, maxGroupW / 760);
-    const cardW = 260 * k;
-    const cardH = 320 * k;
-    const gap = 40 * k;
-    const groupW = cardW * 2 + gap;
-    const groupLeft = width / 2 - groupW / 2;
-    const cardY = Math.round(height / 2 + 30);
-    const cardTop = cardY - cardH / 2;
-    const feetY = Math.round(cardY + cardH * 0.375);
-
-    this.add.text(width / 2, cardTop - 80, 'choose your traveler', {
-      fontFamily: 'Georgia, serif', fontSize: '30px', color: '#ece8dc', fontStyle: 'italic'
-    }).setOrigin(0.5, 1);
+    this.roadside = new Roadside(this);
+    const board = this.board = new Board(this).drop();
+    board.heading('choose your traveler');
 
     this.cards = TRAVELERS.map((id, i) => {
-      const x = Math.round(groupLeft + cardW / 2 + i * (cardW + gap));
-      const rect = this.add.rectangle(x, cardY, cardW, cardH, 0x121a22)
-        .setStrokeStyle(1, 0x3a4a50);
-      const sprite = this.add.sprite(x, feetY, `${id}-idle-sheet`, 39)
-        .setOrigin(0.5, 1).setScale(3 * k);
-      sprite.play(`${id}-idle`);
-      rect.setInteractive({ useHandCursor: true });
-      rect.on('pointerdown', () => { this.highlight(i); this.confirm(); });
-      return { id, rect, sprite };
+      const [x, y] = board.at(WELL.xs[i], WELL.y);
+      const w = WELL.w * P, h = WELL.h * P;
+      // cut into the wood like the sign-in fields: dark along the top, the lower lip catching the light
+      board.add(this.add.rectangle(x, y + P, w, h, 0xc99a62).setOrigin(0, 0));
+      board.add(this.add.rectangle(x, y, w, h, 0x2a1a10).setOrigin(0, 0));
+      board.add(this.add.rectangle(x, y, w, P, 0x170d07).setOrigin(0, 0));
+      const sprite = board.add(this.add.sprite(x + w / 2, y + h - 2 * P, `${id}-idle-sheet`, 26).setOrigin(0.5, 1).setScale(4));
+      sprite.play(`${id}-front`);
+      const ring = board.add(this.add.rectangle(x - P, y - P, w + 2 * P, h + 2 * P).setOrigin(0, 0)
+        .setStrokeStyle(P, GOLD).setVisible(false));
+      const zone = board.add(this.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true }));
+      zone.on('pointerover', () => this.highlight(i));
+      zone.on('pointerdown', () => { this.highlight(i); this.confirm(); });
+      return { id, sprite, ring };
     });
-
-    this.underline = this.add.rectangle(this.cards[0].rect.x,
-      Math.round(cardY + cardH / 2 + 12), cardW * 0.6, 3, 0xece8dc);
+    board.keys([[['left', 'right'], 'choose'], [['e'], 'set out'], [['esc'], 'back']]);
 
     this.confirmed = false;
     const saved = this.registry.get('playAs');
@@ -63,7 +55,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-E', () => this.confirm());
     this.input.keyboard.on('keydown-ESC', () => this.back());
 
-    this.cameras.main.fadeIn(400, 0, 0, 0);
+    if (!this.seamless) this.cameras.main.fadeIn(400, 0, 0, 0);
   }
 
   move(dir) {
@@ -74,18 +66,16 @@ export default class CharacterSelectScene extends Phaser.Scene {
     if (this.confirmed) return;
     this.selectedIndex = index;
     this.cards.forEach((card, i) => {
-      const on = i === index;
-      card.rect.setStrokeStyle(on ? 2 : 1, on ? 0xece8dc : 0x3a4a50);
+      card.ring.setVisible(i === index);
+      card.sprite.setTint(i === index ? 0xffffff : 0x8f8272);     // the other one stands back in the shade
     });
-    this.tweens.add({ targets: this.underline, x: this.cards[index].rect.x,
-      duration: 200, ease: 'Sine.out' });
+    this.roadside.setTraveler(this.cards[index].id);
   }
 
   back() {
     if (this.confirmed) return;
     this.confirmed = true;
-    this.cameras.main.fadeOut(300, 0, 0, 0);
-    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('SessionSelectScene'));
+    this.board.lift(() => this.scene.start('SessionSelectScene', { seamless: true }));
   }
 
   confirm() {
@@ -99,6 +89,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
     this.registry.remove('checkpoint');
     this.registry.set('kindness', 0);
     this.startJourney(travelerId);
+    this.board.lift();
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('MorningScene'));
   }

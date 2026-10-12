@@ -34,6 +34,14 @@ export function createLpcAnims(scene, characterId) {
     repeat: -1
   });
 
+  // standing facing you — for the board where you choose who sets out
+  scene.anims.create({
+    key: `${characterId}-front`,
+    frames: scene.anims.generateFrameNumbers(`${characterId}-idle-sheet`, { start: 26, end: 27 }),
+    frameRate: 2,
+    repeat: -1
+  });
+
   scene.anims.create({
     key: `${characterId}-walk`,
     frames: scene.anims.generateFrameNumbers(`${characterId}-walk-sheet`, { start: 40, end: 47 }),

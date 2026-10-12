@@ -47,7 +47,6 @@ canvas {
 }
 
 #login-overlay.shown { opacity: 1; }
-#login-overlay.hidden { opacity: 0; }
 
 /* the board (tools/ui-art.mjs draws it: 156 x 132, starting 1 across and 6
    down inside its picture) */
@@ -68,7 +67,14 @@ canvas {
 
 /* it is let down on its ropes, and settles */
 #login-overlay.shown .login-sign { animation: sign-down 0.9s cubic-bezier(0.3, 0.7, 0.4, 1) 0.2s both; pointer-events: auto; }
-#login-overlay.hidden .login-sign { pointer-events: none; }
+/* …and once you're in, it is drawn back up out of the way */
+#login-overlay.leaving .login-sign { animation: sign-up 0.5s cubic-bezier(0.5, 0, 0.9, 0.5) both; pointer-events: none; }
+
+@keyframes sign-up {
+  0% { transform: none; }
+  22% { transform: translateY(calc(var(--u) * 10)); }
+  100% { transform: translateY(-140%); }
+}
 
 @keyframes sign-down {
   0% { transform: translateY(-140%); }
@@ -208,4 +214,4 @@ canvas {
 
 .title-chip img { width: calc(var(--u) * 26); height: calc(var(--u) * 26); image-rendering: pixelated; }
 .title-chip:hover, .title-chip:focus-visible { filter: brightness(1.15); outline: none; }
-#login-overlay.hidden .title-chip { pointer-events: none; }
+#login-overlay.leaving .title-chip { opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }

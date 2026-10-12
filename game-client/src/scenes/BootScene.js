@@ -10,17 +10,15 @@ export default class BootScene extends Phaser.Scene {
   preload() {
     const { width, height } = this.scale;
 
-    this.add.text(width / 2, height / 2 - 20, 'northward', {
-      fontFamily: 'Helvetica Neue, sans-serif',
-      fontSize: '42px',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-
-    this.add.text(width / 2, height / 2 + 30, 'loading the forest...', {
-      fontFamily: 'Helvetica Neue, sans-serif',
-      fontSize: '14px',
-      color: '#888888'
-    }).setOrigin(0.5);
+    // while everything loads: the game's own lettering, which the page brings
+    // as a font file (the drawn letters aren't loaded yet — they're in the queue below)
+    const waiting = [
+      this.add.text(width / 2, height / 2 - 30, 'northward', { fontFamily: 'northward, monospace', fontSize: '60px', color: '#f7efd9' }),
+      this.add.text(width / 2, height / 2 + 34, 'loading the forest...', { fontFamily: 'northward, monospace', fontSize: '20px', color: '#8a9aa0' })
+    ];
+    waiting.forEach((text) => text.setOrigin(0.5));
+    // if the font file arrives after the words were first drawn, draw them again
+    if (document.fonts) document.fonts.load('20px northward').then(() => waiting.forEach((text) => { if (text.active) text.updateText(); }));
 
     this.load.spritesheet('player', 'assets/characters/player.png', {
       frameWidth: 48,
@@ -71,7 +69,8 @@ export default class BootScene extends Phaser.Scene {
 
     // The guide — drawn by tools/ui-art.mjs: the note, the task tag, the keys,
     // and the game's own pixel font (plain for paper, edged for over the world)
-    ['title', 'note', 'tag', 'marker', 'checkbox', 'tick', 'key-e', 'key-i', 'key-left', 'key-right', 'key-up', 'key-shift', 'key-esc']
+    ['title', 'sign', 'rope', 'note', 'tag', 'marker', 'checkbox', 'tick',
+      'key-e', 'key-i', 'key-f', 'key-left', 'key-right', 'key-up', 'key-down', 'key-shift', 'key-esc']
       .forEach((name) => this.load.image(`ui-${name}`, `assets/ui/${name}.png`));
     this.load.bitmapFont('px', 'assets/ui/font.png', 'assets/ui/font.xml');
     this.load.bitmapFont('px-edged', 'assets/ui/font-edged.png', 'assets/ui/font-edged.xml');
