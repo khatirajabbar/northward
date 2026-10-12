@@ -155,6 +155,99 @@ export const foal = () => horseFrames(COATS.foal, BUILDS.foal);
 // how high the rider sits: art pixels from the hooves up to the horse's back
 export const HORSE_BACK = BUILDS.horse.h - BUILDS.horse.back;
 
+// ── deer: the doe and her fawn ──
+//
+// slighter than the horse in every line — thin legs, a small head on a slim
+// neck, big ears, a flick of a tail with white under it. the fawn still has
+// its spots.
+
+const DEER = {
+  doe: { body: [0x7d5535, 0xa87646, 0xc9995f], belly: 0xead9b8, hoof: 0x2b1b14, spots: false },
+  fawn: { body: [0x8c6038, 0xb9844c, 0xd6a568], belly: 0xf0e2c4, hoof: 0x3a2418, spots: true }
+};
+const DEER_BUILD = {
+  doe: { w: 48, h: 37, cx: 26, back: 14, rx: 10, ry: 4.6, foreX: -8, hindX: 8, neck: 11, neckW: 5, head: 8, headW: 4.6, ear: 5 },
+  fawn: { w: 32, h: 26, cx: 17, back: 11, rx: 6.2, ry: 3.2, foreX: -5, hindX: 5, neck: 6, neckW: 4, head: 6, headW: 4.2, ear: 4 }
+};
+
+function drawDeer(kind, pose = {}) {
+  const { headDrop = 0, hooves = [], bob = 0, ear = 0, tail = 0 } = pose;
+  const coat = DEER[kind], B = DEER_BUILD[kind], [dk, md, lt] = coat.body;
+  const ground = B.h - 1, top = B.back + bob, mid = top + B.ry, hipY = mid + B.ry - 1;
+  const R = Math.round;
+  return outlined(B.w, B.h, (g) => {
+    // a leg: slim, with a knee that folds forward (fore) or a hock that folds back (hind)
+    const leg = (hipX, hoof = [0, 0], isFore, tone) => {
+      const [dx, lift] = hoof;
+      const fx = hipX + dx + (isFore ? 0 : 1), fy = ground - lift;
+      const kx = (hipX + fx) / 2 + (isFore ? -lift * 0.9 : 1.2 + lift * 0.6), ky = (hipY + fy) / 2;
+      limb(g, R(hipX) - 1, hipY - 1, R(kx) - 1, R(ky), 2, tone);
+      g.line(R(kx), R(ky), R(fx), fy - 1, tone);
+      g.rect(R(fx) - 1, fy, 2, 1, coat.hoof);
+    };
+    const fore = B.cx + B.foreX, hind = B.cx + B.hindX;
+    leg(fore + 2, hooves[2], true, dk);
+    leg(hind + 2, hooves[3], false, dk);
+
+    // the tail: dark on top, white beneath — up like a flag when it's alarmed
+    const tx = hind + B.rx * 0.55, ty = top + 1;
+    if (tail) { g.rect(R(tx), ty - 3, 2, 4, 0xf7efd9); g.put(R(tx), ty - 3, dk); } else { g.rect(R(tx), ty, 2, 3, dk); g.put(R(tx) + 1, ty + 2, 0xf7efd9); }
+
+    g.ellipse(B.cx, mid, B.rx, B.ry, md);
+    g.ellipse(fore + 1, mid + 0.3, B.rx * 0.4, B.ry + 0.4, md);                            // chest
+    g.ellipse(hind, mid - 0.4, B.rx * 0.46, B.ry + 0.5, md);                               // rump
+    g.ellipse(B.cx + 0.5, mid + B.ry * 0.62, B.rx * 0.78, B.ry * 0.36, coat.belly);        // pale belly
+    g.ellipse(B.cx, top + 1.3, B.rx * 0.74, 1, lt);                                        // light along the back
+    g.rect(R(hind + B.rx * 0.42), R(mid - 1), 2, 3, coat.belly);                           // white rump patch
+    if (coat.spots) [[-4, 1], [-1, 2], [2, 1], [4, 2], [0, 0], [-2, 3], [3, 3]].forEach(([dx, dy]) => g.put(B.cx + dx, R(top + 1 + dy), 0xf7efd9));
+
+    leg(fore, hooves[0], true, md);
+    leg(hind, hooves[1], false, md);
+
+    // neck and head, as for the horse: up and alert, or down to nose at something
+    const th = (64 - headDrop * 100) * Math.PI / 180;
+    const d = [-Math.cos(th), -Math.sin(th)], n = [-d[1], d[0]];
+    const len = B.neck * (1 + headDrop * 0.15);
+    const withers = [fore + B.neckW * 0.8, top + 1], chest = [fore - 2, mid + 0.5];
+    const poll = [fore + 1.5 + d[0] * len, top + 2 + d[1] * len];
+    const w1 = B.neckW / 2 - 0.8;
+    g.poly([withers, chest, [poll[0] - n[0] * w1, poll[1] - n[1] * w1], [poll[0] + n[0] * w1, poll[1] + n[1] * w1]], md);
+    g.line(chest[0] + 1, chest[1] - 1, poll[0] - n[0] * w1 + 1, poll[1] - n[1] * w1 + 1, coat.belly);       // pale throat
+
+    const ph = (38 + headDrop * 34) * Math.PI / 180;
+    const h = [-Math.cos(ph), Math.sin(ph)], m = [-h[1], h[0]];
+    const at = (along, out) => [poll[0] + h[0] * along + m[0] * out, poll[1] + h[1] * along + m[1] * out];
+    const cheek = B.headW / 2, nose = B.headW / 2 - 1.1;
+    g.poly([at(-1, cheek), at(-1, -cheek), at(B.head, -nose), at(B.head, nose)], md);
+    g.ellipse(...at(1.2, 0), cheek + 0.4, cheek + 0.4, md);
+    const tip = at(B.head - 0.3, 0);
+    g.put(R(tip[0]), R(tip[1]), EYE);                                                      // nose
+    const eye = at(2.2, 0.4);
+    g.put(R(eye[0]), R(eye[1]), EYE);
+    // ears: large, set back; one swivels
+    const eb = at(-0.6, cheek - 0.4);
+    const ev = [-h[0] * 0.75 + m[0] * 0.65 + (ear ? 0.55 : 0), -h[1] * 0.75 + m[1] * 0.65];
+    g.poly([[eb[0] - 1, eb[1] + 1], [eb[0] + 2, eb[1] + 1], [eb[0] + ev[0] * B.ear + 1, eb[1] + ev[1] * B.ear], [eb[0] + ev[0] * B.ear, eb[1] + ev[1] * B.ear]], md);
+    g.put(R(eb[0] + ev[0] * B.ear * 0.5 + 0.6), R(eb[1] + ev[1] * B.ear * 0.5), 0xe8c9b0);
+  }, C.ink);
+}
+
+function deerFrames(kind) {
+  const B = DEER_BUILD[kind], reach = kind === 'fawn' ? 2 : 4, lift = kind === 'fawn' ? 2 : 3;
+  const frames = [
+    drawDeer(kind, {}),                                                // 0 standing, alert
+    drawDeer(kind, { ear: 1 })                                         // 1   an ear turns
+  ];
+  for (let i = 0; i < 6; i++) frames.push(drawDeer(kind, { hooves: stride(i / 6, reach, lift), bob: i % 3 === 1 ? 1 : 0 }));   // 2-7 walking
+  frames.push(drawDeer(kind, { hooves: [[-reach - 1, 4], [reach + 2, 3], [-reach - 2, 5], [reach + 1, 4]], bob: -1, tail: 1 }));   // 8 mid-leap
+  frames.push(drawDeer(kind, { headDrop: 0.75 }));                     // 9 head down, nosing
+  frames.push(drawDeer(kind, { ear: 1, tail: 1, bob: 1 }));            // 10 frightened
+  return sheet(frames, B.w + 2, B.h + 2);
+}
+
+export const doe = () => deerFrames('doe');
+export const fawn = () => deerFrames('fawn');
+
 // ── the cat from the cliff: a grey tabby with a white bib and socks ──
 
 const CAT = { fur: [0x4f545c, 0x767c85, 0x9aa0a8], stripe: 0x3d4148, white: 0xf2f0e8, nose: 0xe59a9a };
@@ -334,5 +427,7 @@ export const FRAMES = {
   foal: { size: [BUILDS.foal.w + 2, BUILDS.foal.h + 2], idle: [0, 3], walk: [4, 11], graze: [12, 13], eat: [14, 15] },
   cat: { size: [28, 20], walk: [0, 3], sit: [4, 5], scared: 6, held: 7 },
   rabbit: { size: [22, 17], sit: [0, 1], hop: [2, 5] },
-  bird: { size: [18, 15], perch: 0, struggle: [1, 2], fly: [3, 6] }
+  bird: { size: [18, 15], perch: 0, struggle: [1, 2], fly: [3, 6] },
+  doe: { size: [DEER_BUILD.doe.w + 2, DEER_BUILD.doe.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 },
+  fawn: { size: [DEER_BUILD.fawn.w + 2, DEER_BUILD.fawn.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 }
 };

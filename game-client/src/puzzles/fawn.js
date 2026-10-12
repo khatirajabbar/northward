@@ -87,7 +87,7 @@ export default class FawnPuzzle {
 
     const away = px - this.fawn.x, dist = Math.abs(away);
     const vx = scene.player.body.velocity.x;
-    const pulling = dist >= ROPE && Math.sign(vx) === Math.sign(away) && Math.abs(vx) > 8;
+    const pulling = dist >= ROPE - 1 && Math.sign(vx) === Math.sign(away) && Math.abs(vx) > 8;
     if (pulling && scene.time.now > this.calmAt) {
       if (Math.abs(vx) > GENTLE) {
         this.panic();
@@ -101,6 +101,13 @@ export default class FawnPuzzle {
         this.fawn.setFlipX(away > 0);                 // facing the way it's being led
         if (out >= 1) this.free();
       }
+    }
+    // the rope has no more to give than its length: past that it holds you
+    // where you are — and if the fawn slides back, it takes you a step with it
+    const reach = scene.player.x - this.fawn.x;
+    if (this.stage === 'roped' && Math.abs(reach) > ROPE) {
+      scene.player.x = this.fawn.x + Math.sign(reach) * ROPE;
+      if (Math.sign(vx) === Math.sign(reach)) scene.player.setVelocityX(0);
     }
     this.drawRope();
   }

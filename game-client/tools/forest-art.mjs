@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
 import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
-import { horse, foal, cat, rabbit, bird } from './animals.mjs';
+import { horse, foal, cat, rabbit, bird, doe, fawn } from './animals.mjs';
 
 const W = 640, H = 360;
 const GROUND = 330;            // art y of the ground line (660 on screen)
@@ -588,6 +588,39 @@ function flame() {
   return sheet([one(0, 12), one(1, 11), one(0, 13), one(-1, 11)], 11, 16);
 }
 
+// ── past the rest tree: the mud ──
+
+// a boggy hollow beside the path — dark, wet, and deeper than it looks
+function mud() {
+  const rnd = rng(27);
+  const w = 132, h = 28;
+  const img = new Img(w, h);
+  const m = [0x2a1f17, 0x3d2e21, 0x54402e, 0x6c563f, 0x8a7254];
+  img.ellipse(w / 2, 15, 64, 12.5, C.dirt[0]);                         // the trodden bank
+  img.ellipse(w / 2, 15, 61, 11, m[0]);
+  img.ellipse(w / 2, 14, 58, 9.4, m[1]);
+  img.ellipse(w / 2 - 2, 13, 51, 7.2, m[2]);
+  img.ellipse(w / 2 - 5, 11.6, 38, 4, m[3]);
+  for (let i = 0; i < 12; i++) {                                       // the wet shine on it
+    const x = rnd.int(24, w - 34), y = rnd.int(9, 18);
+    img.hline(x, y, rnd.int(3, 9), i % 3 ? m[3] : m[4]);
+  }
+  for (let i = 0; i < 9; i++) {                                        // churned lumps
+    const x = rnd.int(18, w - 20), y = rnd.int(12, 21);
+    img.ellipse(x, y, rnd.int(2, 4), 1.3, m[1]); img.hline(x - 1, y - 1, 3, m[2]);
+  }
+  [[30, 11], [58, 15], [92, 12], [74, 19]].forEach(([x, y]) => { img.put(x, y, m[4]); img.put(x + 1, y, m[0]); img.put(x, y + 1, m[0]); });   // bubbles
+  [[9, 16], [22, 22], [w - 12, 16], [w - 28, 22], [50, 25], [86, 25]].forEach(([x, y], i) => {
+    img.ellipse(x, y, 3.2, 1.9, C.stone[i % 2 ? 2 : 1]); img.hline(x - 2, y - 1, 3, C.stone[3]);
+  });
+  const reed = (x, top, head) => {
+    img.vline(x, top, 15 - top, C.grass[1]); img.vline(x + 1, top + 2, 13 - top, C.grass[2]);
+    if (head) { img.rect(x, top - 3, 2, 4, 0x6b4a30); img.put(x, top - 4, 0x8a6a44); }
+  };
+  reed(10, 2, true); reed(14, 5, false); reed(w - 16, 1, true); reed(w - 12, 5, false); reed(w - 21, 4, true); reed(5, 6, false);
+  return img;
+}
+
 // ── the mushroom hill ──
 //
 // The hill's outline belongs to the scene (ForestScene: mtnLeft, peakX, the
@@ -925,7 +958,8 @@ export function buildAll() {
     water: water(), torch: torch(), flame: flame(),
     // the animals (sprite sheets — frame sizes are in tools/animals.mjs)
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
-    cat: cat(), rabbit: rabbit(), bird: bird(),
+    cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(),
+    mud: mud(),
     // the mushroom hill
     hill: hill(), mushroom: mushroom(), boulder: boulder(),
     'daisy-white': daisy(0xf7f4ee, 0xffd23f, true), 'daisy-yellow': daisy(0xffe27a, 0xe8a02c, true),
