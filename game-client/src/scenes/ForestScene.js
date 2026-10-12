@@ -6,6 +6,7 @@ import { HORSE_BACK } from '../characters/animals.js';
 import { FLAGS, tickClock, encodeProgress, decodeProgress } from '../services/progress.js';
 import FoxCubPuzzle from '../puzzles/foxCub.js';
 import FawnPuzzle from '../puzzles/fawn.js';
+import OldStagPuzzle from '../puzzles/oldStag.js';
 import Guide, { INK, PENCIL } from '../ui/guide.js';
 
 // The forest's art is drawn small by tools/forest-art.mjs (the same palette and
@@ -67,6 +68,7 @@ export default class ForestScene extends Phaser.Scene {
     // saves it as the active checkpoint (respawn a step past it on resume).
     this.restTorchX = 8700;      // torch checkpoint past the rest field, before the mud
     this.fawnX = 9050;           // the boggy hollow where the fawn is stuck
+    this.stagX = 10300;          // the glade where the old stag lies under his oak
     this.lastStretchX = 11000;   // from here the road only leads to the ending: the scream, the crying, the fade
     this.torchCheckpoints = { 'torch-1': this.riverTorchX, 'torch-2': this.torchX, 'torch-3': this.brambleTorchX,
       'torch-4': this.restTorchX };
@@ -144,7 +146,7 @@ export default class ForestScene extends Phaser.Scene {
      [6840, 'birch-a'], [6980, 'spruce-a', true], [7420, 'pine-a'], [7540, 'spruce-b'],
      [8780, 'spruce-b'], [8900, 'birch-a', true], [9240, 'pine-a'], [9330, 'spruce-c'], [9480, 'spruce-a'],
      [9620, 'birch-a', true], [9760, 'spruce-b'], [9900, 'pine-a'], [10060, 'spruce-a', true],
-     [10200, 'birch-b'], [10420, 'spruce-b'], [10600, 'spruce-a'], [10780, 'birch-a'], [10930, 'pine-a', true],
+     [10130, 'birch-b'], [10600, 'spruce-a'], [10780, 'birch-a'], [10930, 'pine-a', true],
      [11120, 'spruce-a'], [11260, 'spruce-c'], [11400, 'birch-b', true], [11580, 'spruce-b'], [11760, 'pine-a'],
      [11900, 'spruce-a', true], [12080, 'birch-a'], [12240, 'spruce-b'], [12420, 'spruce-a'], [12600, 'pine-a', true],
      [12740, 'spruce-c']
@@ -161,7 +163,8 @@ export default class ForestScene extends Phaser.Scene {
       [this.grassX - this.grassWidth / 2 - 60, this.grassX + this.grassWidth / 2 + 60],
       [5700, 6700], [7020, 7380], [7650, 8660],
       [1520, 1740],                                  // the fox cub's log
-      [this.fawnX - 200, this.fawnX + 200]           // the mud
+      [this.fawnX - 200, this.fawnX + 200],          // the mud
+      [this.stagX - 130, this.stagX + 90]            // where the old stag lies
     ];
     for (let x = 140; x < worldWidth - 80; x += 90) {
       if (dressSkip.some(([a, b]) => x > a && x < b)) continue;
@@ -574,6 +577,9 @@ export default class ForestScene extends Phaser.Scene {
     this.fox = new FoxCubPuzzle(this, 1680);
     // ── the fawn in the mud, on the new road past the rest tree ──
     this.fawn = new FawnPuzzle(this, this.fawnX);
+    // ── the old stag under the oak, further up the same road ──
+    this.add.image(this.stagX + 84, this.groundY + 4, 'woods-oak-b').setOrigin(0.5, 1).setScale(ART).setDepth(3);
+    this.stag = new OldStagPuzzle(this, this.stagX);
 
     this.restoreProgress();
     this.buildTasks();
@@ -595,9 +601,10 @@ export default class ForestScene extends Phaser.Scene {
     const has = (flag) => (saved.flags & flag) !== 0;
 
     // the bag you packed at home, minus whatever the saved run already gave away
-    this.inventory = { bread: has(FLAGS.fox) ? 0 : 1, water: 1, rope: 1, carrots: saved.carrots };
+    this.inventory = { bread: has(FLAGS.fox) ? 0 : 1, water: has(FLAGS.stag) ? 0 : 1, rope: 1, carrots: saved.carrots };
     if (has(FLAGS.fox)) this.fox.restore();
     if (has(FLAGS.fawn)) this.fawn.restore();
+    if (has(FLAGS.stag)) this.stag.restore();
     this.pickedCarrots = saved.field;
 
     if (has(FLAGS.tree)) {
@@ -651,6 +658,7 @@ export default class ForestScene extends Phaser.Scene {
     if (this.birdFreed) flags |= FLAGS.bird;
     if (this.fox.done) flags |= FLAGS.fox;
     if (this.fawn.done) flags |= FLAGS.fawn;
+    if (this.stag.done) flags |= FLAGS.stag;
     let meadow = 0;
     this.meadowHorses.forEach((m, i) => { if (m.fed) meadow |= 1 << i; });
     return encodeProgress({
@@ -820,6 +828,13 @@ export default class ForestScene extends Phaser.Scene {
         when: () => this.fawn.stage === 'roped' || this.fawn.done,
         done: () => this.fawn.done,
         where: () => null },
+      { id: 'stag-water', text: 'offer the old stag some water',
+        done: () => this.stag.stage !== 'lying', until: () => this.stagX + 420,
+        where: () => [this.stagX - 30, g - 70] },
+      { id: 'stag-sit', text: "there's nothing to fix. sit with him a while",
+        when: () => this.stag.stage !== 'lying',
+        done: () => this.stag.done, until: () => this.stagX + 420,
+        where: () => (this.resting ? null : [this.stagX - 30, g - 70]) },
       { id: 'north', text: 'keep walking north', done: () => false, where: () => null }
     ];
     this.guide.setTasks(this.tasks, { counted: false });
@@ -888,6 +903,7 @@ export default class ForestScene extends Phaser.Scene {
     this.fox.update(px);
     this.fox.face(px);
     this.fawn.update(px);
+    this.stag.update(px);
 
     // ── arriving at the resting field ──
     if (!this.restEntryShown && Math.abs(px - this.restTreeX) < 220) {
@@ -1179,7 +1195,7 @@ export default class ForestScene extends Phaser.Scene {
     // ── interaction prompt + action ──
     let label = null, action = null;
     const near = (x, r = 75) => Math.abs(px - x) < r;
-    const offers = [this.fox.offer(px, onGround), this.fawn.offer(px, onGround)].filter(Boolean);
+    const offers = [this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround)].filter(Boolean);
     const foxOffer = offers.find((o) => o.action) || null;
     const reminder = offers.find((o) => o.hint) || null;
     const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
@@ -1279,7 +1295,7 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
-    if (this.fox.act(action) || this.fawn.act(action)) return;
+    if (this.fox.act(action) || this.fawn.act(action) || this.stag.act(action)) return;
     if (action === 'restdown') {
       this.resting = true;
       this.restAtField = true;

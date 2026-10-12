@@ -11,7 +11,8 @@ export const FLAGS = {
   cat: 16,          // the cat came down from the cliff and follows you
   bird: 32,         // the bird was freed from the bramble
   fox: 64,          // the fox cub came out for the bread
-  fawn: 128         // the fawn was drawn out of the mud
+  fawn: 128,        // the fawn was drawn out of the mud
+  stag: 256         // you stayed a while with the old stag
 };
 
 // play time in seconds — only counts while a story scene is actually running,

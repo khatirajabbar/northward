@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
 import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
-import { horse, foal, cat, rabbit, bird, doe, fawn } from './animals.mjs';
+import { horse, foal, cat, rabbit, bird, doe, fawn, stag } from './animals.mjs';
 
 const W = 640, H = 360;
 const GROUND = 330;            // art y of the ground line (660 on screen)
@@ -621,6 +621,15 @@ function mud() {
   return img;
 }
 
+// a little wooden bowl of water, set down in the grass
+function dish() {
+  return piece(11, 5, (g) => {
+    const w = C.wood;
+    g.poly([[0, 1], [11, 1], [9, 5], [2, 5]], w[2]); g.hline(0, 0, 11, w[4]); g.hline(1, 1, 9, 0x4f93a4);
+    g.hline(2, 1, 4, 0xa8dbe0); g.put(8, 1, 0xdff3f2); g.line(9, 2, 8, 4, w[1]); g.hline(3, 4, 5, w[1]);
+  });
+}
+
 // ── the mushroom hill ──
 //
 // The hill's outline belongs to the scene (ForestScene: mtnLeft, peakX, the
@@ -958,8 +967,8 @@ export function buildAll() {
     water: water(), torch: torch(), flame: flame(),
     // the animals (sprite sheets — frame sizes are in tools/animals.mjs)
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
-    cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(),
-    mud: mud(),
+    cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(),
+    mud: mud(), dish: dish(),
     // the mushroom hill
     hill: hill(), mushroom: mushroom(), boulder: boulder(),
     'daisy-white': daisy(0xf7f4ee, 0xffd23f, true), 'daisy-yellow': daisy(0xffe27a, 0xe8a02c, true),

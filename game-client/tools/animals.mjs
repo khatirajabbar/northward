@@ -248,6 +248,84 @@ function deerFrames(kind) {
 export const doe = () => deerFrames('doe');
 export const fawn = () => deerFrames('fawn');
 
+// ── the old stag ──
+//
+// lying down with his legs folded under him, and not going to get up. one
+// drawing, with the head carried high, lowered to drink, or laid on the ground.
+
+const STAG = { body: [0x5a4636, 0x7a6350, 0x998068], belly: 0xcbbfa6, grey: 0xd3ccc0, antler: [0x9c8a66, 0xd9cba4], hoof: 0x2b1b14 };
+
+function drawStag({ headDrop = 0, eyeShut = false, ear = 0, reach = 0, breath = 0 } = {}) {
+  const [dk, md, lt] = STAG.body;
+  const W = 66, H = 36, R = Math.round;
+  const ox = 10, oy = 2;                              // room on the left and above for the head and antlers
+  return outlined(W, H, (g) => {
+    // the body, heavy on the ground, legs tucked in under it
+    // (breath lifts his back a pixel: the only thing about him that still moves much)
+    g.ellipse(ox + 34, oy + 25 - breath * 0.5, 15, 6.4 + breath * 0.5, md);
+    g.ellipse(ox + 45, oy + 24 - breath * 0.5, 6.5, 6.6 + breath * 0.5, md);    // haunch
+    g.ellipse(ox + 22, oy + 25.5, 6, 5.6, md);                                  // shoulder
+    g.ellipse(ox + 34, oy + 29.6, 12, 2.2, STAG.belly);
+    g.ellipse(ox + 34, oy + 20.4 - breath, 11, 1.3, lt);
+    g.rect(ox + 47, oy + 21, 2, 3, STAG.belly); g.rect(ox + 49, oy + 20, 2, 3, dk);                 // rump patch, tail
+    g.poly([[ox + 14, oy + 30], [ox + 24, oy + 29], [ox + 25, oy + 33], [ox + 13, oy + 33]], dk);   // a foreleg folded forward
+    g.rect(ox + 11, oy + 31, 3, 2, STAG.hoof);
+    g.poly([[ox + 38, oy + 30], [ox + 47, oy + 28], [ox + 50, oy + 33], [ox + 39, oy + 33]], dk);   // a hind leg under the haunch
+    g.rect(ox + 36, oy + 32, 3, 2, STAG.hoof);
+    [[27, 22], [33, 23], [40, 22], [30, 26], [43, 26]].forEach(([x, y]) => g.put(ox + x, oy + y, STAG.grey));   // the grey coming into his coat
+
+    // neck and head: d runs along the neck, h along the face
+    const th = (58 - headDrop * 78) * Math.PI / 180;
+    const d = [-Math.cos(th), -Math.sin(th)], n = [-d[1], d[0]];
+    const len = 12 + headDrop * 3 + reach;            // reach: the neck stretched out toward something
+    const poll = [ox + 20 + d[0] * len, oy + 21 + d[1] * len];
+    g.poly([[ox + 25, oy + 21], [ox + 17, oy + 27], [poll[0] - n[0] * 2.4, poll[1] - n[1] * 2.4], [poll[0] + n[0] * 2.4, poll[1] + n[1] * 2.4]], md);
+    g.line(ox + 17, oy + 26, poll[0] - n[0] * 2 + 1, poll[1] - n[1] * 2 + 1, STAG.belly);
+    const ph = (34 + headDrop * 30) * Math.PI / 180;
+    const h = [-Math.cos(ph), Math.sin(ph)], m = [-h[1], h[0]];
+    const at = (along, out) => [poll[0] + h[0] * along + m[0] * out, poll[1] + h[1] * along + m[1] * out];
+
+    // antlers first, so the head sits in front of where they spring from: a beam
+    // sweeping up and back from the brow, three tines reaching forward — the far
+    // one a shade darker behind the near one
+    const up = [m[0] * 0.92 - h[0] * 0.4, m[1] * 0.92 - h[1] * 0.4], fwd = [h[0] * 0.75 + m[0] * 0.65, h[1] * 0.75 + m[1] * 0.65];
+    const antler = (shift, tone) => {
+      const brow = at(0.4 + shift, 2.2);
+      const beam = (k) => [brow[0] + up[0] * k - h[0] * k * k * 0.035, brow[1] + up[1] * k - h[1] * k * k * 0.035];
+      for (let k = 0; k <= 11; k += 0.5) { const [x, y] = beam(k); g.put(x, y, tone); g.put(x + 1, y, tone); }
+      [[2.5, 4.4], [6, 4], [9.5, 3.2]].forEach(([k, tine]) => {
+        const [x, y] = beam(k);
+        g.line(x, y, x + fwd[0] * tine, y + fwd[1] * tine, tone);
+      });
+    };
+    antler(-2.2, STAG.antler[0]);
+    antler(0, STAG.antler[1]);
+
+    g.poly([at(-1, 2.6), at(-1, -2.6), at(9, -1.6), at(9, 1.6)], md);
+    g.ellipse(...at(1.4, 0), 3, 3, md);
+    g.ellipse(...at(7.6, 0), 2.3, 2.1, STAG.grey);                    // his muzzle has gone grey
+    const tip = at(9, 0.2); g.put(R(tip[0]), R(tip[1]), EYE);
+    const eye = at(2.6, 0.5);
+    if (eyeShut) { g.put(R(eye[0]), R(eye[1]), dk); g.put(R(eye[0]) - 1, R(eye[1]), dk); } else g.put(R(eye[0]), R(eye[1]), EYE);
+    // an ear, set below the antlers
+    const eb = at(-0.8, 1.2), ev = [-h[0] * 0.95 + m[0] * 0.2 + (ear ? 0.3 : 0), -h[1] * 0.95 + m[1] * 0.2 + (ear ? 0.5 : 0)];
+    g.poly([[eb[0] - 1, eb[1] + 1], [eb[0] + 2, eb[1] + 1], [eb[0] + ev[0] * 5 + 1, eb[1] + ev[1] * 5], [eb[0] + ev[0] * 5, eb[1] + ev[1] * 5]], md);
+  }, C.ink);
+}
+
+export function stag() {
+  return sheet([
+    drawStag({}),                                             // 0 head up, watching you
+    drawStag({ ear: 1 }),                                     // 1   an ear moves
+    drawStag({ breath: 1 }),                                  // 2   breathing in
+    drawStag({ headDrop: 0.8, reach: 5 }),                    // 3 neck stretched down to the bowl, drinking
+    drawStag({ headDrop: 0.86 }),                             // 4 head low, tired
+    drawStag({ headDrop: 0.86, breath: 1 }),                  // 5   breathing in
+    drawStag({ headDrop: 1, eyeShut: true }),                 // 6 head laid down, eyes shut
+    drawStag({ headDrop: 1, eyeShut: true, breath: 1 })       // 7   breathing in
+  ], 68, 38);
+}
+
 // ── the cat from the cliff: a grey tabby with a white bib and socks ──
 
 const CAT = { fur: [0x4f545c, 0x767c85, 0x9aa0a8], stripe: 0x3d4148, white: 0xf2f0e8, nose: 0xe59a9a };
@@ -429,5 +507,6 @@ export const FRAMES = {
   rabbit: { size: [22, 17], sit: [0, 1], hop: [2, 5] },
   bird: { size: [18, 15], perch: 0, struggle: [1, 2], fly: [3, 6] },
   doe: { size: [DEER_BUILD.doe.w + 2, DEER_BUILD.doe.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 },
-  fawn: { size: [DEER_BUILD.fawn.w + 2, DEER_BUILD.fawn.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 }
+  fawn: { size: [DEER_BUILD.fawn.w + 2, DEER_BUILD.fawn.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 },
+  stag: { size: [68, 38], watching: [0, 2], drinking: 3, tired: [4, 5], asleep: [6, 7] }
 };

@@ -5,7 +5,7 @@
 
 const SHEETS = [
   ['horse', 62, 42], ['horse-grey', 62, 42], ['horse-dark', 62, 42], ['foal', 42, 32],
-  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['doe', 50, 39], ['fawn', 34, 28],
+  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['doe', 50, 39], ['fawn', 34, 28], ['stag', 68, 38],
   ['flame', 11, 16], ['campfire', 18, 24]
 ];
 
@@ -47,6 +47,12 @@ export function createAnimalAnims(scene) {
     add(`${d}-nose`, d, [9], 1);
     add(`${d}-frightened`, d, [10, 0, 10, 1], 9);
   });
+
+  // the old stag never gets up: what moves is his breathing, and an ear now and then
+  add('stag-watching', 'stag', [0, 0, 0, 2, 2, 2, 0, 1, 0, 2, 2, 2], 2);
+  add('stag-drinking', 'stag', [3], 1);
+  add('stag-tired', 'stag', [4, 4, 4, 5, 5, 5], 2);
+  add('stag-asleep', 'stag', [6, 6, 6, 6, 7, 7, 7, 7], 2);
 
   add('bird-perch', 'bird', [0], 1);
   add('bird-struggle', 'bird', [0, 1, 2, 1], 10);
