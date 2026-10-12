@@ -5,6 +5,7 @@ import { FOREST_SCALE, FEET, setTravelerBody } from '../characters/lpc.js';
 import { HORSE_BACK } from '../characters/animals.js';
 import { FLAGS, tickClock, encodeProgress, decodeProgress } from '../services/progress.js';
 import FoxCubPuzzle from '../puzzles/foxCub.js';
+import FawnPuzzle from '../puzzles/fawn.js';
 import Guide, { INK, PENCIL } from '../ui/guide.js';
 
 // The forest's art is drawn small by tools/forest-art.mjs (the same palette and
@@ -20,7 +21,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 10200;
+    const worldWidth = 12800;
     this.groundY = height - 60;
     // where the sprite's centre sits when the traveler stands on the ground
     this.standY = this.groundY - FEET * FOREST_SCALE - 4;
@@ -64,7 +65,11 @@ export default class ForestScene extends Phaser.Scene {
     this.brambleTorchX = 6900;   // torch checkpoint before the bramble (sprite built below)
     // checkpoint torches in world order — stable id -> world x. passing a torch
     // saves it as the active checkpoint (respawn a step past it on resume).
-    this.torchCheckpoints = { 'torch-1': this.riverTorchX, 'torch-2': this.torchX, 'torch-3': this.brambleTorchX };
+    this.restTorchX = 8700;      // torch checkpoint past the rest field, before the mud
+    this.fawnX = 9050;           // the boggy hollow where the fawn is stuck
+    this.lastStretchX = 11000;   // from here the road only leads to the ending: the scream, the crying, the fade
+    this.torchCheckpoints = { 'torch-1': this.riverTorchX, 'torch-2': this.torchX, 'torch-3': this.brambleTorchX,
+      'torch-4': this.restTorchX };
     this.currentCheckpoint = null;
     this.saidGoodbye = false;
     this.grassWidth = 440;
@@ -136,20 +141,27 @@ export default class ForestScene extends Phaser.Scene {
      [2290, 'spruce-c'], [2560, 'birch-b'], [2640, 'spruce-b'], [3180, 'spruce-a'], [3330, 'pine-a'],
      [3470, 'birch-a', true], [3600, 'spruce-b'], [4180, 'spruce-b', true], [4320, 'birch-a'], [4470, 'spruce-a'],
      [4860, 'pine-a', true], [5480, 'spruce-a'], [5600, 'birch-b'], [5690, 'spruce-c'], [6760, 'spruce-b'],
-     [6840, 'birch-a'], [6980, 'spruce-a', true], [7420, 'pine-a'], [7540, 'spruce-b'], [9480, 'spruce-a'],
-     [9620, 'birch-a', true], [9760, 'spruce-b'], [9900, 'pine-a'], [10060, 'spruce-a', true]
+     [6840, 'birch-a'], [6980, 'spruce-a', true], [7420, 'pine-a'], [7540, 'spruce-b'],
+     [8780, 'spruce-b'], [8900, 'birch-a', true], [9240, 'pine-a'], [9330, 'spruce-c'], [9480, 'spruce-a'],
+     [9620, 'birch-a', true], [9760, 'spruce-b'], [9900, 'pine-a'], [10060, 'spruce-a', true],
+     [10200, 'birch-b'], [10420, 'spruce-b'], [10600, 'spruce-a'], [10780, 'birch-a'], [10930, 'pine-a', true],
+     [11120, 'spruce-a'], [11260, 'spruce-c'], [11400, 'birch-b', true], [11580, 'spruce-b'], [11760, 'pine-a'],
+     [11900, 'spruce-a', true], [12080, 'birch-a'], [12240, 'spruce-b'], [12420, 'spruce-a'], [12600, 'pine-a', true],
+     [12740, 'spruce-c']
     ].forEach(([x, key, flip]) => prop(key, x, 1, !!flip));
-    [260, 560, 1300, 1450, 2180, 2500, 3250, 3420, 4380, 4900, 5540, 6820, 7480, 9560, 9700].forEach((x, i) => {
+    [260, 560, 1300, 1450, 2180, 2500, 3250, 3420, 4380, 4900, 5540, 6820, 7480, 8820, 9420, 9560, 9700, 9980,
+     10480, 10880, 11300, 11700, 12150, 12500].forEach((x, i) => {
       prop(i % 2 ? 'bush-b' : 'bush-a', x + (Math.random() * 20 - 10), 4, Math.random() < 0.5, this.groundY + 3);
     });
-    [380, 2230, 4240, 9840].forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
+    [380, 2230, 4240, 9840, 11500].forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
     // scattered undergrowth — skipping the water, the tall-grass gate, the
     // mushroom slope, the bramble and the rest field, which dress themselves
     const dressSkip = [
       [rivL - 40, rivR + 40], [gapL - 40, gapR + 40],
       [this.grassX - this.grassWidth / 2 - 60, this.grassX + this.grassWidth / 2 + 60],
-      [5700, 6700], [7020, 7380], [7650, 9420],
-      [1520, 1740]                                   // the fox cub's log
+      [5700, 6700], [7020, 7380], [7650, 8660],
+      [1520, 1740],                                  // the fox cub's log
+      [this.fawnX - 200, this.fawnX + 200]           // the mud
     ];
     for (let x = 140; x < worldWidth - 80; x += 90) {
       if (dressSkip.some(([a, b]) => x > a && x < b)) continue;
@@ -199,7 +211,8 @@ export default class ForestScene extends Phaser.Scene {
     this.torches = {
       'torch-1': this.makeTorch(this.riverTorchX),
       'torch-2': this.makeTorch(this.torchX),
-      'torch-3': this.makeTorch(this.brambleTorchX)
+      'torch-3': this.makeTorch(this.brambleTorchX),
+      'torch-4': this.makeTorch(this.restTorchX)
     };
 
 
@@ -494,21 +507,20 @@ export default class ForestScene extends Phaser.Scene {
     prop('birch-a', this.restTreeX - 120, 4, true);
     prop('oak-a', this.restTreeX, 6);
     // bushes scattered at a few points, mid-height texture between flowers and trees
-    const restBushXs = [-300, -210, -50, 90, 190, 300, 480, 680, 900, 1150];
+    const restBushXs = [-300, -210, -50, 90, 190, 300, 480];
     restBushXs.forEach((dx) => {
       prop(pick(['bush-a', 'bush-b']), this.restTreeX + dx + (Math.random() * 20 - 10), 5, Math.random() < 0.5, this.groundY + 3);
     });
     // tufts of grass scattered through the field, uneven and low
     const restGrassXs = [-320, -270, -220, -170, -120, -70, -20, 30, 80, 130, 180, 230, 280, 320,
-                          360, 400, 440, 490, 540, 590, 650, 700, 760, 820, 880, 940,
-                          1000, 1070, 1140, 1200, 1265, 1330];
+                          360, 400, 440, 490, 540, 590];
     restGrassXs.forEach((dx) => {
       prop(pick(['tuft-b', 'tuft-c', 'tuft-c']), this.restTreeX + dx + (Math.random() * 14 - 7), 5, Math.random() < 0.5, this.groundY + 3);
     });
     // flowers scattered unevenly through the field — not a neat row
     const restFlowerXs = [-330, -300, -260, -230, -195, -160, -130, -95, -65, -30, 5, 40,
                            75, 110, 145, 180, 215, 250, 285, 315,
-                           380, 460, 550, 650, 760, 870, 990, 1120, 1260, 1390];
+                           380, 460, 550];
     restFlowerXs.forEach((dx) => {
       prop(pick(['flower-white', 'flower-yellow', 'flower-pink']), this.restTreeX + dx + (Math.random() * 16 - 8), 5, false, this.groundY + 2);
     });
@@ -560,6 +572,8 @@ export default class ForestScene extends Phaser.Scene {
     this.player.play(`${this.characterId}-idle`);
     // ── the fox cub in the hollow log, between the carrot field and the lake ──
     this.fox = new FoxCubPuzzle(this, 1680);
+    // ── the fawn in the mud, on the new road past the rest tree ──
+    this.fawn = new FawnPuzzle(this, this.fawnX);
 
     this.restoreProgress();
     this.buildTasks();
@@ -583,6 +597,7 @@ export default class ForestScene extends Phaser.Scene {
     // the bag you packed at home, minus whatever the saved run already gave away
     this.inventory = { bread: has(FLAGS.fox) ? 0 : 1, water: 1, rope: 1, carrots: saved.carrots };
     if (has(FLAGS.fox)) this.fox.restore();
+    if (has(FLAGS.fawn)) this.fawn.restore();
     this.pickedCarrots = saved.field;
 
     if (has(FLAGS.tree)) {
@@ -635,6 +650,7 @@ export default class ForestScene extends Phaser.Scene {
     if (this.catRescued) flags |= FLAGS.cat;
     if (this.birdFreed) flags |= FLAGS.bird;
     if (this.fox.done) flags |= FLAGS.fox;
+    if (this.fawn.done) flags |= FLAGS.fawn;
     let meadow = 0;
     this.meadowHorses.forEach((m, i) => { if (m.fed) meadow |= 1 << i; });
     return encodeProgress({
@@ -797,6 +813,13 @@ export default class ForestScene extends Phaser.Scene {
       { id: 'rest', text: 'rest a while under the big tree',
         done: () => !!this.hasRested, until: () => this.restTreeX + 320,
         where: () => [this.restTreeX, g - 76] },
+      { id: 'fawn-rope', text: 'throw your rope to the fawn in the mud',
+        done: () => this.fawn.stage !== 'stuck', until: () => this.fawnX + 460,
+        where: () => [this.fawnX, g - 50] },
+      { id: 'fawn-pull', text: 'draw it out gently: hold shift, walk away',
+        when: () => this.fawn.stage === 'roped' || this.fawn.done,
+        done: () => this.fawn.done,
+        where: () => null },
       { id: 'north', text: 'keep walking north', done: () => false, where: () => null }
     ];
     this.guide.setTasks(this.tasks, { counted: false });
@@ -864,6 +887,7 @@ export default class ForestScene extends Phaser.Scene {
     const px = this.player.x;
     this.fox.update(px);
     this.fox.face(px);
+    this.fawn.update(px);
 
     // ── arriving at the resting field ──
     if (!this.restEntryShown && Math.abs(px - this.restTreeX) < 220) {
@@ -872,7 +896,7 @@ export default class ForestScene extends Phaser.Scene {
     }
 
     // ── a scream, far off. something has happened ──
-    this.screamX = this.restTreeX + 500;
+    this.screamX = this.lastStretchX;
     if (!this.screamHeard && px > this.screamX) {
       this.screamHeard = true;
       // a beat of stillness before the thought lands — the character pausing to listen
@@ -882,14 +906,14 @@ export default class ForestScene extends Phaser.Scene {
     }
 
     // ── the crying settles in, after more walking, further along ──
-    this.cryingCueX = this.restTreeX + 1150;
+    this.cryingCueX = this.lastStretchX + 650;
     if (!this.cryingHeard && this.screamHeard && px > this.cryingCueX) {
       this.cryingHeard = true;
       this.showThought('someone is crying out there. maybe they need help.', 3800);
     }
 
     // ── arriving — fade to black and hand off to the ending ──
-    this.endingTransitionX = this.restTreeX + 1500;
+    this.endingTransitionX = this.lastStretchX + 1000;
     if (!this.endingTriggered && this.cryingHeard && px > this.endingTransitionX) {
       this.endingTriggered = true;
       this.player.setVelocity(0, 0);
@@ -954,6 +978,7 @@ export default class ForestScene extends Phaser.Scene {
     const wading = this.riding && inRiver;
     let speed = this.movingSlow ? 90 : baseSpeed, jumpSpeed = -480;
     if (wading) speed = 150;   // the horse slows to wade through the deep water
+    if (this.fawn.hauling) speed = Math.min(speed, 46);   // and drawing the fawn out of the mud is slow work
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
@@ -962,7 +987,7 @@ export default class ForestScene extends Phaser.Scene {
 
     // one-shot pose beats (watering, carrot crouch) hold off idle until they finish playing
     const poseHold = this.player.anims.isPlaying &&
-      (this.player.anims.currentAnim?.key === `${this.characterId}-water` || this.player.anims.currentAnim?.key === `${this.characterId}-crouch`);
+      [`${this.characterId}-water`, `${this.characterId}-crouch`, `${this.characterId}-toss`].includes(this.player.anims.currentAnim?.key);
 
     if (this.resting) {
       this.player.setVelocity(0, 0);
@@ -1154,7 +1179,9 @@ export default class ForestScene extends Phaser.Scene {
     // ── interaction prompt + action ──
     let label = null, action = null;
     const near = (x, r = 75) => Math.abs(px - x) < r;
-    const foxOffer = this.fox.offer(px, onGround);
+    const offers = [this.fox.offer(px, onGround), this.fawn.offer(px, onGround)].filter(Boolean);
+    const foxOffer = offers.find((o) => o.action) || null;
+    const reminder = offers.find((o) => o.hint) || null;
     const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
     // watering comes first — a few carrots grow right beside the tree
     if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
@@ -1194,7 +1221,7 @@ export default class ForestScene extends Phaser.Scene {
     // the key and what it does, just over the traveler's head
     const over = [this.player.x, this.player.y - 66];
     if (label) this.guide.prompt(['e'], label, ...over);
-    else if (foxOffer && foxOffer.hint) this.guide.prompt([], foxOffer.label, ...over);
+    else if (reminder) this.guide.prompt(reminder.keys || [], reminder.label, ...over);
     else if (this.atBrambleOnFoot) this.guide.prompt(['shift'], 'hold to move gently', ...over);
     else this.guide.hidePrompt();
 
@@ -1252,7 +1279,7 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
-    if (this.fox.act(action)) return;
+    if (this.fox.act(action) || this.fawn.act(action)) return;
     if (action === 'restdown') {
       this.resting = true;
       this.restAtField = true;

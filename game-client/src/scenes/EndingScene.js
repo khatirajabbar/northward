@@ -48,6 +48,7 @@ export default class EndingScene extends Phaser.Scene {
     this.figureFireX = this.fireX + 62;   // where they settle once the fire is lit
     this.seatX = this.figureFireX + 26 * FOREST_SCALE;   // where you sit, close beside them
     this.leaveX = 1000;             // walking back past here ends the game
+    this.catSpotX = this.figureHomeX + 90;   // where the cat waits, beyond the tree and out of the way
 
     // ── state ──
     this.characterId = this.registry.get('playAs') || 'lpc-khatira';
@@ -320,6 +321,20 @@ export default class EndingScene extends Phaser.Scene {
     this.tweens.add({ targets: this.figure, x, duration, ease: 'Sine.inOut', onComplete: onArrive });
   }
 
+  // the cat trots over to its spot beyond the tree, sits, and watches
+  catWaits() {
+    const cat = this.cat, gap = this.catSpotX - cat.x;
+    cat.y = this.groundY + 2;
+    if (Math.abs(gap) > 3) {
+      cat.x += Math.sign(gap) * Math.min(Math.abs(gap), 2.4 * (this.game.loop.delta / 16.7));
+      cat.setFlipX(gap > 0);               // the art faces left
+      cat.play('cat-walk', true);
+    } else {
+      cat.setFlipX(false);                 // facing back toward the two of you
+      cat.play('cat-sit', true);
+    }
+  }
+
   showThought(text, ms = 2800) {
     this.guide.say(text, ms + 1200);
   }
@@ -351,8 +366,13 @@ export default class EndingScene extends Phaser.Scene {
 
   update() {
     if (!this.ended) tickClock(this);
-    // by the fire the cat settles on your free side — the other one is taken
-    if (this.cat) updateCatFollow(this, this.cat, this.player, this.groundY, this.sitting ? 1 : 0);
+    // the cat walks in with you, then keeps out of the way while you're busy at
+    // the camp. when you sit by the fire it comes and settles on your free side
+    // (the other one is taken), and it follows you home
+    if (this.cat) {
+      if (this.arrivalShown && !this.sitting && !this.saidGoodbye) this.catWaits();
+      else updateCatFollow(this, this.cat, this.player, this.groundY, this.sitting ? 1 : 0);
+    }
     if (this.canLeave && (Phaser.Input.Keyboard.JustDown(this.keyE) || Phaser.Input.Keyboard.JustDown(this.keyEnter))) this.returnToTitle();
 
     const px = this.player.x;
