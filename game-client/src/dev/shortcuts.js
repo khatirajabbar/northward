@@ -7,8 +7,8 @@
 // that place, bag packed.
 import { setTravelerBody } from '../characters/lpc.js';
 
-const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS'];
-const HINT = 'test keys: 1-9, 0 and - jump along the road';
+const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS', 'PLUS'];   // PLUS is the = key
+const HINT = 'test keys: 1-9, 0, - and = jump along the road';
 
 // key → [what's there, where to stand] — a little before each thing, so you arrive at it
 function stops(forest) {
@@ -22,8 +22,9 @@ function stops(forest) {
     SEVEN: ['the resting tree', forest.restTreeX - 280],
     EIGHT: ['the fawn', forest.restTorchX - 60],
     NINE: ['the squirrel', forest.acornTorchX - 60],
-    ZERO: ['the old stag', forest.stagX - 340],
-    MINUS: ["the road's end", forest.lastStretchX - 160]
+    ZERO: ['the duckling', forest.duckLogX - 230],
+    MINUS: ['the old stag', forest.stagX - 340],
+    PLUS: ["the road's end", forest.lastStretchX - 160]
   };
 }
 

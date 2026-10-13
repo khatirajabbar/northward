@@ -8,6 +8,7 @@ import FoxCubPuzzle from '../puzzles/foxCub.js';
 import FawnPuzzle from '../puzzles/fawn.js';
 import OldStagPuzzle from '../puzzles/oldStag.js';
 import SquirrelPuzzle from '../puzzles/squirrel.js';
+import DucklingPuzzle from '../puzzles/duckling.js';
 import Guide, { INK, PENCIL } from '../ui/guide.js';
 
 // The forest's art is drawn small by tools/forest-art.mjs (the same palette and
@@ -23,7 +24,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 14000;
+    const worldWidth = 15200;
     this.groundY = height - 60;
     // where the sprite's centre sits when the traveler stands on the ground
     this.standY = this.groundY - FEET * FOREST_SCALE - 4;
@@ -71,8 +72,10 @@ export default class ForestScene extends Phaser.Scene {
     this.fawnX = 9050;           // the boggy hollow where the fawn is stuck
     this.acornTorchX = 9880;     // torch checkpoint past the mud, where the dropped acorns begin
     this.squirrelX = 10640;      // the old oak the squirrel lives in (its acorns lie along the road before it)
-    this.stagX = 11500;          // the glade where the old stag lies under his oak
-    this.lastStretchX = 12200;   // from here the road only leads to the ending: the scream, the crying, the fade
+    this.duckLogX = 11120;       // the fallen log a duckling can't get over…
+    this.duckPondX = 12030;      // …and the pond where its family is, a good walk further on
+    this.stagX = 12650;          // the glade where the old stag lies under his oak
+    this.lastStretchX = 13350;   // from here the road only leads to the ending: the scream, the crying, the fade
     this.torchCheckpoints = { 'torch-1': this.riverTorchX, 'torch-2': this.torchX, 'torch-3': this.brambleTorchX,
       'torch-4': this.restTorchX, 'torch-5': this.acornTorchX };
     this.currentCheckpoint = null;
@@ -151,18 +154,20 @@ export default class ForestScene extends Phaser.Scene {
      [9620, 'birch-a', true], [9760, 'spruce-b'], [9940, 'pine-a'],
      // the squirrel's stretch — kept open round the bush, the dead tree and its oak
      [10110, 'spruce-a', true], [10290, 'birch-b'], [10500, 'spruce-c'], [10830, 'spruce-b'], [10960, 'birch-a', true],
-     [11110, 'spruce-a'], [11260, 'pine-a'], [11330, 'birch-b'],
+     // the duckling's stretch: the log, and the pond
+     [11160, 'spruce-a'], [11300, 'pine-a'], [11430, 'birch-b'], [11560, 'spruce-c'], [11830, 'spruce-b'],
+     [11960, 'birch-a'], [12110, 'spruce-a', true], [12270, 'pine-a'], [12410, 'spruce-a'], [12480, 'birch-b'],
      // the stag's glade, and the last of the road
-     [11800, 'spruce-a'], [11980, 'birch-a'], [12130, 'pine-a', true],
-     [12320, 'spruce-a'], [12460, 'spruce-c'], [12600, 'birch-b', true], [12780, 'spruce-b'], [12960, 'pine-a'],
-     [13100, 'spruce-a', true], [13280, 'birch-a'], [13440, 'spruce-b'], [13620, 'spruce-a'], [13800, 'pine-a', true],
-     [13940, 'spruce-c']
+     [12950, 'spruce-a'], [13130, 'birch-a'], [13280, 'pine-a', true],
+     [13470, 'spruce-a'], [13610, 'spruce-c'], [13750, 'birch-b', true], [13930, 'spruce-b'], [14110, 'pine-a'],
+     [14250, 'spruce-a', true], [14430, 'birch-a'], [14590, 'spruce-b'], [14770, 'spruce-a'], [14950, 'pine-a', true],
+     [15090, 'spruce-c']
     ].forEach(([x, key, flip]) => prop(key, x, 1, !!flip));
     [260, 560, 1300, 1450, 2180, 2500, 3250, 3420, 4380, 4900, 5540, 6820, 7480, 8820, 9420, 9560, 9700,
-     10800, 11180, 11680, 12080, 12500, 12900, 13350, 13700].forEach((x, i) => {
+     10800, 11240, 11600, 12330, 12830, 13230, 13650, 14050, 14500, 14850].forEach((x, i) => {
       prop(i % 2 ? 'bush-b' : 'bush-a', x + (Math.random() * 20 - 10), 4, Math.random() < 0.5, this.groundY + 3);
     });
-    [380, 2230, 4240, 9840, 12700].forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
+    [380, 2230, 4240, 9840, 13850].forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
     // scattered undergrowth — skipping the water, the tall-grass gate, the
     // mushroom slope, the bramble and the rest field, which dress themselves
     const dressSkip = [
@@ -173,7 +178,9 @@ export default class ForestScene extends Phaser.Scene {
       [this.fawnX - 200, this.fawnX + 200],          // the mud
       [this.stagX - 130, this.stagX + 90],           // where the old stag lies
       [this.squirrelX - 490, this.squirrelX - 410],  // the bush with an acorn in it
-      [this.squirrelX - 320, this.squirrelX - 190]   // the big mushroom and the dead tree
+      [this.squirrelX - 320, this.squirrelX - 190],  // the big mushroom and the dead tree
+      [this.duckLogX - 110, this.duckLogX + 90],     // the log the duckling is stuck behind
+      [this.duckPondX - 150, this.duckPondX - 30]    // the bank where its family waits
     ];
     for (let x = 140; x < worldWidth - 80; x += 90) {
       if (dressSkip.some(([a, b]) => x > a && x < b)) continue;
@@ -590,6 +597,8 @@ export default class ForestScene extends Phaser.Scene {
     this.fawn = new FawnPuzzle(this, this.fawnX);
     // ── the squirrel and its dropped acorns, on the way to its oak ──
     this.squirrel = new SquirrelPuzzle(this, this.squirrelX);
+    // ── the duckling on the wrong side of a log, and its family at the pond ──
+    this.duck = new DucklingPuzzle(this, this.duckLogX, this.duckPondX);
     // ── the old stag under the oak, further up the same road ──
     this.add.image(this.stagX + 84, this.groundY + 4, 'woods-oak-b').setOrigin(0.5, 1).setScale(ART).setDepth(3);
     this.stag = new OldStagPuzzle(this, this.stagX);
@@ -621,6 +630,7 @@ export default class ForestScene extends Phaser.Scene {
     if (has(FLAGS.fawn)) this.fawn.restore();
     if (has(FLAGS.stag)) this.stag.restore();
     if (has(FLAGS.squirrel)) this.squirrel.restore();
+    if (has(FLAGS.duckling)) this.duck.restore();
     this.pickedCarrots = saved.field;
 
     if (has(FLAGS.tree)) {
@@ -676,6 +686,7 @@ export default class ForestScene extends Phaser.Scene {
     if (this.fawn.done) flags |= FLAGS.fawn;
     if (this.stag.done) flags |= FLAGS.stag;
     if (this.squirrel.done) flags |= FLAGS.squirrel;
+    if (this.duck.done) flags |= FLAGS.duckling;
     let meadow = 0;
     this.meadowHorses.forEach((m, i) => { if (m.fed) meadow |= 1 << i; });
     return encodeProgress({
@@ -846,12 +857,19 @@ export default class ForestScene extends Phaser.Scene {
         done: () => this.fawn.done,
         where: () => null },
       { id: 'acorns', text: 'pick up the three acorns someone dropped',
-        done: () => this.squirrel.count === 3 || this.squirrel.done, until: () => this.squirrelX + 340,
+        done: () => this.squirrel.count === 3 || this.squirrel.done, until: () => this.squirrelX + 220,
         where: () => this.squirrel.nextSpot() },
       { id: 'squirrel', text: 'give the squirrel its acorns',
         when: () => this.squirrel.count === 3 || this.squirrel.done,
-        done: () => this.squirrel.done, until: () => this.squirrelX + 340,
+        done: () => this.squirrel.done, until: () => this.squirrelX + 220,
         where: () => [this.squirrel.squirrel.x, g - 56] },
+      { id: 'duck-carry', text: 'pick up the duckling and carry it over the log',
+        done: () => !this.duck.onNearSide(), until: () => this.duckLogX + 260,
+        where: () => (this.duck.stage === 'held' ? [this.duckLogX + 130, g - 40] : [this.duck.duckling.x, g - 44]) },
+      { id: 'duck-lead', text: 'lead it to the pond — slowly, so it keeps up',
+        when: () => !this.duck.onNearSide(),
+        done: () => this.duck.done, until: () => this.duckPondX + 420,
+        where: () => (this.duck.waiting ? [this.duck.duckling.x, g - 44] : [this.duck.bankX, g - 64]) },
       { id: 'stag-water', text: 'offer the old stag some water',
         done: () => this.stag.stage !== 'lying', until: () => this.stagX + 420,
         where: () => [this.stagX - 30, g - 70] },
@@ -929,6 +947,7 @@ export default class ForestScene extends Phaser.Scene {
     this.fawn.update(px);
     this.stag.update(px);
     this.squirrel.update(px);
+    this.duck.update(px);
 
     // ── arriving at the resting field ──
     if (!this.restEntryShown && Math.abs(px - this.restTreeX) < 220) {
@@ -1221,7 +1240,7 @@ export default class ForestScene extends Phaser.Scene {
     let label = null, action = null;
     const near = (x, r = 75) => Math.abs(px - x) < r;
     const offers = [this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround),
-      this.squirrel.offer(px, onGround)].filter(Boolean);
+      this.squirrel.offer(px, onGround), this.duck.offer(px, onGround)].filter(Boolean);
     const foxOffer = offers.find((o) => o.action) || null;
     const reminder = offers.find((o) => o.hint) || null;
     const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
@@ -1321,7 +1340,8 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
-    if (this.fox.act(action) || this.fawn.act(action) || this.stag.act(action) || this.squirrel.act(action)) return;
+    if (this.fox.act(action) || this.fawn.act(action) || this.stag.act(action) || this.squirrel.act(action) ||
+        this.duck.act(action)) return;
     if (action === 'restdown') {
       this.resting = true;
       this.restAtField = true;

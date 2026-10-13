@@ -537,6 +537,76 @@ export function squirrel() {
   ], 30, 20);
 }
 
+// ── the ducks at the pond: a mallard hen, and her ducklings ──
+
+const DUCK = { b: [0x5a3f26, 0x86623c, 0xb08a5a, 0xd9bd8e], bill: [0xb5701f, 0xe09a2e], leg: 0xd9772a, wing: 0x3f6fae };
+const DUCKLING = { d: [0xc98f1c, 0xf2cc45, 0xfde98e], bill: 0xe8862e, leg: 0xc96a22 };
+const RIPPLE = [0x8fcbd0, 0xc9ecec];
+
+// on the water a bird is cut off at the waterline, with a ripple either side
+function afloat(g, w, line) {
+  g.rect(0, line + 1, w, 20, [0, 0, 0, 0]);
+  g.hline(1, line, 3, RIPPLE[1]); g.hline(w - 5, line, 4, RIPPLE[0]);
+}
+
+// `neck` stretches it up, `open` is a quack, `step` is which foot is forward
+function duckHen({ neck = 0, open = false, step = 0, swim = false } = {}) {
+  const b = DUCK.b;
+  return outlined(23, 16, (g) => {
+    g.ellipse(13, 9.6, 7, 4, b[1]); g.ellipse(14, 8.2, 5, 2, b[2]);                    // body, lighter along the back
+    g.poly([[18, 8], [22, 5], [21, 10]], b[1]); g.put(22, 5, b[0]);                    // the tail, cocked up
+    g.ellipse(9.6, 11.4, 4, 2.2, b[3]);                                                // pale breast
+    [[10, 9], [12, 11], [15, 10], [17, 9], [13, 8], [11, 7], [16, 11], [8, 12]].forEach(([x, y]) => g.put(x, y, b[0]));   // mottling
+    g.rect(13, 9, 4, 1, DUCK.wing); g.put(17, 9, 0xf2f2ec); g.put(12, 9, 0xf2f2ec);     // the blue on her wing
+    const hy = 4 - neck;
+    limb(g, 6, hy + 2, 8, 8, 3, b[2]);                                                 // neck
+    g.ellipse(6, hy, 2.6, 2.3, b[2]); g.hline(4, hy - 2, 4, b[0]); g.hline(5, hy, 3, b[0]);   // head: dark cap, a line through the eye
+    g.put(5, hy, EYE);
+    g.rect(1, hy + 1, 3, 1, DUCK.bill[1]); g.put(1, hy + 2, DUCK.bill[0]);             // bill
+    if (open) { g.rect(1, hy + 3, 2, 1, DUCK.bill[1]); g.put(3, hy + 2, 0x6b2a1c); }
+    if (swim) { afloat(g, 23, 12); return; }
+    const feet = step === 0 ? [10, 14] : step === 1 ? [9, 15] : [11, 13];
+    feet.forEach((x) => { g.vline(x, 13, 2, DUCK.leg); g.hline(x - 1, 15, 3, DUCK.leg); });
+  }, C.ink);
+}
+
+export function duck() {
+  return sheet([
+    duckHen(), duckHen({ neck: 1 }),                             // 0-1 standing, looking about
+    duckHen({ neck: 1, open: true }),                            // 2 calling
+    duckHen({ step: 1 }), duckHen({ step: 2 }),                  // 3-4 waddling
+    duckHen({ swim: true }), duckHen({ swim: true, neck: 1 })    // 5-6 on the water
+  ], 26, 18);
+}
+
+// a ball of yellow down. `peep` opens its bill, `step` is which foot, `hop` is
+// mid-air, `held` is sitting in your hands with its feet tucked under it
+function ducklingBody({ peep = false, step = 0, hop = false, swim = false, held = false } = {}) {
+  const d = DUCKLING.d;
+  return outlined(11, 10, (g) => {
+    g.ellipse(6, 6, 3.4, 2.7, d[1]); g.ellipse(6.8, 5, 2.2, 1.3, d[2]);                // body
+    g.put(10, 5, d[1]); g.put(5, 8, d[0]); g.put(7, 8, d[0]);
+    if (hop) { g.put(8, 3, d[2]); g.put(9, 2, d[1]); g.put(9, 3, d[1]); }              // a stub of a wing, held out
+    const hy = peep ? 2 : 3;
+    g.ellipse(3.4, hy, 2.3, 2.2, d[1]); g.put(4, hy - 2, d[2]); g.put(3, hy - 1, d[2]);   // head
+    g.put(2, hy, EYE);
+    g.put(0, hy + 1, DUCKLING.bill); if (peep) g.put(0, hy + 2, DUCKLING.bill); else g.put(1, hy + 1, DUCKLING.bill);
+    if (swim) { afloat(g, 11, 7); return; }
+    if (hop || held) return;
+    (step === 0 ? [5, 7] : [4, 8]).forEach((x) => g.put(x, 9, DUCKLING.leg));
+  }, C.ink);
+}
+
+export function duckling() {
+  return sheet([
+    ducklingBody(), ducklingBody({ peep: true }),                // 0-1 standing, peeping
+    ducklingBody({ step: 0 }), ducklingBody({ step: 1 }),        // 2-3 waddling
+    ducklingBody({ hop: true }),                                 // 4 a hop
+    ducklingBody({ swim: true }),                                // 5 on the water
+    ducklingBody({ held: true }), ducklingBody({ held: true, peep: true })   // 6-7 in your hands
+  ], 14, 12);
+}
+
 // ── the small brown bird — the one from your window ──
 
 const BIRD = { b: [0x4a3a28, 0x6b5135, 0x8a6d49, 0xc9b08a], beak: 0xd9a441 };
@@ -588,5 +658,7 @@ export const FRAMES = {
   doe: { size: [DEER_BUILD.doe.w + 2, DEER_BUILD.doe.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 },
   fawn: { size: [DEER_BUILD.fawn.w + 2, DEER_BUILD.fawn.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 },
   stag: { size: [68, 38], watching: [0, 2], drinking: 3, tired: [4, 5], asleep: [6, 7] },
-  squirrel: { size: [30, 20], sit: [0, 1], alert: 2, run: [3, 6], holding: 7, peek: 8 }
+  squirrel: { size: [30, 20], sit: [0, 1], alert: 2, run: [3, 6], holding: 7, peek: 8 },
+  duck: { size: [26, 18], stand: [0, 1], call: 2, walk: [3, 4], swim: [5, 6] },
+  duckling: { size: [14, 12], stand: 0, peep: 1, walk: [2, 3], hop: 4, swim: 5, held: [6, 7] }
 };

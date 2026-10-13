@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
 import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
-import { horse, foal, cat, rabbit, bird, doe, fawn, stag, squirrel } from './animals.mjs';
+import { horse, foal, cat, rabbit, bird, doe, fawn, stag, squirrel, duck, duckling } from './animals.mjs';
 
 const W = 640, H = 360;
 const GROUND = 330;            // art y of the ground line (660 on screen)
@@ -679,6 +679,22 @@ function snag() {
   });
 }
 
+// a fallen trunk across the path: nothing to you, a wall to a duckling
+function fallenLog() {
+  return piece(52, 15, (g) => {
+    const t = C.timber, rnd = rng(52);
+    g.rect(6, 3, 44, 11, t[3]);
+    g.hline(6, 3, 44, t[4]); g.hline(6, 4, 44, mix(t[4], t[3], 0.5)); g.rect(6, 11, 44, 3, t[2]); g.hline(6, 13, 44, t[1]);
+    for (let i = 0; i < 22; i++) { const x = rnd.int(12, 46), y = rnd.int(5, 11); g.hline(x, y, rnd.int(2, 6), rnd.chance(0.5) ? t[2] : t[4], 0.7); }
+    [22, 37].forEach((x) => { g.vline(x, 5, 8, t[1]); g.vline(x + 1, 6, 6, t[4], 0.5); });
+    g.poly([[40, 4], [46, 0], [46, 3], [43, 6]], t[3]); g.put(46, 0, C.cut[2]);          // a snapped-off bough
+    g.ellipse(6, 8.5, 5.4, 6, t[4]); g.ellipse(6, 8.5, 4.2, 4.8, C.cut[2]);              // the sawn end, with its rings
+    g.ellipse(6, 8.5, 2.4, 2.8, C.cut[1]); g.put(6, 8, C.cut[0]);
+    g.ellipse(27, 3, 8, 1.6, C.grass[1]); g.ellipse(25, 2, 5, 1, C.grass[3]); g.hline(43, 3, 4, C.grass[1]);   // moss
+    for (let x = 8; x < 50; x += 4) if (rnd.chance(0.6)) g.put(x, 14, C.grass[1]);
+  });
+}
+
 // ── the mushroom hill ──
 //
 // The hill's outline belongs to the scene (ForestScene: mtnLeft, peakX, the
@@ -1017,6 +1033,7 @@ export function buildAll() {
     // the animals (sprite sheets — frame sizes are in tools/animals.mjs)
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
     cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
+    duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(),
     mud: mud(), dish: dish(),
     acorn: acorn(), 'icon-acorn': acorn(), 'oak-old': oldOak(), snag: snag(),
     // the mushroom hill
