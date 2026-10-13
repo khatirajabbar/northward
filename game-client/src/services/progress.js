@@ -12,7 +12,8 @@ export const FLAGS = {
   bird: 32,         // the bird was freed from the bramble
   fox: 64,          // the fox cub came out for the bread
   fawn: 128,        // the fawn was drawn out of the mud
-  stag: 256         // you stayed a while with the old stag
+  stag: 256,        // you stayed a while with the old stag
+  squirrel: 512     // the squirrel has its acorns back
 };
 
 // play time in seconds — only counts while a story scene is actually running,

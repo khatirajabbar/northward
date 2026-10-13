@@ -192,7 +192,9 @@ export default class Guide {
     this.hidePrompt();
     const box = scene.add.container(0, 0).setScrollFactor(0).setDepth(DEPTH + 20).setAlpha(0);
     const dim = scene.add.rectangle(0, 0, W, H, 0x0a0d14, dark).setOrigin(0, 0);
-    const paper = scene.add.image(W / 2, H / 2 - 48, 'ui-note').setScale(3);
+    // more than seven lines go on the longer page
+    const tall = lines.length > 7;
+    const paper = scene.add.image(W / 2, H / 2 - (tall ? 44 : 48), tall ? 'ui-note-tall' : 'ui-note').setScale(3);
     const left = paper.x - paper.displayWidth / 2, top = paper.y - paper.displayHeight / 2;
     const on = (ax, ay) => [left + ax * 3, top + ay * 3];        // a spot on the page, in its own pixels
     const write = (ax, ay, str, tint = INK) => this.text(...on(ax, ay), str, { size: 3, tint, edged: false });
@@ -208,7 +210,7 @@ export default class Guide {
         parts.push(tick);
       }
     });
-    if (sign) parts.push(write(0, 118, sign, PENCIL).setOrigin(1, 0).setX(on(156, 0)[0]));
+    if (sign) parts.push(write(0, tall ? 140 : 118, sign, PENCIL).setOrigin(1, 0).setX(on(156, 0)[0]));
 
     // under the page: a line of words, how to play, and how to put the note away
     let ky = top + paper.displayHeight + 26;

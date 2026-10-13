@@ -16,10 +16,11 @@ import { buildFont, buildWebFont, drawText, textWidth } from './font.mjs';
 const PAPER = [0xb9a888, 0xdccdaa, 0xefe4c8, 0xf8f1dc];
 const INK = 0x2b1b14;
 
-// a torn-off page: ruled lines the text sits on, a strip of tape holding it up
-function note() {
+// a torn-off page: ruled lines the text sits on, a strip of tape holding it up.
+// the usual page takes seven lines of writing; a longer one has two more
+function note(h = 136) {
   const rnd = rng(5);
-  const w = 172, h = 136;
+  const w = 172;
   const img = new Img(w + 4, h + 10);
   const page = new Img(w, h);
   page.rect(0, 0, w, h, PAPER[2]);
@@ -183,7 +184,7 @@ function tick() {
 
 export function buildAll() {
   return {
-    note: note(), tag: tag(), marker: marker(), checkbox: checkbox(), tick: tick(),
+    note: note(), 'note-tall': note(158), tag: tag(), marker: marker(), checkbox: checkbox(), tick: tick(),
     title: title(), sign: sign(), rope: rope(), fullscreen: fullscreen(), button: button(), 'button-down': button({ down: true }),
     'key-e': key('E'), 'key-i': key('I'), 'key-f': key('F'), 'key-down': key('↓'), 'key-left': key('←'), 'key-right': key('→'), 'key-up': key('↑'),
     'key-shift': key('shift', { wide: true }), 'key-esc': key('esc', { wide: true })

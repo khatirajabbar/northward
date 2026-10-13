@@ -757,6 +757,7 @@ export default class EndingScene extends Phaser.Scene {
         { text: 'carried a cat down', ticked: did(FLAGS.cat) },
         { text: 'freed a bird', ticked: did(FLAGS.bird) },
         { text: 'pulled a fawn out', ticked: did(FLAGS.fawn) },
+        { text: "found a squirrel's acorns", ticked: did(FLAGS.squirrel) },
         { text: 'sat with an old stag', ticked: did(FLAGS.stag) },
         { text: 'kept someone company', ticked: true }
       ],

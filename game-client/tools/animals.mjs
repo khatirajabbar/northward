@@ -458,6 +458,85 @@ export function rabbit() {
   return sheet([rabbitSit(false), rabbitSit(true), rabbitHop(0), rabbitHop(1), rabbitHop(2), rabbitHop(3)], 22, 17);
 }
 
+// ── the red squirrel, who has dropped its winter store ──
+
+const SQUIRREL = { fur: [0x8a3f1e, 0xb85a2a, 0xdc8242], belly: 0xf3e3c6, tip: 0xf2b678, nut: [0x6b4a2a, 0xc9954a, 0xe8bd72] };
+
+// a stroke that swells or thins along its length — a squirrel is mostly tail
+function brush(g, x0, y0, x1, y1, r0, r1, c) {
+  for (let i = 0; i <= 8; i++) {
+    const t = i / 8, r = r0 + (r1 - r0) * t;
+    g.ellipse(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, r, r, c);
+  }
+}
+
+// up on its haunches with its tail curled up behind. `tail` swings the tip,
+// `up` lifts its head to look at you, `nut` puts an acorn in its paws
+function squirrelSit({ tail = 0, up = false, nut = false } = {}) {
+  const f = SQUIRREL.fur;
+  return outlined(22, 18, (g) => {
+    brush(g, 12, 15, 15.5, 9, 1.8, 2.6, f[1]);                                    // the tail: up the back…
+    brush(g, 15.5, 9, 15 + tail, 4, 2.6, 3, f[1]);                                // …and curling over at the top
+    brush(g, 14, 13, 15.6, 8, 0.6, 1.2, f[2]); g.ellipse(15 + tail, 4.2, 1.6, 1.8, SQUIRREL.tip);
+    g.ellipse(8.6, 11.6, 3.2, 4.4, f[1]); g.ellipse(9.8, 14.2, 3.4, 2.8, f[1]);   // back and haunch
+    g.ellipse(9.4, 10.4, 1.6, 2.4, f[2]);
+    g.ellipse(6.8, 12.4, 1.7, 3.2, SQUIRREL.belly);
+    g.rect(5, 16, 6, 2, f[0]);                                                    // the long hind foot
+    const hy = up ? 5 : 6;
+    g.ellipse(5.6, hy, 3.1, 2.7, f[1]); g.ellipse(6.2, hy - 0.9, 1.8, 1.2, f[2]); // head
+    g.rect(6, hy - 5, 2, 3, f[1]); g.put(6, hy - 5, f[0]); g.put(7, hy - 3, SQUIRREL.tip);   // a tufted ear
+    g.rect(3, hy + 2, 3, 1, SQUIRREL.belly);                                      // pale chin
+    g.put(4, hy, EYE); g.put(2, hy + 1, EYE);                                     // eye, nose
+    g.line(7, 10, 4, 11, f[0]);                                                   // paws held up at the chest
+    if (nut) { g.rect(2, 10, 3, 3, SQUIRREL.nut[1]); g.hline(2, 9, 3, SQUIRREL.nut[0]); g.put(2, 11, SQUIRREL.nut[2]); }
+  }, C.ink);
+}
+
+// one bound, in four moments, the tail streaming out behind
+function squirrelRun(moment) {
+  const f = SQUIRREL.fur;
+  return outlined(28, 15, (g) => {
+    const p = [
+      { body: [10, 10, 5, 3], head: [4.5, 8.6], fore: [[5, 12], [4, 14]], hind: [[12, 12], [11, 14]], tail: [14, 9, 22, 4] },
+      { body: [10, 8, 5.6, 2.6], head: [3.8, 6], fore: [[5, 9], [2, 11]], hind: [[13, 10], [15, 14]], tail: [15, 8, 24, 5] },
+      { body: [10, 6.6, 6, 2.4], head: [3.4, 5.4], fore: [[5, 8], [1, 9]], hind: [[14, 8], [18, 9]], tail: [15, 6, 25, 6] },
+      { body: [10, 8.6, 5.4, 2.8], head: [4.2, 9], fore: [[5, 11], [3, 14]], hind: [[13, 9], [16, 7]], tail: [14, 7, 23, 3] }
+    ][moment];
+    brush(g, p.tail[0], p.tail[1], p.tail[2], p.tail[3], 1.6, 2.8, f[1]);
+    brush(g, p.tail[0] + 2, p.tail[1], p.tail[2], p.tail[3], 0.5, 1.3, f[2]);
+    g.ellipse(p.tail[2], p.tail[3], 1.2, 1.2, SQUIRREL.tip);
+    limb(g, p.hind[0][0], p.hind[0][1], p.hind[1][0], p.hind[1][1], 2, f[0]);
+    limb(g, p.fore[0][0], p.fore[0][1], p.fore[1][0], p.fore[1][1], 2, f[0]);
+    g.ellipse(...p.body, f[1]); g.ellipse(p.body[0] + 1, p.body[1] - 1, p.body[2] * 0.6, p.body[3] * 0.45, f[2]);
+    g.ellipse(p.body[0] - 2, p.body[1] + p.body[3] * 0.55, p.body[2] * 0.5, 1.1, SQUIRREL.belly);
+    g.ellipse(p.head[0], p.head[1], 2.9, 2.5, f[1]); g.ellipse(p.head[0] + 0.5, p.head[1] - 0.8, 1.7, 1.1, f[2]);
+    g.rect(Math.round(p.head[0]) + 1, Math.round(p.head[1]) - 4, 2, 2, f[1]);     // ear
+    g.put(Math.round(p.head[0] - 1.5), Math.round(p.head[1]), EYE); g.put(Math.round(p.head[0] - 3), Math.round(p.head[1] + 1), EYE);
+  }, C.ink);
+}
+
+// looking out of its hole: a face, an ear, two paws on the rim
+function squirrelPeek() {
+  const f = SQUIRREL.fur;
+  return outlined(10, 10, (g) => {
+    g.ellipse(4.8, 5.4, 3.6, 3.2, f[1]); g.ellipse(5.4, 4.2, 2.2, 1.4, f[2]);
+    g.rect(5, 0, 2, 3, f[1]); g.put(5, 0, f[0]); g.put(6, 2, SQUIRREL.tip); g.rect(8, 2, 1, 2, f[0]);
+    g.rect(2, 7, 3, 1, SQUIRREL.belly);
+    g.put(3, 5, EYE); g.put(1, 6, EYE);
+    g.rect(2, 9, 2, 1, f[0]); g.rect(6, 9, 2, 1, f[0]);
+  }, C.ink);
+}
+
+export function squirrel() {
+  return sheet([
+    squirrelSit(), squirrelSit({ tail: 1 }),                                      // 0-1 sitting, the tail twitching
+    squirrelSit({ up: true }),                                                    // 2 looking up at you
+    squirrelRun(0), squirrelRun(1), squirrelRun(2), squirrelRun(3),               // 3-6 bounding
+    squirrelSit({ up: true, nut: true }),                                         // 7 with an acorn in its paws
+    squirrelPeek()                                                                // 8 looking out of its hole
+  ], 30, 20);
+}
+
 // ── the small brown bird — the one from your window ──
 
 const BIRD = { b: [0x4a3a28, 0x6b5135, 0x8a6d49, 0xc9b08a], beak: 0xd9a441 };
@@ -508,5 +587,6 @@ export const FRAMES = {
   bird: { size: [18, 15], perch: 0, struggle: [1, 2], fly: [3, 6] },
   doe: { size: [DEER_BUILD.doe.w + 2, DEER_BUILD.doe.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 },
   fawn: { size: [DEER_BUILD.fawn.w + 2, DEER_BUILD.fawn.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 },
-  stag: { size: [68, 38], watching: [0, 2], drinking: 3, tired: [4, 5], asleep: [6, 7] }
+  stag: { size: [68, 38], watching: [0, 2], drinking: 3, tired: [4, 5], asleep: [6, 7] },
+  squirrel: { size: [30, 20], sit: [0, 1], alert: 2, run: [3, 6], holding: 7, peek: 8 }
 };

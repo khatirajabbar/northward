@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
 import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
-import { horse, foal, cat, rabbit, bird, doe, fawn, stag } from './animals.mjs';
+import { horse, foal, cat, rabbit, bird, doe, fawn, stag, squirrel } from './animals.mjs';
 
 const W = 640, H = 360;
 const GROUND = 330;            // art y of the ground line (660 on screen)
@@ -630,6 +630,55 @@ function dish() {
   });
 }
 
+// ── the squirrel's stretch: what it dropped, where it lives, the dead tree ──
+
+function acorn() {
+  const cap = [0x5a3c20, 0x7a5530, 0x9a7244], nut = [0xa3722f, 0xc9954a, 0xe8bd72];
+  return piece(7, 9, (g) => {
+    g.ellipse(3.5, 5.6, 3, 3.4, nut[1]); g.vline(2, 4, 3, nut[2]); g.vline(5, 4, 4, nut[0]); g.put(3, 8, nut[0]);
+    g.ellipse(3.5, 2.6, 3.5, 1.8, cap[1]); g.hline(1, 2, 5, cap[2]); g.put(2, 3, cap[0]); g.put(4, 3, cap[0]); g.put(6, 3, cap[0]);
+    g.put(3, 0, cap[0]);
+  });
+}
+
+// the squirrel's tree: an old oak, thick in the trunk, with a hollow in it.
+// the scene needs to know where the hollow is — HOLLOW is its middle, in art
+// pixels from the foot of the trunk (so 2x that on screen)
+const OLD_OAK = { w: 132, h: 140 };
+export const HOLLOW = { dx: 0, up: 37 };
+
+function oldOak() {
+  const img = oak(OLD_OAK.w, OLD_OAK.h, rng(61), C.grass, { girth: 8 });
+  const cx = OLD_OAK.w / 2 + HOLLOW.dx, cy = OLD_OAK.h - HOLLOW.up;
+  img.ellipse(cx, cy, 5, 6.4, 0x8a6a55);                       // the lip of the hole, worn pale
+  img.ellipse(cx - 0.6, cy - 0.6, 4.6, 6, 0x3f2e22);
+  img.ellipse(cx, cy + 0.4, 3.8, 5, 0x150d08);                 // …and the dark inside
+  return img;
+}
+
+// a dead tree, snapped off high up: a tall grey trunk with a notch in its
+// splintered top where something small can lodge
+function snag() {
+  const bark = [0x43342b, 0x64503f, 0x86705b, 0xa58f77];
+  return piece(22, 94, (g) => {
+    for (let y = 7; y < 94; y++) {
+      const t = (94 - y) / 87;                                 // 0 at the foot → 1 at the top
+      const half = 3.6 - t * 0.9 + (t < 0.1 ? (0.1 - t) * 34 : 0);
+      for (let dx = -Math.round(half); dx <= Math.round(half); dx++) {
+        const k = (dx + half) / (2 * half);
+        let c = k < 0.3 ? bark[0] : k < 0.62 ? bark[1] : k < 0.9 ? bark[2] : bark[3];
+        if ((y * 7 + dx * 5) % 11 === 0) c = bark[0];
+        g.put(11 + dx, y, c);
+      }
+    }
+    g.poly([[8, 8], [8, 1], [10, 7]], bark[1]); g.poly([[12, 8], [14, 3], [14, 8]], bark[2]);    // the splintered top
+    g.line(13, 40, 19, 34, bark[1]); g.line(13, 41, 19, 35, bark[0]); g.put(20, 33, bark[2]);    // a snapped branch
+    g.line(9, 62, 4, 58, bark[1]); g.put(3, 57, bark[2]);
+    g.ellipse(11, 26, 1.6, 2.2, 0x150d08); g.put(10, 24, bark[3]);                                 // a woodpecker's hole
+    [[8, 90], [14, 91], [6, 92], [16, 92], [11, 92]].forEach(([x, y]) => { g.put(x, y, C.grass[2]); g.put(x, y - 1, C.grass[3]); });   // moss at the foot
+  });
+}
+
 // ── the mushroom hill ──
 //
 // The hill's outline belongs to the scene (ForestScene: mtnLeft, peakX, the
@@ -967,8 +1016,9 @@ export function buildAll() {
     water: water(), torch: torch(), flame: flame(),
     // the animals (sprite sheets — frame sizes are in tools/animals.mjs)
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
-    cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(),
+    cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
     mud: mud(), dish: dish(),
+    acorn: acorn(), 'icon-acorn': acorn(), 'oak-old': oldOak(), snag: snag(),
     // the mushroom hill
     hill: hill(), mushroom: mushroom(), boulder: boulder(),
     'daisy-white': daisy(0xf7f4ee, 0xffd23f, true), 'daisy-yellow': daisy(0xffe27a, 0xe8a02c, true),

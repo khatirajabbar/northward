@@ -61,6 +61,7 @@ export default class BootScene extends Phaser.Scene {
       'icon-bread', 'icon-carrot', 'icon-water', 'icon-rope',
       'tallgrass-a', 'tallgrass-b', 'tallgrass-c', 'tallgrass-low-a', 'tallgrass-low-b', 'bramble-a', 'bramble-b', 'bramble-c', 'bramble-low',
       'stone-a', 'stone-b', 'stone-c', 'water', 'torch', 'mud', 'dish',
+      'acorn', 'icon-acorn', 'oak-old', 'snag',
       'hill', 'mushroom', 'boulder', 'daisy-white', 'daisy-yellow', 'daisy-white-small', 'daisy-yellow-small',
       'dusk-cold', 'dusk-warm', 'moon', 'sun', 'dusk-cloud-a', 'dusk-cloud-b', 'oak-b', 'bare-a', 'bare-b',
       'nest-bough', 'nest', 'bird-fallen', 'grave-mound', 'fire-pit', 'fire-logs', 'stick'
@@ -69,7 +70,7 @@ export default class BootScene extends Phaser.Scene {
 
     // The guide — drawn by tools/ui-art.mjs: the note, the task tag, the keys,
     // and the game's own pixel font (plain for paper, edged for over the world)
-    ['title', 'sign', 'rope', 'note', 'tag', 'marker', 'checkbox', 'tick',
+    ['title', 'sign', 'rope', 'note', 'note-tall', 'tag', 'marker', 'checkbox', 'tick',
       'key-e', 'key-i', 'key-f', 'key-left', 'key-right', 'key-up', 'key-down', 'key-shift', 'key-esc']
       .forEach((name) => this.load.image(`ui-${name}`, `assets/ui/${name}.png`));
     this.load.bitmapFont('px', 'assets/ui/font.png', 'assets/ui/font.xml');

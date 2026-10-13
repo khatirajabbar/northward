@@ -143,7 +143,7 @@ export function scotsPine(w, h, rnd) {
 const OAK_BARK = [0x3f2e22, 0x574032, 0x705343, 0x8a6a55];
 
 // a broad old tree with a heavy crown — the kind you lie down under
-export function oak(w, h, rnd, leaves = C.grass) {
+export function oak(w, h, rnd, leaves = C.grass, { girth = 4 } = {}) {
   const img = new Img(w, h);
   const cx = Math.floor(w / 2), fork = Math.round(h * 0.52);
   const boughs = [[-0.34, 0.3], [0.36, 0.26], [-0.14, 0.14], [0.16, 0.12]];
@@ -152,7 +152,7 @@ export function oak(w, h, rnd, leaves = C.grass) {
     for (let k = -1; k <= 1; k++) img.line(cx + k, fork + 4, x1 + k, y1, k < 0 ? OAK_BARK[0] : k === 0 ? OAK_BARK[1] : OAK_BARK[2]);
   });
   for (let y = h - 1; y >= fork; y--) {
-    const t = (h - y) / (h - fork), half = 4 + (t < 0.2 ? Math.round((0.2 - t) * 22) : 0) + (t > 0.85 ? 1 : 0);
+    const t = (h - y) / (h - fork), half = girth + (t < 0.2 ? Math.round((0.2 - t) * 22) : 0) + (t > 0.85 ? 1 : 0);
     for (let dx = -half; dx <= half; dx++) {
       const k = (dx + half) / (2 * half);
       let c = k < 0.28 ? OAK_BARK[0] : k < 0.6 ? OAK_BARK[1] : k < 0.9 ? OAK_BARK[2] : OAK_BARK[3];
