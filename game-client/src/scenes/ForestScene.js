@@ -600,6 +600,8 @@ export default class ForestScene extends Phaser.Scene {
       this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
       this.time.delayedCall(4200, () => this.guide.tip(['i'], 'open your bag'));
     }
+    // development only: number keys that jump along the road (dev/shortcuts.js)
+    if (import.meta.env.DEV) import('../dev/shortcuts.js').then((dev) => { if (this.scene.isActive()) dev.forestShortcuts(this); });
   }
 
   // put the world back the way the saved run left it

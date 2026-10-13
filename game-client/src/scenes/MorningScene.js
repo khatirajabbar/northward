@@ -96,6 +96,8 @@ export default class MorningScene extends Phaser.Scene {
     const openPause = () => { this.scene.pause(); this.scene.launch('PauseScene', { caller: this.scene.key }); };
     this.input.keyboard.on('keydown-P', openPause);
     this.input.keyboard.on('keydown-ESC', openPause);
+    // development only: number keys that skip the morning, out to a place on the road (dev/shortcuts.js)
+    if (import.meta.env.DEV) import('../dev/shortcuts.js').then((dev) => { if (this.scene.isActive()) dev.morningShortcuts(this); });
 
     this.done = { curtains: false, teeth: false, coffee: false, cereal: false, milk: false };
     this.inventory = {};
