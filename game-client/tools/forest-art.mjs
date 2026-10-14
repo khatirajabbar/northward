@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
 import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
-import { horse, foal, cat, rabbit, bird, doe, fawn, stag, squirrel, duck, duckling } from './animals.mjs';
+import { horse, foal, cat, rabbit, bird, doe, fawn, stag, squirrel, duck, duckling, turtle } from './animals.mjs';
 
 const W = 640, H = 360;
 const GROUND = 330;            // art y of the ground line (660 on screen)
@@ -1068,7 +1068,7 @@ export function buildAll() {
     // the animals (sprite sheets — frame sizes are in tools/animals.mjs)
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
     cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
-    duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(),
+    duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(),
     plank: plank(), trestle: trestle(),
     mud: mud(), dish: dish(),
     acorn: acorn(), 'icon-acorn': acorn(), 'oak-old': oldOak(), snag: snag(),

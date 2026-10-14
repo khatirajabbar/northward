@@ -70,7 +70,7 @@ export default class BootScene extends Phaser.Scene {
 
     // The guide — drawn by tools/ui-art.mjs: the note, the task tag, the keys,
     // and the game's own pixel font (plain for paper, edged for over the world)
-    ['title', 'sign', 'rope', 'note', 'note-tall', 'tag', 'marker', 'checkbox', 'tick',
+    ['title', 'sign', 'rope', 'note', 'note-tall', 'note-long', 'tag', 'marker', 'checkbox', 'tick',
       'key-e', 'key-i', 'key-f', 'key-left', 'key-right', 'key-up', 'key-down', 'key-shift', 'key-esc']
       .forEach((name) => this.load.image(`ui-${name}`, `assets/ui/${name}.png`));
     this.load.bitmapFont('px', 'assets/ui/font.png', 'assets/ui/font.xml');

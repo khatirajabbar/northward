@@ -607,6 +607,52 @@ export function duckling() {
   ], 14, 12);
 }
 
+// ── the turtle that ended up on its back ──
+
+const TURTLE = { shell: [0x2e3a22, 0x48582f, 0x66743d, 0x8a9550], belly: [0xb59a52, 0xd9bf72, 0xeedc9a], skin: [0x5a6a3a, 0x7d8c4e, 0xa3ae68] };
+
+// the right way up: a domed shell with its plates picked out, head and feet
+// out from under it. `head` 0 is pulled in, 1 out; `step` moves the feet
+function turtleUp({ head = 1, step = 0 } = {}) {
+  const s = TURTLE.shell, k = TURTLE.skin;
+  return outlined(24, 13, (g) => {
+    const feet = step === 0 ? [[6, 11], [16, 11]] : [[8, 11], [14, 11]];
+    feet.forEach(([x, y]) => { g.rect(x, y - 1, 3, 3, k[1]); g.put(x, y + 1, k[0]); });
+    g.rect(19, 9, 3, 2, k[1]);                                                      // a stub of a tail
+    if (head) { g.ellipse(3.2, 8, 2.8, 2.2, k[1]); g.rect(4, 8, 3, 2, k[1]); g.put(2, 7, EYE); g.put(3, 9, k[0]); g.put(4, 7, k[2]); }
+    for (let y = 0; y < 10; y++) {                                                  // the shell: a low dome
+      const half = 9.5 * Math.sqrt(1 - ((9.5 - y) / 10) ** 2);
+      for (let x = Math.round(12 - half); x < Math.round(12 + half); x++) g.put(x, y, y < 3 ? s[2] : s[1]);
+    }
+    [[8, 3, 2.4, 2], [12.5, 2.4, 2.4, 1.8], [17, 3.4, 2.2, 2], [10, 6.6, 2.2, 1.6], [15, 6.6, 2.2, 1.6]]
+      .forEach(([x, y, rx, ry]) => { g.ellipse(x, y, rx, ry, s[2]); g.put(Math.round(x), Math.round(y) - 1, s[3]); });   // its plates
+    g.hline(3, 9, 18, s[0]); g.hline(4, 10, 16, TURTLE.belly[0]);                    // the rim, and the yellow underneath
+  }, C.ink);
+}
+
+// upside down: the pale underside of the shell to the sky, all four feet going
+function turtleBack(kick) {
+  const s = TURTLE.shell, b = TURTLE.belly, k = TURTLE.skin;
+  return outlined(24, 14, (g) => {
+    const feet = kick ? [[5, 3], [9, 1], [15, 2], [19, 4]] : [[5, 2], [9, 3], [15, 1], [19, 3]];
+    feet.forEach(([x, y]) => { g.rect(x, y, 2, 3, k[1]); g.put(x, y, k[2]); });
+    g.ellipse(2.6, 8.6, 2.4, 2, k[1]); g.put(2, 9, EYE);                            // its head, craned round
+    for (let y = 4; y < 14; y++) {                                                  // the dome, now underneath
+      const half = 9.5 * Math.sqrt(1 - ((y - 4.5) / 10) ** 2);
+      for (let x = Math.round(12 - half); x < Math.round(12 + half); x++) g.put(x, y, y > 11 ? s[0] : s[1]);
+    }
+    g.ellipse(12, 5.6, 8, 1.8, b[1]); g.hline(6, 5, 12, b[2]); g.vline(12, 4, 3, b[0]); g.hline(7, 6, 10, b[0], 0.6);   // its belly plate
+  }, C.ink);
+}
+
+export function turtle() {
+  return sheet([
+    turtleBack(false), turtleBack(true),                        // 0-1 on its back, feet going
+    turtleUp({ head: 0 }),                                      // 2 right way up, head pulled in
+    turtleUp(), turtleUp({ step: 1 })                           // 3-4 head out, walking
+  ], 26, 16);
+}
+
 // ── the small brown bird — the one from your window ──
 
 const BIRD = { b: [0x4a3a28, 0x6b5135, 0x8a6d49, 0xc9b08a], beak: 0xd9a441 };
@@ -660,5 +706,6 @@ export const FRAMES = {
   stag: { size: [68, 38], watching: [0, 2], drinking: 3, tired: [4, 5], asleep: [6, 7] },
   squirrel: { size: [30, 20], sit: [0, 1], alert: 2, run: [3, 6], holding: 7, peek: 8 },
   duck: { size: [26, 18], stand: [0, 1], call: 2, walk: [3, 4], swim: [5, 6] },
-  duckling: { size: [14, 12], stand: 0, peep: 1, walk: [2, 3], hop: 4, swim: 5, held: [6, 7] }
+  duckling: { size: [14, 12], stand: 0, peep: 1, walk: [2, 3], hop: 4, swim: 5, held: [6, 7] },
+  turtle: { size: [26, 16], back: [0, 1], shy: 2, walk: [3, 4] }
 };
