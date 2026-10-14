@@ -695,6 +695,41 @@ function fallenLog() {
   });
 }
 
+// ── the broken bridge, near the end of the road ──
+
+// one board of the bridge's deck: 56 across (112 on screen — the scene lays
+// three of them over the brook), found lying in the grass, carried, and laid
+function plank() {
+  const w = C.wood, rnd = rng(71);
+  return piece(56, 6, (g) => {
+    g.rect(0, 0, 56, 6, w[2]); g.hline(0, 0, 56, w[4]); g.hline(0, 1, 56, w[3]); g.hline(0, 5, 56, w[0]); g.hline(0, 4, 56, w[1]);
+    for (let i = 0; i < 12; i++) g.hline(rnd.int(3, 46), rnd.int(2, 3), rnd.int(3, 8), rnd.chance(0.5) ? w[1] : w[3]);   // grain
+    [2, 53].forEach((x) => { g.put(x, 1, C.iron[2]); g.put(x, 3, C.iron[2]); });                                     // old nail holes
+    g.put(0, 0, w[3]); g.put(55, 5, w[1]); g.put(20, 5, w[2]); g.put(21, 5, w[2]);                                   // worn corners, a chip out of it
+  });
+}
+
+// a pair of posts standing in the stream with a beam across them: where two
+// boards meet. the beam sits right under the boards, just above the water; the
+// posts go down from it into the brook, so below the waterline they're drawn
+// through the water's colour, darker the deeper they go. (the scene lays it
+// over the water's surface, so the wood runs unbroken from the boards down)
+function trestle() {
+  const t = C.timber, deep = 0x2a6072, ripple = [0x8fcbd0, 0xc9ecec];
+  const under = (c, y) => mix(c, deep, Math.min(0.75, 0.42 + y * 0.015));
+  return piece(18, 26, (g) => {
+    g.rect(0, 0, 18, 2, t[3]); g.hline(0, 0, 18, t[4]); g.hline(0, 1, 18, t[2]);   // the beam the boards rest on
+    g.put(4, 0, C.iron[3]); g.put(13, 0, C.iron[3]);
+    [3, 12].forEach((x) => {
+      for (let y = 2; y < 26; y++) {
+        g.put(x, y, under(t[1], y)); g.put(x + 1, y, under(t[2], y)); g.put(x + 2, y, under(t[3], y));
+      }
+    });
+    for (let y = 6; y < 17; y++) g.put(Math.round(5 + (y - 6) * 0.65), y, under(t[1], y));   // a cross-brace, under the water
+    [3, 12].forEach((x) => { g.put(x - 1, 2, ripple[1]); g.put(x + 3, 2, ripple[1]); g.put(x - 2, 2, ripple[0]); g.put(x + 4, 2, ripple[0]); });
+  }, mix(C.ink, deep, 0.35));
+}
+
 // ── the mushroom hill ──
 //
 // The hill's outline belongs to the scene (ForestScene: mtnLeft, peakX, the
@@ -1034,6 +1069,7 @@ export function buildAll() {
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
     cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
     duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(),
+    plank: plank(), trestle: trestle(),
     mud: mud(), dish: dish(),
     acorn: acorn(), 'icon-acorn': acorn(), 'oak-old': oldOak(), snag: snag(),
     // the mushroom hill

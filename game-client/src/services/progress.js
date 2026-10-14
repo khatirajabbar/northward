@@ -14,7 +14,8 @@ export const FLAGS = {
   fawn: 128,        // the fawn was drawn out of the mud
   stag: 256,        // you stayed a while with the old stag
   squirrel: 512,    // the squirrel has its acorns back
-  duckling: 1024    // the duckling is back with its family
+  duckling: 1024,   // the duckling is back with its family
+  bridge: 2048      // the bridge over the brook is mended
 };
 
 // play time in seconds — only counts while a story scene is actually running,

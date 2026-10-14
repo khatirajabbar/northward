@@ -9,6 +9,7 @@ import FawnPuzzle from '../puzzles/fawn.js';
 import OldStagPuzzle from '../puzzles/oldStag.js';
 import SquirrelPuzzle from '../puzzles/squirrel.js';
 import DucklingPuzzle from '../puzzles/duckling.js';
+import BridgePuzzle from '../puzzles/bridge.js';
 import Guide, { INK, PENCIL } from '../ui/guide.js';
 
 // The forest's art is drawn small by tools/forest-art.mjs (the same palette and
@@ -24,7 +25,7 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 15200;
+    const worldWidth = 15400;
     this.groundY = height - 60;
     // where the sprite's centre sits when the traveler stands on the ground
     this.standY = this.groundY - FEET * FOREST_SCALE - 4;
@@ -75,9 +76,12 @@ export default class ForestScene extends Phaser.Scene {
     this.duckLogX = 11120;       // the fallen log a duckling can't get over…
     this.duckPondX = 12030;      // …and the pond where its family is, a good walk further on
     this.stagX = 12650;          // the glade where the old stag lies under his oak
-    this.lastStretchX = 13350;   // from here the road only leads to the ending: the scream, the crying, the fade
+    this.bridgeTorchX = 13040;   // torch checkpoint before the last of the road
+    this.brookL = 13760;         // the brook near the end, bank to bank — its bridge is down
+    this.brookR = 14096;         //   (three boards' width: see puzzles/bridge.js)
+    this.lastStretchX = this.brookL - 110;   // the scream reaches you at the water's edge; the rest lies beyond the brook
     this.torchCheckpoints = { 'torch-1': this.riverTorchX, 'torch-2': this.torchX, 'torch-3': this.brambleTorchX,
-      'torch-4': this.restTorchX, 'torch-5': this.acornTorchX };
+      'torch-4': this.restTorchX, 'torch-5': this.acornTorchX, 'torch-6': this.bridgeTorchX };
     this.currentCheckpoint = null;
     this.saidGoodbye = false;
     this.grassWidth = 440;
@@ -120,7 +124,8 @@ export default class ForestScene extends Phaser.Scene {
     let runStart = null;
     for (let x = 0; x < worldWidth; x += 16) {
       if ((x > gapL - 16 && x < gapR) ||         // gap over the stepping-stone water
-          (x > rivL - 16 && x < rivR)) {         // gap over the river
+          (x > rivL - 16 && x < rivR) ||         // gap over the river
+          (x >= this.brookL && x < this.brookR)) {   // gap over the brook with the broken bridge
         if (runStart !== null) { groundRuns.push([runStart, x]); runStart = null; }
         continue;
       }
@@ -157,17 +162,17 @@ export default class ForestScene extends Phaser.Scene {
      // the duckling's stretch: the log, and the pond
      [11160, 'spruce-a'], [11300, 'pine-a'], [11430, 'birch-b'], [11560, 'spruce-c'], [11830, 'spruce-b'],
      [11960, 'birch-a'], [12110, 'spruce-a', true], [12270, 'pine-a'], [12410, 'spruce-a'], [12480, 'birch-b'],
-     // the stag's glade, and the last of the road
+     // the stag's glade, and the last of the road: down to the brook, and on beyond it
      [12950, 'spruce-a'], [13130, 'birch-a'], [13280, 'pine-a', true],
-     [13470, 'spruce-a'], [13610, 'spruce-c'], [13750, 'birch-b', true], [13930, 'spruce-b'], [14110, 'pine-a'],
-     [14250, 'spruce-a', true], [14430, 'birch-a'], [14590, 'spruce-b'], [14770, 'spruce-a'], [14950, 'pine-a', true],
-     [15090, 'spruce-c']
+     [13470, 'spruce-a'], [13610, 'spruce-c'], [13700, 'birch-b', true],
+     [14160, 'spruce-b'], [14290, 'pine-a'], [14430, 'birch-a'], [14590, 'spruce-b'], [14770, 'spruce-a'],
+     [14950, 'pine-a', true], [15090, 'spruce-c'], [15240, 'spruce-a'], [15360, 'birch-b', true]
     ].forEach(([x, key, flip]) => prop(key, x, 1, !!flip));
     [260, 560, 1300, 1450, 2180, 2500, 3250, 3420, 4380, 4900, 5540, 6820, 7480, 8820, 9420, 9560, 9700,
-     10800, 11240, 11600, 12330, 12830, 13230, 13650, 14050, 14500, 14850].forEach((x, i) => {
+     10800, 11240, 11600, 12330, 12830, 13230, 13480, 14180, 14500, 14850, 15150].forEach((x, i) => {
       prop(i % 2 ? 'bush-b' : 'bush-a', x + (Math.random() * 20 - 10), 4, Math.random() < 0.5, this.groundY + 3);
     });
-    [380, 2230, 4240, 9840, 13850].forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
+    [380, 2230, 4240, 9840, 14240].forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
     // scattered undergrowth — skipping the water, the tall-grass gate, the
     // mushroom slope, the bramble and the rest field, which dress themselves
     const dressSkip = [
@@ -180,7 +185,8 @@ export default class ForestScene extends Phaser.Scene {
       [this.squirrelX - 490, this.squirrelX - 410],  // the bush with an acorn in it
       [this.squirrelX - 320, this.squirrelX - 190],  // the big mushroom and the dead tree
       [this.duckLogX - 110, this.duckLogX + 90],     // the log the duckling is stuck behind
-      [this.duckPondX - 150, this.duckPondX - 30]    // the bank where its family waits
+      [this.duckPondX - 150, this.duckPondX - 30],   // the bank where its family waits
+      [this.brookL - 60, this.brookR + 60]           // the brook
     ];
     for (let x = 140; x < worldWidth - 80; x += 90) {
       if (dressSkip.some(([a, b]) => x > a && x < b)) continue;
@@ -224,6 +230,9 @@ export default class ForestScene extends Phaser.Scene {
     });
     // the near surface over the stones — their feet sit IN the water instead of on top of it
     addWater(this.crossX, this.crossWidth + 20, 18, 12, 7, 8, 0.88);
+    // the brook near the end of the road — the same water, under a bridge that has lost its boards
+    addWater((this.brookL + this.brookR) / 2, this.brookR - this.brookL + 20, 14, 88, 3, 6);
+    addWater((this.brookL + this.brookR) / 2, this.brookR - this.brookL + 20, 18, 12, 7, 9, 0.88);
 
     // ── checkpoint torches — each starts unlit and lights as you pass it:
     // on the near bank of the river, before the crossing, and before the bramble ──
@@ -232,7 +241,8 @@ export default class ForestScene extends Phaser.Scene {
       'torch-2': this.makeTorch(this.torchX),
       'torch-3': this.makeTorch(this.brambleTorchX),
       'torch-4': this.makeTorch(this.restTorchX),
-      'torch-5': this.makeTorch(this.acornTorchX)
+      'torch-5': this.makeTorch(this.acornTorchX),
+      'torch-6': this.makeTorch(this.bridgeTorchX)
     };
 
 
@@ -602,6 +612,8 @@ export default class ForestScene extends Phaser.Scene {
     // ── the old stag under the oak, further up the same road ──
     this.add.image(this.stagX + 84, this.groundY + 4, 'woods-oak-b').setOrigin(0.5, 1).setScale(ART).setDepth(3);
     this.stag = new OldStagPuzzle(this, this.stagX);
+    // ── the brook, and the bridge to mend before you can cross it ──
+    this.bridge = new BridgePuzzle(this, this.brookL, this.brookR);
 
     this.restoreProgress();
     this.buildTasks();
@@ -631,6 +643,7 @@ export default class ForestScene extends Phaser.Scene {
     if (has(FLAGS.stag)) this.stag.restore();
     if (has(FLAGS.squirrel)) this.squirrel.restore();
     if (has(FLAGS.duckling)) this.duck.restore();
+    if (has(FLAGS.bridge)) this.bridge.restore();
     this.pickedCarrots = saved.field;
 
     if (has(FLAGS.tree)) {
@@ -687,6 +700,7 @@ export default class ForestScene extends Phaser.Scene {
     if (this.stag.done) flags |= FLAGS.stag;
     if (this.squirrel.done) flags |= FLAGS.squirrel;
     if (this.duck.done) flags |= FLAGS.duckling;
+    if (this.bridge.done) flags |= FLAGS.bridge;
     let meadow = 0;
     this.meadowHorses.forEach((m, i) => { if (m.fed) meadow |= 1 << i; });
     return encodeProgress({
@@ -877,6 +891,14 @@ export default class ForestScene extends Phaser.Scene {
         when: () => this.stag.stage !== 'lying',
         done: () => this.stag.done, until: () => this.stagX + 420,
         where: () => (this.resting ? null : [this.stagX - 30, g - 70]) },
+      { id: 'bridge-find', text: 'the bridge is out — find a board for it',
+        when: () => this.bridge.inReach(px()) && !this.bridge.done,
+        done: () => this.bridge.carrying, until: () => this.brookR + 40,
+        where: () => this.bridge.nextSpot(px()) },
+      { id: 'bridge-lay', text: 'lay the board across the brook',
+        when: () => this.bridge.carrying,
+        done: () => !this.bridge.carrying,
+        where: () => this.bridge.nextSpot(px()) },
       { id: 'north', text: 'keep walking north', done: () => false, where: () => null }
     ];
     this.guide.setTasks(this.tasks, { counted: false });
@@ -948,6 +970,7 @@ export default class ForestScene extends Phaser.Scene {
     this.stag.update(px);
     this.squirrel.update(px);
     this.duck.update(px);
+    this.bridge.update(px);
 
     // ── arriving at the resting field ──
     if (!this.restEntryShown && Math.abs(px - this.restTreeX) < 220) {
@@ -961,19 +984,19 @@ export default class ForestScene extends Phaser.Scene {
       this.screamHeard = true;
       // a beat of stillness before the thought lands — the character pausing to listen
       this.time.delayedCall(400, () => {
-        this.showThought('someone is screaming.', 3200);
+        this.showThought(this.bridge.done ? 'someone is screaming.' : 'someone is screaming — over there, across the water.', 3600);
       });
     }
 
-    // ── the crying settles in, after more walking, further along ──
-    this.cryingCueX = this.lastStretchX + 650;
+    // ── the crying settles in once you're over the brook ──
+    this.cryingCueX = this.brookR + 260;
     if (!this.cryingHeard && this.screamHeard && px > this.cryingCueX) {
       this.cryingHeard = true;
       this.showThought('someone is crying out there. maybe they need help.', 3800);
     }
 
     // ── arriving — fade to black and hand off to the ending ──
-    this.endingTransitionX = this.lastStretchX + 1000;
+    this.endingTransitionX = this.brookR + 620;
     if (!this.endingTriggered && this.cryingHeard && px > this.endingTransitionX) {
       this.endingTriggered = true;
       this.player.setVelocity(0, 0);
@@ -1007,7 +1030,8 @@ export default class ForestScene extends Phaser.Scene {
     // ── stepping-stone water: fall in -> gentle splash, hop back to the bank ──
     const inCrossGap = px > this.crossX - this.crossWidth / 2 && px < this.crossX + this.crossWidth / 2;
     const inRiverGap = px > this.riverX - this.riverWidth / 2 && px < this.riverX + this.riverWidth / 2;
-    if (this.player.y > this.groundY + 24 && this.player.body.velocity.y >= 0 && (inCrossGap || inRiverGap)) {
+    const inBrook = px > this.brookL && px < this.brookR;
+    if (this.player.y > this.groundY + 24 && this.player.body.velocity.y >= 0 && (inCrossGap || inRiverGap || inBrook)) {
       // little splash
       for (let i = 0; i < 8; i++) {
         const drop = this.add.circle(this.player.x, this.groundY + 30, 3, 0x9fd4e0, 0.8).setDepth(60);
@@ -1015,8 +1039,15 @@ export default class ForestScene extends Phaser.Scene {
         this.tweens.add({ targets: drop, x: drop.x + Math.cos(a) * 30, y: drop.y - Math.abs(Math.sin(a)) * 30,
           alpha: 0, duration: 600, onComplete: () => drop.destroy() });
       }
-      this.respawn();
-      this.showThought('cold! ... try again.', 1600);
+      if (inBrook) {
+        // out on the near bank, still holding whatever you were holding
+        this.player.setVelocity(0, 0);
+        this.player.setPosition(this.brookL - 60, this.standY);
+        this.showThought('cold! the boards have to go all the way across.', 2600);
+      } else {
+        this.respawn();
+        this.showThought('cold! ... try again.', 1600);
+      }
     }
     const onGround = this.player.body.blocked.down;
     const vx = Math.abs(this.player.body.velocity.x);
@@ -1240,7 +1271,7 @@ export default class ForestScene extends Phaser.Scene {
     let label = null, action = null;
     const near = (x, r = 75) => Math.abs(px - x) < r;
     const offers = [this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround),
-      this.squirrel.offer(px, onGround), this.duck.offer(px, onGround)].filter(Boolean);
+      this.squirrel.offer(px, onGround), this.duck.offer(px, onGround), this.bridge.offer(px, onGround)].filter(Boolean);
     const foxOffer = offers.find((o) => o.action) || null;
     const reminder = offers.find((o) => o.hint) || null;
     const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
@@ -1341,7 +1372,7 @@ export default class ForestScene extends Phaser.Scene {
 
   doAction(action) {
     if (this.fox.act(action) || this.fawn.act(action) || this.stag.act(action) || this.squirrel.act(action) ||
-        this.duck.act(action)) return;
+        this.duck.act(action) || this.bridge.act(action)) return;
     if (action === 'restdown') {
       this.resting = true;
       this.restAtField = true;

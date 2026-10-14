@@ -24,7 +24,7 @@ function stops(forest) {
     NINE: ['the squirrel', forest.acornTorchX - 60],
     ZERO: ['the duckling', forest.duckLogX - 230],
     MINUS: ['the old stag', forest.stagX - 340],
-    PLUS: ["the road's end", forest.lastStretchX - 160]
+    PLUS: ['the broken bridge', forest.brookL - 800]
   };
 }
 
