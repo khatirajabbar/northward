@@ -16,7 +16,8 @@ export const FLAGS = {
   squirrel: 512,    // the squirrel has its acorns back
   duckling: 1024,   // the duckling is back with its family
   bridge: 2048,     // the bridge over the brook is mended
-  turtle: 4096      // the turtle is the right way up
+  turtle: 4096,     // the turtle is the right way up
+  bee: 8192         // the bumblebee let you pet it
 };
 
 // play time in seconds — only counts while a story scene is actually running,

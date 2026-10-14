@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
 import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
-import { horse, foal, cat, rabbit, bird, doe, fawn, stag, squirrel, duck, duckling, turtle } from './animals.mjs';
+import { horse, foal, cat, rabbit, bird, doe, fawn, stag, squirrel, duck, duckling, turtle, bee, BEE_FUR } from './animals.mjs';
 
 const W = 640, H = 360;
 const GROUND = 330;            // art y of the ground line (660 on screen)
@@ -695,6 +695,131 @@ function fallenLog() {
   });
 }
 
+// a tall daisy on a long stem — the kind you could pick and carry. a few of
+// them grow together past the tired bee; `heart` and `petal` vary them
+function tallDaisy(petal = 0xf7f4ee, heart = 0xffd23f) {
+  return piece(9, 17, (g) => {
+    g.vline(4, 7, 10, C.grass[1]); g.vline(5, 8, 9, C.grass[2]);                         // stem
+    g.ellipse(2.4, 12, 2, 1, C.grass[2]); g.ellipse(6.8, 10.4, 2, 1, C.grass[3]);        // two leaves
+    [[4, 0], [7, 1], [8, 4], [7, 7], [4, 8], [1, 7], [0, 4], [1, 1]].forEach(([x, y]) => g.ellipse(x + 0.5, y + 0.5, 1.3, 1.3, petal));
+    g.ellipse(4.5, 4.5, 1.9, 1.9, heart); g.put(4, 4, mix(heart, 0xb5701f, 0.5)); g.put(5, 3, 0xfff6d6);
+  });
+}
+
+// ── the close-up: petting the bumblebee ──
+//
+// A picture rather than a prop: the moment the bee lets you touch it, seen
+// close. A fingertip on the fur of its back, the bee on a daisy, the meadow
+// soft behind. Three frames — the finger strokes, the wings twitch. (Both
+// travelers have the same skin and short sleeves, so one picture does.)
+
+// fill a tilted ellipse — petals and wings lie at every angle
+function blob(g, cx, cy, rx, ry, rot, c) {
+  const cos = Math.cos(rot), sin = Math.sin(rot), r = Math.ceil(Math.max(rx, ry)) + 1;
+  for (let y = Math.floor(cy - r); y <= cy + r; y++) {
+    for (let x = Math.floor(cx - r); x <= cx + r; x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+      const u = (dx * cos + dy * sin) / rx, v = (-dx * sin + dy * cos) / ry;
+      if (u * u + v * v <= 1) g.put(x, y, c);
+    }
+  }
+}
+
+const SKIN = [0xc4805c, 0xe4a47c, 0xf9d5ba, 0xfde8dc];
+
+function beeCloseup(frame) {
+  const W2 = 120, H2 = 80, rnd = rng(301);
+  const img = new Img(W2, H2);
+  // the meadow behind, out of focus: a soft fall of greens, dithered, and a few blurred lights
+  const sky = [0xc4e2b8, 0xaed6a4, 0x96c78f, 0x7fb57a, 0x699f6c, 0x568a5e];
+  const bayer = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+  for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+    const t = (y / H2) * (sky.length - 1), i = Math.floor(t), frac = t - i;
+    img.put(x, y, sky[frac * 16 > bayer[y % 4][x % 4] ? Math.min(i + 1, sky.length - 1) : i]);
+  }
+  [[16, 16, 8, 0xe2f0d6], [104, 56, 10, 0xa8d29a], [24, 66, 6, 0xf2e6a6], [96, 20, 6, 0xeef6e2], [80, 72, 7, 0x9cca90], [8, 44, 4, 0xfbf8ee]]
+    .forEach(([x, y, r, c]) => { img.ellipse(x, y, r, r, c, 0.4); img.ellipse(x - r * 0.2, y - r * 0.2, r * 0.55, r * 0.55, c, 0.35); });
+
+  // the daisy: tilted toward us, so its petals make a flattened ring
+  const flower = new Img(W2, H2);
+  const fx = 58, fy = 60;
+  flower.rect(fx - 2, fy, 4, H2 - fy, C.grass[1]); flower.vline(fx - 1, fy, H2 - fy, C.grass[2]);
+  blob(flower, fx + 10, fy + 13, 7, 2.4, -0.5, C.grass[2]); blob(flower, fx - 10, fy + 16, 6, 2.2, 0.5, C.grass[1]);
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2, px = fx + Math.cos(a) * 15, py = fy + Math.sin(a) * 6.5;
+    blob(flower, px, py, 7.5, 2.6, Math.atan2(Math.sin(a) * 0.43, Math.cos(a)), Math.sin(a) > 0.2 ? 0xf7f4ee : 0xdfe1e6);
+  }
+  flower.ellipse(fx, fy - 1, 8.5, 4.6, 0xe8a02c); flower.ellipse(fx - 1, fy - 2, 7, 3.4, 0xffd23f);
+  for (let i = 0; i < 16; i++) flower.put(fx - 6 + rnd.int(0, 12), fy - 3 + rnd.int(0, 4), rnd.chance(0.5) ? 0xf5b830 : 0xfff3b0);
+  flower.outline(mix(C.ink, C.grass[0], 0.4));
+  img.blit(flower, 0, 0);
+
+  // the bee, side on, facing left, holding on to the daisy's heart
+  const bee = new Img(W2, H2);
+  const f = BEE_FUR, bx = 60, by = 48;
+  [[48, 52, 45, 58], [53, 54, 52, 59], [60, 55, 61, 59], [66, 54, 69, 58]].forEach(([x0, y0, x1, y1]) => { bee.line(x0, y0, x1, y1, f[0]); bee.line(x0 + 1, y0, x1 + 1, y1, f[0]); });
+  // the abdomen: yellow, a black band, yellow, a black band, a white tail
+  blob(bee, bx + 6, by, 12, 8.5, 0.1, f[1]);
+  for (let y = by - 10; y <= by + 10; y++) for (let x = bx - 6; x <= bx + 20; x++) {
+    if (!bee.alpha(x, y)) continue;
+    const band = Math.floor((x - (bx - 3) - (y - by) * 0.25) / 5);
+    if (band === 1 || band === 3) bee.put(x, y, f[0]);
+    if (band >= 4) bee.put(x, y, 0xf2efe6);
+  }
+  blob(bee, bx + 3, by - 5, 6, 1.8, 0.1, f[2]);
+  // the thorax: furry, a yellow collar over black
+  blob(bee, bx - 8, by - 2, 7.6, 7.2, 0, f[0]);
+  blob(bee, bx - 8, by - 6, 6.4, 3.8, 0, f[1]); blob(bee, bx - 9, by - 7, 4, 1.6, 0, f[2]);
+  // head, eye, feelers
+  blob(bee, bx - 17, by + 1, 5, 5.4, 0, f[0]);
+  bee.ellipse(bx - 19, by, 1.6, 2.2, 0x5a4634); bee.put(bx - 20, by - 1, 0xd6c3a5);
+  const twitch = frame === 1 ? 1 : 0;
+  bee.line(bx - 18, by - 4, bx - 23, by - 11 + twitch, f[0]); bee.line(bx - 23, by - 11 + twitch, bx - 27, by - 10 + twitch, f[0]);
+  bee.line(bx - 16, by - 4, bx - 19, by - 12, f[0]); bee.line(bx - 19, by - 12, bx - 22, by - 13, f[0]);
+  for (let i = 0; i < 80; i++) {                                                  // fur: a soft, broken edge
+    const a = rnd() * Math.PI * 2, r = 0.98 + rnd() * 0.1;
+    const x = Math.round(bx + 6 + Math.cos(a) * 12 * r), y = Math.round(by + Math.sin(a) * 8.5 * r);
+    if (!bee.alpha(x, y)) bee.put(x, y, rnd.chance(0.5) ? f[1] : f[2]);
+  }
+  bee.outline(C.ink);
+  // the wings: see-through, edged so they show, lifted a little when it shifts
+  const lift = frame === 2 ? -0.2 : 0;
+  [[bx + 1, by - 13, 12, 4.4, -0.42], [bx + 6, by - 10, 10, 3.6, -0.22]].forEach(([x, y, rx, ry, rot], i) => {
+    blob(bee, x, y, rx + 0.8, ry + 0.8, rot + lift, [120, 150, 168, 190]);
+    blob(bee, x, y, rx, ry, rot + lift, i ? [236, 246, 250, 170] : [214, 233, 242, 185]);
+  });
+  img.blit(bee, 0, 0);
+
+  // your hand, in from the top right: a bare forearm (both travelers wear short
+  // sleeves), the fingers curled, one fingertip on the fur of its back
+  const hand = new Img(W2, H2);
+  const tip = [[51, 37], [54, 36], [57, 37]][frame];
+  // the forearm, down from the corner: one smooth length of it, lit along the top
+  const arm = (ax, ay, bx2, by2, w0, w1, c) => {
+    const len = Math.hypot(bx2 - ax, by2 - ay), nx = (by2 - ay) / len, ny = -(bx2 - ax) / len;   // the side facing up
+    hand.poly([[ax + nx * w0[0], ay + ny * w0[0]], [bx2 + nx * w1[0], by2 + ny * w1[0]],
+      [bx2 + nx * w1[1], by2 + ny * w1[1]], [ax + nx * w0[1], ay + ny * w0[1]]], c);
+  };
+  arm(126, -10, 79, 21, [6.5, -6.5], [5, -5], SKIN[1]);
+  arm(126, -10, 79, 21, [6, 0.5], [4.6, 0.5], SKIN[2]);
+  arm(126, -10, 79, 21, [6.2, 4.6], [4.8, 3.6], SKIN[3]);
+  blob(hand, 72, 25, 8, 6, -0.55, SKIN[1]); blob(hand, 71, 23.5, 6.4, 4.4, -0.55, SKIN[2]);   // the back of the hand
+  [[67, 31], [71, 33], [75, 32]].forEach(([x, y]) => { blob(hand, x, y, 3, 2.4, -0.4, SKIN[1]); hand.put(x - 1, y - 1, SKIN[2]); });   // fingers, curled under
+  for (let k = 0; k <= 8; k++) {                                                 // the one that points — not far
+    const t = k / 8, x = 66 + (tip[0] - 66) * t, y = 27 + (tip[1] - 27) * t;
+    blob(hand, x, y, 2.8, 2.8, 0, SKIN[1]); blob(hand, x + 0.4, y - 0.9, 1.9, 1.5, 0, SKIN[2]);
+  }
+  blob(hand, tip[0] + 1, tip[1] - 1, 1.6, 1, -0.4, SKIN[3]);                     // the nail
+  hand.line(66, 21, 76, 17, SKIN[3]);                                             // light along the top of the hand
+  hand.outline(mix(C.ink, SKIN[0], 0.3));
+  img.blit(hand, 0, 0);
+  return img;
+}
+
+function petTheBee() {
+  return sheet([0, 1, 2].map((frame) => beeCloseup(frame)), 120, 80);
+}
+
 // ── the broken bridge, near the end of the road ──
 
 // one board of the bridge's deck: 56 across (112 on screen — the scene lays
@@ -1068,8 +1193,10 @@ export function buildAll() {
     // the animals (sprite sheets — frame sizes are in tools/animals.mjs)
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
     cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
-    duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(),
+    duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(), bee: bee(),
     plank: plank(), trestle: trestle(),
+    'daisy-tall': tallDaisy(), 'daisy-tall-yellow': tallDaisy(0xffe27a, 0xe8a02c),
+    'bee-pet': petTheBee(),
     mud: mud(), dish: dish(),
     acorn: acorn(), 'icon-acorn': acorn(), 'oak-old': oldOak(), snag: snag(),
     // the mushroom hill

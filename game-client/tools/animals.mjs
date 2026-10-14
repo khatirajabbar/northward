@@ -653,6 +653,35 @@ export function turtle() {
   ], 26, 16);
 }
 
+// ── the bumblebee that has run out of sugar ──
+
+const BEE = { fur: [0x231a12, 0xd99a24, 0xf5cf55], wing: [0xc9dde6, 0xf4fbff] };
+export const BEE_FUR = BEE.fur;
+
+// a round, furry bumblebee in stripes. `wings` 0 lie folded on its back, 1 are
+// up and 2 down (flying); `crawl` moves a foot
+function beeBody({ wings = 0, crawl = 0 } = {}) {
+  const f = BEE.fur;
+  return outlined(11, 9, (g) => {
+    if (wings === 1) { g.ellipse(5.4, 1.6, 1.6, 2, BEE.wing[0]); g.ellipse(7.4, 1.8, 1.5, 1.8, BEE.wing[1]); }
+    g.ellipse(6, 5.4, 3.8, 2.8, f[1]);                                              // the round of it
+    g.ellipse(6.4, 4.4, 2.2, 1.2, f[2]);
+    g.vline(5, 3, 5, f[0]); g.vline(8, 3, 5, f[0]); g.put(10, 5, f[0]); g.put(10, 6, f[0]);   // its stripes, and the dark tail end
+    g.ellipse(1.8, 5, 1.7, 1.7, f[0]); g.put(1, 4, 0x4a3a2a);                       // head
+    g.put(1, 2, f[0]); g.put(0, 1, f[0]); g.put(2, 2, f[0]); g.put(3, 1, f[0]);     // feelers
+    if (wings === 0) { g.ellipse(7, 3.2, 2.6, 1.1, BEE.wing[0]); g.hline(6, 3, 3, BEE.wing[1]); }
+    if (wings === 2) { g.ellipse(6, 4.2, 2.6, 1, BEE.wing[0]); g.ellipse(7.6, 3.8, 2, 0.9, BEE.wing[1]); }
+    if (wings === 0) [3, 6 + crawl, 8].forEach((x) => g.put(x, 8, f[0]));          // feet, when it's down on them
+  }, C.ink);
+}
+
+export function bee() {
+  return sheet([
+    beeBody(), beeBody({ crawl: -1 }),                          // 0-1 crawling, too tired to fly
+    beeBody({ wings: 1 }), beeBody({ wings: 2 })                // 2-3 flying
+  ], 13, 11);
+}
+
 // ── the small brown bird — the one from your window ──
 
 const BIRD = { b: [0x4a3a28, 0x6b5135, 0x8a6d49, 0xc9b08a], beak: 0xd9a441 };
@@ -707,5 +736,6 @@ export const FRAMES = {
   squirrel: { size: [30, 20], sit: [0, 1], alert: 2, run: [3, 6], holding: 7, peek: 8 },
   duck: { size: [26, 18], stand: [0, 1], call: 2, walk: [3, 4], swim: [5, 6] },
   duckling: { size: [14, 12], stand: 0, peep: 1, walk: [2, 3], hop: 4, swim: 5, held: [6, 7] },
-  turtle: { size: [26, 16], back: [0, 1], shy: 2, walk: [3, 4] }
+  turtle: { size: [26, 16], back: [0, 1], shy: 2, walk: [3, 4] },
+  bee: { size: [13, 11], tired: [0, 1], fly: [2, 3] }
 };
