@@ -162,6 +162,15 @@ function button({ down = false } = {}) {
   return img;
 }
 
+// a little bin, for letting a journey go
+function bin() {
+  return outlined(9, 10, (g) => {
+    g.rect(0, 2, 9, 2, 0xd8d0be); g.rect(3, 0, 3, 2, 0xd8d0be); g.hline(1, 2, 7, 0xf2ecdd);   // the lid and its handle
+    g.rect(1, 4, 7, 6, 0xb9b2a4); g.rect(1, 4, 7, 1, 0xd8d0be);                                // the can
+    [2, 4, 6].forEach((x) => g.vline(x, 5, 4, 0x8d8678));
+  }, INK);
+}
+
 // "this one" — a small arrow that hangs over the thing to go to
 function marker() {
   return outlined(11, 9, (g) => {
@@ -185,8 +194,8 @@ function tick() {
 export function buildAll() {
   return {
     note: note(), 'note-tall': note(158), 'note-long': note(180), tag: tag(), marker: marker(), checkbox: checkbox(), tick: tick(),
-    title: title(), sign: sign(), rope: rope(), fullscreen: fullscreen(), button: button(), 'button-down': button({ down: true }),
-    'key-e': key('E'), 'key-i': key('I'), 'key-f': key('F'), 'key-down': key('↓'), 'key-left': key('←'), 'key-right': key('→'), 'key-up': key('↑'),
+    title: title(), bin: bin(), sign: sign(), rope: rope(), fullscreen: fullscreen(), button: button(), 'button-down': button({ down: true }),
+    'key-e': key('E'), 'key-i': key('I'), 'key-f': key('F'), 'key-x': key('X'), 'key-down': key('↓'), 'key-left': key('←'), 'key-right': key('→'), 'key-up': key('↑'),
     'key-shift': key('shift', { wide: true }), 'key-esc': key('esc', { wide: true })
   };
 }

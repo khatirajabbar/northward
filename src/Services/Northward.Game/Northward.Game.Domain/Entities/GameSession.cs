@@ -2,6 +2,10 @@ namespace Northward.Game.Domain.Entities;
 
 public class GameSession
 {
+    // a player keeps at most this many journeys on the go — their save slots.
+    // (a finished journey isn't kept: its kindness is on the leaderboard)
+    public const int MaxOpenPerUser = 4;
+
     public Guid Id { get; private set; }
     public Guid UserId { get; private set; }
     public Guid PlayerCharacterId { get; private set; }
@@ -11,12 +15,14 @@ public class GameSession
     public int Score { get; private set; }
     public bool IsCompleted { get; private set; }
     public DateTime StartedAt { get; private set; }
+    public DateTime LastPlayedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
 
     private GameSession() { }
 
     public static GameSession Create(Guid userId, Guid playerCharacterId, string season)
     {
+        var now = DateTime.UtcNow;
         return new GameSession
         {
             Id = Guid.NewGuid(),
@@ -26,7 +32,8 @@ public class GameSession
             CurrentScene = Scenes.Morning,
             Score = 0,
             IsCompleted = false,
-            StartedAt = DateTime.UtcNow
+            StartedAt = now,
+            LastPlayedAt = now
         };
     }
 
@@ -55,6 +62,7 @@ public class GameSession
         CurrentScene = currentScene;
         Score = score;
         Checkpoint = checkpoint;
+        LastPlayedAt = DateTime.UtcNow;
     }
 
     public void Complete()

@@ -43,31 +43,69 @@ export default class Board {
     return this.add(words);
   }
 
-  heading(str) { return this.write(BOARD.w / 2, 6, str, { align: 'center' }); }
+  heading(str) { this.title = this.write(BOARD.w / 2, 6, str, { align: 'center' }); return this.title; }
 
-  // a list to choose from, one to a plank: each is { label, short, note } — the
-  // note is written at the right-hand end, and `short` is used if the label
-  // won't fit beside it. onPick(item, index) is called when one is taken
-  menu(items, onPick) {
+  // a different heading on the same plank
+  retitle(str) {
+    const [mid] = this.at(BOARD.w / 2, 0);
+    this.title.setText(str).setX(Math.round(mid - this.title.width / 2));
+  }
+
+  // a list to choose from, one to a plank: each is { label, short, note, bin } —
+  // the note is written at the right-hand end, `short` is used if the label won't
+  // fit beside it, and `bin` puts a little bin at the very end (onBin is called
+  // when it's clicked). onPick(item, index) is called when one is taken
+  menu(items, onPick, { onBin = null } = {}) {
     const { scene } = this;
+    this.clearMenu();
     this.items = items;
     this.onPick = onPick;
+    this.onBin = onBin;
     this.rows = items.map((item, i) => {
       const cy = BOARD.plank * (i + 1);
       const [x, y] = this.at(2, cy + 1);
       const w = (BOARD.w - 4) * P, h = (BOARD.plank - 3) * P;
-      const lit = this.add(scene.add.rectangle(x, y, w, h, 0xfff3cf, 0.16).setOrigin(0, 0).setVisible(false));
-      const arrow = this.write(7, cy + 6, '▸', { tint: GOLD }).setVisible(false);
-      const note = item.note ? this.write(BOARD.w - 9, cy + 6, item.note, { tint: TAN, align: 'right' }) : null;
-      const label = this.write(16, cy + 6, item.label, { tint: TAN });
-      const room = (BOARD.w - 25) * P - (note ? note.width + 6 * P : 0);
+      const parts = [];
+      const keep = (thing) => { parts.push(thing); return this.add(thing); };
+      const lit = keep(scene.add.rectangle(x, y, w, h, 0xfff3cf, 0.16).setOrigin(0, 0).setVisible(false));
+      const arrow = keep(this.write(7, cy + 6, '▸', { tint: GOLD }).setVisible(false));
+      const end = item.bin ? BOARD.w - 22 : BOARD.w - 9;
+      const note = item.note ? keep(this.write(end, cy + 6, item.note, { tint: TAN, align: 'right' })) : null;
+      const label = keep(this.write(16, cy + 6, item.label, { tint: TAN }));
+      const room = (end - 16) * P - (note ? note.width + 6 * P : 0);
       if (label.width > room && item.short) label.setText(item.short);
-      const zone = this.add(scene.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true }));
+      const zone = keep(scene.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true }));
       zone.on('pointerover', () => this.choose(i));
       zone.on('pointerdown', () => { this.choose(i); this.pick(); });
-      return { lit, arrow, label };
+      if (item.bin) {
+        const [bx, by] = this.at(BOARD.w - 12, cy + 5);
+        const icon = keep(scene.add.image(bx, by, 'ui-bin').setOrigin(0.5, 0).setScale(2).setAlpha(0.75));
+        // its own small target, over the row's: the bin, not the journey
+        const hit = keep(scene.add.zone(bx - 7 * P, y, 14 * P, h).setOrigin(0, 0).setInteractive({ useHandCursor: true }));
+        hit.on('pointerover', () => { this.choose(i); icon.setAlpha(1); });
+        hit.on('pointerout', () => icon.setAlpha(0.75));
+        hit.on('pointerdown', () => { this.choose(i); if (this.onBin) this.onBin(item, i); });
+      }
+      return { lit, arrow, label, note, parts, text: label.text };
     });
-    this.choose(0);
+    this.choose(Math.min(Math.max(this.chosen, 0), this.rows.length - 1));
+  }
+
+  // take the list off the board (a new one can go up in its place)
+  clearMenu() {
+    (this.rows || []).forEach((row) => row.parts.forEach((part) => part.destroy()));
+    this.rows = [];
+  }
+
+  // write something else on a plank for a while — a question, say — or (with no
+  // label) put back what was there
+  setRow(index, label, { tint = null, note = true } = {}) {
+    const row = this.rows[index];
+    if (!row) return;
+    row.label.setText(label || row.text);
+    row.tintOverride = label ? tint : null;
+    if (row.note) row.note.setVisible(note);
+    this.choose(this.chosen);
   }
 
   choose(index) {
@@ -76,7 +114,7 @@ export default class Board {
     this.rows.forEach((row, i) => {
       row.lit.setVisible(i === index);
       row.arrow.setVisible(i === index);
-      row.label.setTint(i === index ? CREAM : TAN);
+      row.label.setTint(row.tintOverride || (i === index ? CREAM : TAN));
     });
     if (this.onChoose) this.onChoose(this.items[index], index);
   }
@@ -90,9 +128,11 @@ export default class Board {
     this.onPick(this.items[this.chosen], this.chosen);
   }
 
-  // under the board: which keys do what — [[['up', 'down'], 'choose'], [['e'], 'start']]
+  // under the board: which keys do what — [[['up', 'down'], 'choose'], [['e'], 'start']].
+  // calling it again puts up a new set in place of the old
   keys(hints) {
     const { scene } = this;
+    if (this.hints) this.hints.destroy();
     const row = scene.add.container(0, 0);
     let x = 0;
     hints.forEach(([caps, does]) => {
@@ -107,7 +147,8 @@ export default class Board {
     });
     const [mid, under] = this.at(BOARD.w / 2, BOARD.plank * BOARD.planks);
     row.setPosition(Math.round(mid - (x - 26) / 2), under + 34);
-    return this.add(row);
+    this.hints = this.add(row);
+    return row;
   }
 
   // let it down on its ropes; it settles

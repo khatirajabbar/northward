@@ -9,5 +9,6 @@ public record GameSessionDto(
     int Score,
     bool IsCompleted,
     DateTime StartedAt,
+    DateTime LastPlayedAt,
     DateTime? CompletedAt
 );

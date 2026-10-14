@@ -37,6 +37,9 @@ public class GameSessionConfiguration : IEntityTypeConfiguration<GameSession>
         builder.Property(gs => gs.StartedAt)
             .IsRequired();
 
+        builder.Property(gs => gs.LastPlayedAt)
+            .IsRequired();
+
         builder.Property(gs => gs.CompletedAt)
             .IsRequired(false);
 

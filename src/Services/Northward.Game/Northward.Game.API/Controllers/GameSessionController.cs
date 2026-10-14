@@ -58,6 +58,14 @@ public class GameSessionController : ControllerBase
         return Ok(result);
     }
 
+    [HttpDelete("{sessionId:guid}")]
+    public async Task<IActionResult> Delete(Guid sessionId)
+    {
+        var userId = GetUserId();
+        await _gameSessionService.DeleteAsync(userId, sessionId);
+        return NoContent();
+    }
+
     private Guid GetUserId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

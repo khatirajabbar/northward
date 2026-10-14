@@ -9,4 +9,5 @@ public interface IGameSessionService
     Task<GameSessionDto> AddScoreAsync(Guid userId, Guid sessionId, int points);
     Task<GameSessionDto> UpdateProgressAsync(Guid userId, Guid sessionId, UpdateProgressDto dto);
     Task<GameSessionDto> CompleteAsync(Guid userId, Guid sessionId);
+    Task DeleteAsync(Guid userId, Guid sessionId);
 }

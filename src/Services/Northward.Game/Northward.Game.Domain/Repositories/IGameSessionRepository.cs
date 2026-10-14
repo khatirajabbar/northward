@@ -8,4 +8,5 @@ public interface IGameSessionRepository
     Task<List<GameSession>> GetByUserIdAsync(Guid userId);
     Task AddAsync(GameSession gameSession);
     Task UpdateAsync(GameSession gameSession);
+    Task DeleteAsync(GameSession gameSession);
 }

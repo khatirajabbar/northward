@@ -43,6 +43,9 @@ namespace Northward.Game.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime>("LastPlayedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("PlayerCharacterId")
                         .HasColumnType("uuid");
 

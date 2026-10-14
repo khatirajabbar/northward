@@ -37,6 +37,7 @@ async function request(path, method = 'GET', body) {
     throw new Error(err.message || err.error || 'game service request failed');
   }
 
+  if (response.status === 204) return null;      // done, nothing to say (a journey let go)
   return await response.json();
 }
 
@@ -63,5 +64,9 @@ export const game = {
 
   completeSession(sessionId) {
     return request(`/api/gamesession/${sessionId}/complete`, 'PATCH');
+  },
+
+  deleteSession(sessionId) {
+    return request(`/api/gamesession/${sessionId}`, 'DELETE');
   }
 };
