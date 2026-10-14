@@ -12,6 +12,7 @@ import DucklingPuzzle from '../puzzles/duckling.js';
 import BridgePuzzle from '../puzzles/bridge.js';
 import TurtlePuzzle from '../puzzles/turtle.js';
 import BeePuzzle from '../puzzles/bee.js';
+import Evening from '../world/evening.js';
 import Guide, { INK, PENCIL } from '../ui/guide.js';
 
 // The forest's art is drawn small by tools/forest-art.mjs (the same palette and
@@ -640,6 +641,8 @@ export default class ForestScene extends Phaser.Scene {
     this.turtle = new TurtlePuzzle(this, this.turtleX);
     // ── the brook, and the bridge to mend before you can cross it ──
     this.bridge = new BridgePuzzle(this, this.brookL, this.brookR);
+    // ── and over all of that last stretch, evening falls ──
+    this.evening = new Evening(this, this.stagX, this.brookR + 620);
 
     this.restoreProgress();
     this.buildTasks();
@@ -1013,6 +1016,7 @@ export default class ForestScene extends Phaser.Scene {
     this.duck.update(px);
     this.bumblebee.update(px);
     this.turtle.update(px);
+    this.evening.update(px);
     this.bridge.update(px);
 
     // ── arriving at the resting field ──
