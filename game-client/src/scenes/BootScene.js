@@ -20,28 +20,12 @@ export default class BootScene extends Phaser.Scene {
     // if the font file arrives after the words were first drawn, draw them again
     if (document.fonts) document.fonts.load('20px northward').then(() => waiting.forEach((text) => { if (text.active) text.updateText(); }));
 
-    this.load.spritesheet('player', 'assets/characters/player.png', {
-      frameWidth: 48,
-      frameHeight: 48
-    });
-
     loadLpcCharacter(this, 'lpc-khatira');
     loadLpcCharacter(this, 'lpc-oliver');
 
 
+    // the invisible tiles the forest's ground and the bridge's boards are made of
     this.load.image('grass', 'assets/tiles/grass.png');
-
-    // Parallax forest layers (ansimuz, 272x160 each)
-    this.load.image('forest-back', 'assets/forest/back-trees.png');
-    this.load.image('forest-middle', 'assets/forest/middle-trees.png');
-    this.load.image('forest-front', 'assets/forest/front-trees.png');
-    this.load.image('forest-lights', 'assets/forest/lights.png');
-
-    // Demon Woods layers (592x272 trees, 480x272 bg) — silhouette style
-    this.load.image('dw-bg', 'assets/forest2/dw-bg.png');
-    this.load.image('dw-far', 'assets/forest2/dw-far.png');
-    this.load.image('dw-mid', 'assets/forest2/dw-mid.png');
-    this.load.image('dw-close', 'assets/forest2/dw-close.png');
 
     // The morning cabin — drawn by tools/cabin-art.mjs: the far distance, the
     // clearing with the whole house, and the pieces the scene moves, swaps or layers
@@ -75,73 +59,9 @@ export default class BootScene extends Phaser.Scene {
       .forEach((name) => this.load.image(`ui-${name}`, `assets/ui/${name}.png`));
     this.load.bitmapFont('px', 'assets/ui/font.png', 'assets/ui/font.xml');
     this.load.bitmapFont('px-edged', 'assets/ui/font-edged.png', 'assets/ui/font-edged.xml');
-
-    const dirtGfx = this.make.graphics({ x: 0, y: 0, add: false });
-    dirtGfx.fillStyle(0x3a2d1f);
-    dirtGfx.fillRect(0, 0, 16, 16);
-    dirtGfx.generateTexture('dirt', 16, 16);
-    dirtGfx.destroy();
-
-    const treeGfx = this.make.graphics({ x: 0, y: 0, add: false });
-    treeGfx.fillStyle(0x2a1a0f);
-    treeGfx.fillRect(28, 80, 8, 32);
-    treeGfx.fillStyle(0x1a2818);
-    treeGfx.fillTriangle(32, 0, 8, 40, 56, 40);
-    treeGfx.fillTriangle(32, 20, 4, 60, 60, 60);
-    treeGfx.fillTriangle(32, 40, 0, 84, 64, 84);
-    treeGfx.generateTexture('tree', 64, 112);
-    treeGfx.destroy();
-
-    // Campfire checkpoint — unlit (dim logs) and lit (glowing)
-    const logsGfx = this.make.graphics({ x: 0, y: 0, add: false });
-    logsGfx.fillStyle(0x3a2818);
-    logsGfx.fillRect(2, 20, 28, 6);
-    logsGfx.fillRect(6, 24, 20, 5);
-    logsGfx.fillStyle(0x2a1c10);
-    logsGfx.fillRect(0, 26, 32, 4);
-    logsGfx.generateTexture('campfire_off', 32, 32);
-    logsGfx.destroy();
-
-    const fireGfx = this.make.graphics({ x: 0, y: 0, add: false });
-    fireGfx.fillStyle(0x3a2818);
-    fireGfx.fillRect(2, 20, 28, 6);
-    fireGfx.fillRect(6, 24, 20, 5);
-    fireGfx.fillStyle(0x2a1c10);
-    fireGfx.fillRect(0, 26, 32, 4);
-    // flames
-    fireGfx.fillStyle(0xff8c42);
-    fireGfx.fillTriangle(16, 0, 6, 22, 26, 22);
-    fireGfx.fillStyle(0xffd24a);
-    fireGfx.fillTriangle(16, 8, 10, 22, 22, 22);
-    fireGfx.generateTexture('campfire_on', 32, 32);
-    fireGfx.destroy();
-
-    // Goal marker (tall glowing post)
-    const goalGfx = this.make.graphics({ x: 0, y: 0, add: false });
-    goalGfx.fillStyle(0xdce8e0);
-    goalGfx.fillRect(14, 0, 4, 80);
-    goalGfx.fillStyle(0xffd24a);
-    goalGfx.fillCircle(16, 8, 8);
-    goalGfx.generateTexture('goal', 32, 80);
-    goalGfx.destroy();
   }
 
   create() {
-    this.anims.create({
-      key: 'idle',
-      frames: this.anims.generateFrameNumbers('player', { start: 12, end: 17 }),
-      frameRate: 6,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: 'walk',
-      frames: this.anims.generateFrameNumbers('player', { start: 30, end: 35 }),
-      frameRate: 10,
-      repeat: -1
-    });
-
-
     createLpcAnims(this, 'lpc-khatira');
     createLpcAnims(this, 'lpc-oliver');
     createAnimalAnims(this);
