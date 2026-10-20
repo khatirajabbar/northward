@@ -13,6 +13,7 @@ import BridgePuzzle from '../puzzles/bridge.js';
 import TurtlePuzzle from '../puzzles/turtle.js';
 import BeePuzzle from '../puzzles/bee.js';
 import Evening from '../world/evening.js';
+import { play, bed, level, fade, steps, nearness, nowAndThen } from '../audio/sound.js';
 import Guide, { INK, PENCIL } from '../ui/guide.js';
 
 // The forest's art is drawn small by tools/forest-art.mjs (the same palette and
@@ -402,6 +403,7 @@ export default class ForestScene extends Phaser.Scene {
         this.physics.add.overlap(this.player, pad, () => {
           if (this.player.body.velocity.y > 40) {
             this.player.setVelocityY(power);
+            play(this, 'bounce');
             this.tweens.add({ targets: m, scaleY: { from: m.scaleY, to: m.scaleY * 0.65 }, duration: 90, yoyo: true });
           }
         });
@@ -464,6 +466,7 @@ export default class ForestScene extends Phaser.Scene {
       const fromAbove = player.body.velocity.y >= 0 && player.body.bottom <= pad.body.top + 24;
       if (fromAbove) {
         player.setVelocityY(pad.bouncePower);
+        play(this, 'bounce');
         this.tweens.add({ targets: pad.bounceMush, scaleY: { from: pad.bounceMush.scaleY, to: pad.bounceMush.scaleY * 0.65 }, duration: 90, yoyo: true });
       }
     }, (player, pad) => {
@@ -622,6 +625,15 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── the guide: the task in hand, its marker, the key prompts, the thoughts ──
     this.guide = new Guide(this);
+    bed(this, { 'amb-forest': 1, 'amb-wind': 1, 'music-forest': 1 });
+    // and the small sounds of things going on off the road: by day a woodpecker,
+    // a twig, a bird calling; an owl once it's dark
+    nowAndThen(this, () => {
+      const t = this.evening ? this.evening.t : 0;
+      if (t < 0.5) return { id: Phaser.Utils.Array.GetRandom(['woodpecker', 'twig', 'birdcall']) };
+      if (t > 0.75 && Math.random() < 0.6) return { id: 'owl', volume: 0.7 };
+      return null;
+    }, [9000, 20000]);
 
     this.player.play(`${this.characterId}-idle`);
     // ── the fox cub in the hollow log, between the carrot field and the lake ──
@@ -768,6 +780,7 @@ export default class ForestScene extends Phaser.Scene {
 
   lightTorch(torch) {
     torch.lit = true;
+    play(this, 'torch');
     torch.flame.setVisible(true).play('flame-burn');
     this.tweens.add({ targets: torch.glow, alpha: 0.18, duration: 600, ease: 'Sine.out',
       onComplete: () => {
@@ -973,6 +986,7 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   addKindness(x, y) {
+    play(this, 'kindness');
     this.kindness++;
     this.registry.set('kindness', this.kindness);
     this.sparkle(x, y);
@@ -1039,6 +1053,7 @@ export default class ForestScene extends Phaser.Scene {
     this.cryingCueX = this.brookR + 260;
     if (!this.cryingHeard && this.screamHeard && px > this.cryingCueX) {
       this.cryingHeard = true;
+      fade(this, 'crying', 0.5, 4000);              // faint, somewhere ahead
       this.showThought('someone is crying out there. maybe they need help.', 3800);
     }
 
@@ -1080,6 +1095,7 @@ export default class ForestScene extends Phaser.Scene {
     const inBrook = px > this.brookL && px < this.brookR;
     if (this.player.y > this.groundY + 24 && this.player.body.velocity.y >= 0 && (inCrossGap || inRiverGap || inBrook)) {
       // little splash
+      play(this, 'splash');
       for (let i = 0; i < 8; i++) {
         const drop = this.add.circle(this.player.x, this.groundY + 30, 3, 0x9fd4e0, 0.8).setDepth(60);
         const a = Math.random() * Math.PI - Math.PI / 2;
@@ -1098,6 +1114,15 @@ export default class ForestScene extends Phaser.Scene {
     }
     const onGround = this.player.body.blocked.down;
     const vx = Math.abs(this.player.body.velocity.x);
+
+    // ── what you hear: water when you're near water, your feet, the horse under you ──
+    const waters = [this.lakeCenterX, this.riverX, this.crossX, this.duckPondX, (this.brookL + this.brookR) / 2];
+    level(this, 'amb-water', nearness(Math.min(...waters.map((w) => Math.abs(px - w))), 520));
+    const onBoards = px > this.brookL && px < this.brookR;
+    steps(this, onGround && !this.riding && !this.resting && vx > 20, { surface: onBoards ? 'wood' : 'grass', slow: this.movingSlow });
+    level(this, 'hooves', this.riding && onGround && vx > 20 ? 1 : 0);
+    if (onGround && this.wasAirborne && !this.resting) play(this, 'land', { volume: 0.7 });
+    this.wasAirborne = !onGround;
 
     // ── parallax ──
     const camX = this.cameras.main.scrollX;
@@ -1144,6 +1169,7 @@ export default class ForestScene extends Phaser.Scene {
           onComplete: () => {
             bird.play('bird-perch').setFlipX(side > 0);                // landed, looking at you
             this.showThought('you again.', 2600);
+            play(this, 'chirp');
             // a few glad little hops, then off into the trees
             this.tweens.add({ targets: bird, y: floor - 12, duration: 150, yoyo: true, repeat: 2,
               repeatDelay: 420, ease: 'Quad.out',
@@ -1386,6 +1412,7 @@ export default class ForestScene extends Phaser.Scene {
 
   toggleBag() {
     this.bagOpen = !this.bagOpen;
+    play(this, 'ui-paper', { volume: 0.6 });
     if (this.bagOpen) this.drawBag();
     else if (this.bagPanel) { this.bagPanel.destroy(); this.bagPanel = null; }
   }
@@ -1438,6 +1465,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'freebird') {
+      play(this, 'wings');
       this.birdFreed = true;
       this.addKindness(this.birdX, this.groundY - 60);
       this.showThought('there you go. carefully now.', 3200);
@@ -1457,6 +1485,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'farewell') {
+      play(this, 'horse-neigh');
       this.saidGoodbye = true;
       if (this.riding) {
         this.riding = false;
@@ -1480,6 +1509,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'mount') {
+      play(this, 'horse-snort');
       this.riding = true;
       // lift the sprite (offset + y cancel out, so the body stays put) to seat it on the horse's back
       setTravelerBody(this.player, this.rideLift);
@@ -1489,6 +1519,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'feedhorse') {
+      play(this, 'crunch');
       if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
       this.inventory.carrots -= 1;
       this.horseFed = true;
@@ -1500,6 +1531,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'feedmeadow' && this._nearMeadow) {
+      play(this, 'crunch');
       if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
       this.inventory.carrots -= 1;
       this._nearMeadow.fed = true;
@@ -1511,6 +1543,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'pickupcat') {
+      play(this, 'meow');
       // too scared to climb down by itself — you carry it
       this.carryingCat = true;
       this.catRescued = true;
@@ -1521,6 +1554,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'putdowncat') {
+      play(this, 'meow', { volume: 0.6 });
       // safe on the ground — from here it follows you, all the way to the end
       this.carryingCat = false;
       this.catFollowing = true;
@@ -1531,6 +1565,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'putdownbucket') {
+      play(this, 'bucket', { volume: 0.7 });
       this.groundBucketState = this.carrying;
       this.carrying = null;
       this.bucketPicked = false;
@@ -1545,6 +1580,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'carrot' && this._nearCarrot) {
+      play(this, 'carrot');
       if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
       this.addItem('carrots');
       this.sparkle(this._nearCarrot.x, this._nearCarrot.y - 10);
@@ -1555,6 +1591,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'pickup') {
+      play(this, 'bucket');
       this.bucketPicked = true;
       this.carrying = this.groundBucketState || 'empty';
       this.groundBucket.setVisible(false);
@@ -1562,9 +1599,11 @@ export default class ForestScene extends Phaser.Scene {
       this.bucketTufts.forEach((t) => t.setVisible(false));
       this.showThought('an old bucket. still good.');
     } else if (action === 'fill') {
+      play(this, 'fill');
       this.carrying = 'full';
       this.showThought('cold lake water.');
     } else if (action === 'water') {
+      play(this, 'pour');
       if (!this.riding) this.player.play(`${this.characterId}-water`);
       this.treeWatered = true;
       this.carrying = null;

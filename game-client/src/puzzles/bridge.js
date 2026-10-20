@@ -8,6 +8,8 @@
 // it for a prompt (offer), hands it actions (act) and ticks it (update). The
 // scene makes the gap in the ground and the water; this lays the way over it.
 
+import { play } from '../audio/sound.js';
+
 const ART = 2;             // the forest's art is shown at 2x
 const BOARD = 112;         // how much of the brook one board spans
 const BOARDS = 3;
@@ -86,6 +88,7 @@ export default class BridgePuzzle {
       if (!plank) return true;
       plank.taken = true;
       plank.sprite.setVisible(false);
+      play(scene, 'plank', { volume: 0.6 });
       this.carrying = true;
       scene.player.setVelocityX(0);
       scene.player.play(`${scene.characterId}-crouch`);
@@ -102,6 +105,7 @@ export default class BridgePuzzle {
       this.lay(this.laid);
       this.laid += 1;
       // it drops into place: a knock, a puff of dust off the old wood
+      play(scene, 'plank');
       for (let i = 0; i < 7; i++) {
         const dust = scene.add.rectangle(x + Math.random() * BOARD, scene.groundY - 2, 3, 3, 0xd9c7a3, 0.8).setDepth(9);
         scene.tweens.add({ targets: dust, y: dust.y - 10 - Math.random() * 14, x: dust.x + (Math.random() - 0.5) * 20, alpha: 0,

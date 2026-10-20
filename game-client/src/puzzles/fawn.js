@@ -7,6 +7,8 @@
 // Like the fox, the puzzle owns its sprites and its state; ForestScene asks it
 // for a prompt (offer), hands it actions (act) and ticks it (update).
 
+import { play } from '../audio/sound.js';
+
 const ART = 2;             // the forest's art is shown at 2x
 const ROPE = 110;          // how far the rope reaches
 const HAUL = 120;          // how far the fawn has to come before the mud lets go
@@ -63,6 +65,7 @@ export default class FawnPuzzle {
     scene.player.setVelocityX(0);
     scene.player.setFlipX(this.fawn.x < scene.player.x);
     scene.player.play(`${scene.characterId}-toss`);
+    play(scene, 'rope');
     scene.time.delayedCall(450, () => {
       this.stage = 'roped';
       this.struggle.stop();
@@ -80,6 +83,7 @@ export default class FawnPuzzle {
 
     if (!this.noticed && Math.abs(px - this.x) < 320) {
       this.noticed = true;
+      play(scene, 'bleat', { volume: 0.7 });
       scene.showThought("a fawn, up to its belly in the mud. and its mother can't reach it.", 4400);
     }
     this.keepDoeShy(px);
@@ -133,6 +137,8 @@ export default class FawnPuzzle {
     this.calmAt = scene.time.now + 1700;
     this.fawn.play('fawn-frightened');
     this.mudSplash(this.fawn.x, 8);
+    play(scene, 'mud');
+    play(scene, 'bleat');
     scene.tweens.add({ targets: this.fawn, x: this.x, y: this.sunk, duration: 420, ease: 'Quad.in',
       onComplete: () => { if (this.stage === 'roped') this.fawn.play('fawn-idle'); } });
     scene.showThought('too hard — it panicked, and slid back in. slower.', 3400);
@@ -178,6 +184,7 @@ export default class FawnPuzzle {
     this.rope.clear();
     fawn.setY(this.floor).play('fawn-idle');
     this.mudSplash(fawn.x, 10);
+    play(scene, 'mud');
     scene.tweens.add({ targets: fawn, x: fawn.x + 3, duration: 70, yoyo: true, repeat: 5 });
     scene.addKindness(fawn.x, this.floor - 50);
     scene.showThought('there. out you come.', 3000);

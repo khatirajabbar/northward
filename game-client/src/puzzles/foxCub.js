@@ -8,6 +8,8 @@
 const ROOM = 130;          // how far from the bread you have to be before it dares
 const PEEK_MS = 2500;      // sitting still this long: it leans out to look
 const COME_MS = 5200;      // ...this long: it comes out to the bread
+import { play } from '../audio/sound.js';
+
 const ART = 2;             // the forest's art is shown at 2x
 
 export default class FoxCubPuzzle {
@@ -147,6 +149,7 @@ export default class FoxCubPuzzle {
     this.stage = 'eating';
     if (this.hop) { this.hop.stop(); this.hop = null; }
     this.cub.setY(scene.groundY + 2);
+    play(scene, 'crunch', { volume: 0.6 });
     scene.tweens.add({ targets: this.cub, angle: -12, duration: 220, yoyo: true, repeat: 3,
       onComplete: () => {
         this.cub.setAngle(0);

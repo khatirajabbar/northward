@@ -7,6 +7,8 @@
 // Like the other puzzles it owns its sprites and its state; ForestScene asks
 // it for a prompt (offer), hands it actions (act) and ticks it (update).
 
+import { play } from '../audio/sound.js';
+
 const ART = 2;             // the forest's art is shown at 2x
 const STAY_MS = 9000;      // how long you sit before it has been enough
 
@@ -58,7 +60,7 @@ export default class OldStagPuzzle {
       this.dish.setVisible(true).setAlpha(0);
       scene.tweens.add({ targets: this.dish, alpha: 1, duration: 300 });
       // he lowers his head to it, drinks, and lifts it again. that is all that happens
-      scene.time.delayedCall(700, () => this.stag.play('stag-drinking'));
+      scene.time.delayedCall(700, () => { this.stag.play('stag-drinking'); play(scene, 'drink'); });
       scene.time.delayedCall(3000, () => { if (this.said === 0) this.stag.play('stag-watching'); });
       scene.showThought("he drinks, a little. but he doesn't get up.", 3400);
       scene.time.delayedCall(4600, () => { if (!this.done && !scene.resting) scene.showThought("he isn't hurt. he's just very old.", 3600); });

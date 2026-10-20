@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { level } from '../audio/sound.js';
 
 // Evening, falling over the last of the road. From the stag's glade on, the
 // further north you go the later it gets: the light turns gold, then rose,
@@ -86,6 +87,17 @@ export default class Evening {
         Phaser.Display.Color.ValueToColor(c0), Phaser.Display.Color.ValueToColor(c1), 100, k);
       this.shade.setFillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
     }
+    // what you hear: the day's birds go quiet, the crickets start, and then the
+    // wind; the music falls away before the scream (only while it's evening —
+    // in daylight the forest's own sounds are left as they are)
+    if (t > 0 || this.wasEvening) {
+      level(scene, 'amb-forest', 1 - ramp(t, 0.6, 0.85));
+      level(scene, 'amb-wind', 1 - ramp(t, 0.75, 1));             // the summer wind gives way to the cold one
+      level(scene, 'amb-dusk', ramp(t, 0.4, 0.65) * (1 - ramp(t, 0.85, 1) * 0.6));
+      level(scene, 'amb-night', ramp(t, 0.7, 1));
+      level(scene, 'music-forest', 1 - ramp(t, 0.55, 0.75));
+    }
+    this.wasEvening = t > 0;
     this.warmSky.setAlpha(ramp(t, 0.18, 0.55));
     this.coldSky.setAlpha(ramp(t, 0.66, 0.92));
     this.stars.setAlpha(ramp(t, 0.76, 1));

@@ -212,6 +212,7 @@ canvas {
   pointer-events: auto;
 }
 
+.title-chip-right { left: auto; right: calc(var(--u) * 24); }
 .title-chip img { width: calc(var(--u) * 26); height: calc(var(--u) * 26); image-rendering: pixelated; }
 .title-chip:hover, .title-chip:focus-visible { filter: brightness(1.15); outline: none; }
 #login-overlay.leaving .title-chip { opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }

@@ -12,6 +12,8 @@
 // A scene makes one in create() and feeds it; the art and the pixel font come
 // from tools/ui-art.mjs.
 
+import { play } from '../audio/sound.js';
+
 export const INK = 0x2b1b14;        // writing on paper
 export const PENCIL = 0x8a7a64;     // lighter writing on paper
 export const CREAM = 0xf7efd9;      // words over the world
@@ -142,6 +144,7 @@ export default class Guide {
     this.turning = true;
     let wait = 0;
     if (ticked && this.tagBox) {
+      play(scene, 'ui-tick');
       const tick = scene.add.image(this.tagBox.x + 5 * BIG, this.tagBox.y + 4 * BIG, 'ui-tick').setScale(BIG * 2.5).setAlpha(0);
       tag.add(tick);
       this.tagWords.setTint(PENCIL);
@@ -190,6 +193,7 @@ export default class Guide {
     const { scene, W, H } = this;
     this.blocking = true;
     this.hidePrompt();
+    play(scene, 'ui-paper');
     const box = scene.add.container(0, 0).setScrollFactor(0).setDepth(DEPTH + 20).setAlpha(0);
     const dim = scene.add.rectangle(0, 0, W, H, 0x0a0d14, dark).setOrigin(0, 0);
     // more than seven lines go on a longer page: nine, or eleven
@@ -207,6 +211,7 @@ export default class Guide {
         const [tx, ty] = on(29, 43 + i * 11);
         const tick = scene.add.image(tx, ty, 'ui-tick').setScale(7.5).setAlpha(0);
         scene.tweens.add({ targets: tick, scale: 3, alpha: 1, duration: 220, delay: 700 + i * 300, ease: 'Back.out' });
+        scene.time.delayedCall(700 + i * 300, () => play(scene, 'ui-tick', { volume: 0.7 }));
         parts.push(tick);
       }
     });

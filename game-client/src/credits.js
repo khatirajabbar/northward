@@ -18,5 +18,10 @@ export const CREDITS = [
       'Nila122, Pierre Vigier (pvigier), Stephen Challener (Redshrike), TheraHedwig, William.Thompsonj'
     ],
     small: 'CC-BY-SA 3.0 · GPL 3.0 · OGA-BY 3.0 — opengameart.org'
+  },
+  {
+    heading: 'sounds',
+    lines: ['sound effects made with ElevenLabs'],
+    small: 'elevenlabs.io'
   }
 ];

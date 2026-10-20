@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CREAM } from './guide.js';
+import { play } from '../audio/sound.js';
 
 // A wooden board on two ropes, let down from the top of the screen — the
 // game's menus are written on these, the same board the sign-in form is on
@@ -125,6 +126,7 @@ export default class Board {
 
   pick() {
     if (this.closed || !this.rows[this.chosen]) return;
+    play(this.scene, 'ui-knock');
     this.onPick(this.items[this.chosen], this.chosen);
   }
 
@@ -153,6 +155,7 @@ export default class Board {
 
   // let it down on its ropes; it settles
   drop() {
+    play(this.scene, 'ui-sign');
     this.box.y = this.restY - 760;
     this.scene.tweens.add({ targets: this.box, y: this.restY, duration: 620, ease: 'Back.out', easeParams: [1.15] });
     return this;

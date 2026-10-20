@@ -7,6 +7,8 @@
 // Like the other puzzles it owns its sprites and its state; ForestScene asks
 // it for a prompt (offer), hands it actions (act) and ticks it (update).
 
+import { play } from '../audio/sound.js';
+
 const ART = 2;             // the forest's art is shown at 2x
 const HOLLOW = 74;         // how far up the oak's trunk the hollow is (tools/forest-art.mjs: HOLLOW.up, at 2x)
 const BOUNCE = -570;       // what the big mushroom gives you: enough to reach the top of the dead tree, and no jump is
@@ -115,6 +117,7 @@ export default class SquirrelPuzzle {
       scene.tweens.add({ targets: this.bush, angle: { from: -7, to: 7 }, duration: 60, yoyo: true, repeat: 4,
         onComplete: () => this.bush.setAngle(0) });
       this.leaves(this.bushX, scene.groundY - 22);
+      play(scene, 'rustle');
       // out it comes, up and over into your hands
       acorn.sprite.setVisible(true).setPosition(this.bushX, scene.groundY - 16);
       scene.tweens.add({ targets: acorn.sprite, y: scene.groundY - 66, duration: 240, yoyo: true, ease: 'Quad.out' });
@@ -186,6 +189,7 @@ export default class SquirrelPuzzle {
     scene.inventory.acorns = this.count;
     scene.tweens.killTweensOf([acorn.sprite, acorn.glint]);
     acorn.glint.setVisible(false);
+    play(scene, 'pop');
     scene.tweens.add({ targets: acorn.sprite, y: acorn.sprite.y - 26, alpha: 0, duration: 380, ease: 'Quad.out',
       onComplete: () => acorn.sprite.setVisible(false) });
     // how many that makes, over your head
@@ -240,6 +244,7 @@ export default class SquirrelPuzzle {
     scene.time.delayedCall(1000, () => {
       // it can't believe it: one in its paws straight away, and a little dance
       squirrel.play('squirrel-holding');
+      play(scene, 'squirrel');
       scene.tweens.add({ targets: squirrel, y: this.floor - 14, duration: 150, yoyo: true, repeat: 2, repeatDelay: 110, ease: 'Quad.out' });
       scene.addKindness(squirrel.x, this.floor - 44);
       scene.showThought('there. every one of them.', 3000);

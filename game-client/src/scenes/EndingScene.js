@@ -6,6 +6,7 @@ import { FOREST_SCALE, FEET, setTravelerBody } from '../characters/lpc.js';
 import { FLAGS, clock, tickClock, decodeProgress } from '../services/progress.js';
 import { CREDITS } from '../credits.js';
 import Guide, { INK, CREAM } from '../ui/guide.js';
+import { play, bed, level, fade, steps, nearness } from '../audio/sound.js';
 
 // The last field is drawn by tools/forest-art.mjs like the rest of the forest
 // and shown at 2x; this scene tints it from cold night to warm dusk.
@@ -198,7 +199,6 @@ export default class EndingScene extends Phaser.Scene {
     this.fireLight = this.add.ellipse(this.fireX, this.groundY + 2, 260, 26, 0xffb865, 0).setDepth(4);
 
     // ── the crying figure, hunched under the tree ──
-    // TODO: audio — thin wind and a soft crying loop, very quiet (sound pass)
     this.figureY = this.groundY + 5;      // their sprite's foot line, level with your own feet
     this.figure = this.add.sprite(this.figureHomeX, this.figureY, `${this.companionId}-sit-sheet`, POSE.seated[1])
       .setOrigin(0.5, 1).setScale(FOREST_SCALE).setDepth(9);
@@ -276,6 +276,8 @@ export default class EndingScene extends Phaser.Scene {
     // ── the guide: what to do next, shown the same way as everywhere else.
     // nothing here can be skipped, so the tasks simply run in order ──
     this.guide = new Guide(this);
+    // no music here: the night wind, and someone crying under the tree
+    bed(this, { 'amb-night': 1, crying: 0.5 });
     const quiet = (spot) => () => (this.busy || this.dialogueActive || this.sitting ? null : spot());
     this.guide.setTasks([
       { id: 'talk', text: 'someone is crying. go to them', where: quiet(() => [this.figure.x, this.groundY - 96]) },
@@ -351,6 +353,7 @@ export default class EndingScene extends Phaser.Scene {
   // move every palette element between its cold and warm color
   applyWarmth(t) {
     this.duskSky.setAlpha(t);
+    if (t > 0) level(this, 'amb-night', 1 - t * 0.7);          // the wind drops as it warms
     this.bgLayers.forEach((l) => l.setTint(this.lerpColor(l.coldTint, l.warmTint, t)));
     this.tintScenery.forEach((s) => s.obj.setTint(this.lerpColor(s.cold, s.warm, t)));
     this.coldMist.setAlpha(0.25 * (1 - t));
@@ -379,6 +382,15 @@ export default class EndingScene extends Phaser.Scene {
 
     const px = this.player.x;
     const onGround = this.player.body.blocked.down;
+
+    // ── what you hear: the crying, nearer as you come; the fire, once it's lit;
+    // your own feet — all from where the view is, which stays with the fire at the end
+    if (!this.leaving) {
+      const ear = this.cameras.main.midPoint.x;
+      if (!this.talked) level(this, 'crying', 0.3 + 0.7 * nearness(Math.abs(ear - this.figure.x), 1100));
+      if (this.fireBuilt) level(this, 'fire', Math.min(1, (this.time.now - this.litAt) / 2500) * (0.35 + 0.65 * nearness(Math.abs(ear - this.fireX), 900)));
+      steps(this, onGround && !this.walkingHome && !this.sitting && Math.abs(this.player.body.velocity.x) > 20);
+    }
 
     // ── parallax ──
     const camX = this.cameras.main.scrollX;
@@ -466,6 +478,7 @@ export default class EndingScene extends Phaser.Scene {
         { who: 'player', text: 'i\'m sorry. i\'ll stay with you for a while.' }
       ], () => {
         this.talked = true;
+        fade(this, 'crying', 0.2, 3000);           // quieter, now someone's here
         this.busy = false;
         this.guide.complete('talk');
       });
@@ -479,7 +492,6 @@ export default class EndingScene extends Phaser.Scene {
         { who: 'companion', text: 'yes. i\'d like that.' }
       ], () => {
         // they rise and come to the grave side
-        // TODO: audio — no music here, just wind and the soft sound of earth (sound pass)
         this.walkFigure(this.birdX + 36, 1700, () => {
           this.poseFigure(...POSE.standing);
           this.figure.setFlipX(true);                 // standing over the bird, facing it
@@ -503,6 +515,7 @@ export default class EndingScene extends Phaser.Scene {
         const side = digger.x < this.birdX ? 1 : -1;
         digger.play(`${id}-toss`);
         this.time.delayedCall(430, () => {
+          play(this, 'earth', { volume: fromPlayer ? 1 : 0.8 });
           for (let i = 0; i < 4; i++) {
             const crumb = this.add.rectangle(digger.x + side * 22, this.groundY - 40 + i * 2, i % 2 ? 2 : 4, i % 2 ? 2 : 4, i % 2 ? 0x6e6052 : 0x5d5044).setDepth(12);
             this.tweens.add({ targets: crumb, x: this.birdX + (Math.random() - 0.5) * 18, duration: 380 + i * 40 });
@@ -538,6 +551,7 @@ export default class EndingScene extends Phaser.Scene {
       this.player.setVelocity(0, 0);
       this.player.setFlipX(this.fireX < this.player.x);
       // you lay the wood in the ring
+      play(this, 'logs');
       this.fireLogs.setVisible(true).setAlpha(0);
       this.tweens.add({ targets: this.fireLogs, alpha: 1, duration: 400,
         onComplete: () => { this.woodLaid = true; this.busy = false; this.guide.complete('wood'); } });
@@ -570,7 +584,7 @@ export default class EndingScene extends Phaser.Scene {
       this.player.setFlipX(false);   // both of you on the ground, facing out of the screen
       this.player.anims.stop();
       this.player.setTexture(`${this.characterId}-sit-sheet`, POSE.seated[1]);
-      // TODO: audio — the main theme returns here, slow and warm (sound pass)
+      fade(this, 'music-ending', 1, 5000);      // and only now, music: slow and warm
       // a shoulder against a shoulder — the closest thing to words
       this.time.delayedCall(700, () => {
         this.tweens.add({ targets: this.figure, angle: 2, duration: 900, ease: 'Sine.inOut' });
@@ -619,7 +633,7 @@ export default class EndingScene extends Phaser.Scene {
     this.guide.complete('goodbye');
     this.player.body.setAllowGravity(true);
     this.player.setAngle(0);
-    // TODO: audio — the theme thins back to a single line, resolved (sound pass)
+    fade(this, 'music-ending', 0.45, 3000);
     // a small nod. that's all that's needed
     this.tweens.add({ targets: this.figure, angle: 0, duration: 600, ease: 'Sine.inOut' });
     this.tweens.add({ targets: this.figure, y: this.figureY + 3, duration: 500,
@@ -685,7 +699,9 @@ export default class EndingScene extends Phaser.Scene {
   }
 
   kindleFire() {
-    // TODO: audio — a small crackle fades in under the wind (sound pass)
+    play(this, 'ignite');
+    fade(this, 'crying', 0, 3000);               // and the crying is over
+    this.litAt = this.time.now;                  // the crackle comes in from here (see update)
     this.flame.setVisible(true).setScale(ART, ART * 0.3).play('campfire-burn');
     this.tweens.add({ targets: this.flame, scaleY: ART, duration: 1200, ease: 'Sine.out' });
     this.tweens.add({ targets: this.fireGlow, alpha: 0.10, duration: 900, ease: 'Sine.out',
@@ -773,6 +789,7 @@ export default class EndingScene extends Phaser.Scene {
 
   // the title and the credits, written over the field with the fire still going
   showCredits() {
+    fade(this, 'music-ending', 0.85, 3000);
     let count = 0;
     const write = (y, str, size, tint, wrap = 0) => {
       const words = this.guide.text(0, y, str, { size, tint }).setScrollFactor(0).setDepth(LIT + 40).setAlpha(0);
@@ -807,6 +824,7 @@ export default class EndingScene extends Phaser.Scene {
   returnToTitle() {
     if (this.leaving) return;
     this.leaving = true;
+    bed(this, {}, 900);                          // everything goes quiet with the picture
     this.cameras.main.fadeOut(900, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('SessionSelectScene'));
   }

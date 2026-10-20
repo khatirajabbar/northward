@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FOREST_SCALE } from '../characters/lpc.js';
 import { CREAM } from './guide.js';
+import { bed } from '../audio/sound.js';
 
 // The road north, early in the day, sliding slowly by: a traveler walking, and
 // a little way ahead of them the bird they are following, with the game's name
@@ -103,6 +104,7 @@ export default class Roadside {
     }
 
     this.place();
+    bed(scene, { 'music-title': 1, 'amb-morning': 0.7 });
     scene.events.on('update', this.update, this);
     scene.events.once('shutdown', () => scene.events.off('update', this.update, this));
   }

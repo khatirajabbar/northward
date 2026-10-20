@@ -3,6 +3,7 @@ import { game } from '../services/game.js';
 import { tickClock, withCurrentTime } from '../services/progress.js';
 import { CABIN_SCALE, FEET } from '../characters/lpc.js';
 import Guide from '../ui/guide.js';
+import { play, bed, fade, steps } from '../audio/sound.js';
 
 // Beat 1 — the morning. A small log cabin in its clearing at dawn, seen as a
 // cutaway: the whole house with the front wall taken off. You wake to a note
@@ -204,6 +205,8 @@ export default class MorningScene extends Phaser.Scene {
 
   buildUI() {
     this.guide = new Guide(this);
+    // the birds outside the walls, the stove ticking over, the tune from the title going on quietly
+    bed(this, { 'amb-morning': 0.6, fire: 0.25, 'music-title': 0.5 });
   }
 
   startAsleep() {
@@ -338,6 +341,7 @@ export default class MorningScene extends Phaser.Scene {
       return;
     }
     this.done.curtains = true;
+    play(this, 'curtains');
     this.guide.complete('curtains');
     this.relabel('curtains', 'look out the window');
     this.guide.say('there. let the morning in.');
@@ -377,6 +381,7 @@ export default class MorningScene extends Phaser.Scene {
     // at the mirror, elbow going, a little foam
     this.turnTo(STATION.teeth);
     this.player.play(`${this.characterId}-brush`);
+    play(this, 'brush');
     const foam = this.time.addEvent({ delay: 240, loop: true, callback: () => {
       const dot = this.add.rectangle(this.player.x + Phaser.Math.Between(-10, 12), this.player.y - Phaser.Math.Between(8, 20), 3, 3, 0xf4fbff)
         .setDepth(11);
@@ -396,6 +401,7 @@ export default class MorningScene extends Phaser.Scene {
 
   doCoffee() {
     this.guide.say('coffee brewing…');
+    play(this, 'coffee');
     const brewing = this.time.addEvent({ delay: 380, loop: true, callback: () => this.steam(AT.steam[0] * ART, AT.steam[1] * ART) });
     this.setBusy(2600, () => {
       brewing.remove();
@@ -462,6 +468,7 @@ export default class MorningScene extends Phaser.Scene {
     if (this.done.cereal && this.done.milk) { this.guide.say("breakfast's ready. good."); return; }
     if (this.done.cereal) { this.guide.say("cereal's in the bowl. just the milk now — from the fridge."); return; }
     this.done.cereal = true;
+    play(this, 'cereal');
     this.guide.complete('cereal');
     this.relabel('cereal', 'look at breakfast');
     this.bowl.setTexture('home-bowl-cereal');
@@ -480,6 +487,7 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   openFridgeBriefly() {
+    play(this, 'fridge');
     this.fridge.setTexture('home-fridge-open');
     this.time.delayedCall(1100, () => this.fridge.setTexture('home-fridge'));
   }
@@ -509,6 +517,8 @@ export default class MorningScene extends Phaser.Scene {
     this.time.delayedCall(450, () => {
       this.doorShut.setVisible(false);
       this.doorOpen.setVisible(true);
+      play(this, 'door');
+      fade(this, 'amb-morning', 1, 1200);           // the door open: the birds, all at once
       this.player.play(`${this.characterId}-walk`);
       // across the porch, down the two steps, and away up the path
       const walk = (x, dy, ms, next) => this.tweens.add({ targets: this.player, x: x * ART, y: this.player.y + dy, duration: ms, onComplete: next });
@@ -536,6 +546,7 @@ export default class MorningScene extends Phaser.Scene {
   // the bird's song — from behind the curtains at first, then from the bird itself
   chirp() {
     const x = AT.bird[0] * ART + 8, y = AT.bird[1] * ART - 6;
+    play(this, 'birdsong', { volume: this.done.curtains ? 0.9 : 0.5, vary: 0.1 });   // through the curtains, at first
     this.floatUp('note', x, y, { rise: 30, drift: -8 });
     this.time.delayedCall(180, () => this.floatUp('note', x + 12, y + 4, { rise: 30, drift: 6 }));
   }
@@ -579,6 +590,7 @@ export default class MorningScene extends Phaser.Scene {
     if (jump && onGround) this.player.setVelocityY(this.jumpSpeed);
 
     const moving = left || right;
+    steps(this, moving && onGround, { surface: 'wood' });
     if (moving && onGround) {
       if (this.player.anims.currentAnim?.key !== `${this.characterId}-walk` || !this.player.anims.isPlaying) this.player.play(`${this.characterId}-walk`);
     } else if (onGround) {

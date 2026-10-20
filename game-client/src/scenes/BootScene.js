@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { loadLpcCharacter, createLpcAnims } from '../characters/lpc.js';
 import { loadAnimals, createAnimalAnims } from '../characters/animals.js';
+import { loadSounds } from '../audio/sound.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -51,6 +52,7 @@ export default class BootScene extends Phaser.Scene {
       'nest-bough', 'nest', 'bird-fallen', 'grave-mound', 'fire-pit', 'fire-logs', 'stick'
     ].forEach((name) => this.load.image(`woods-${name}`, `assets/woods/${name}.png`));
     loadAnimals(this);
+    loadSounds(this);         // only the ones that have been made (tools/audio.mjs)
 
     // The guide — drawn by tools/ui-art.mjs: the note, the task tag, the keys,
     // and the game's own pixel font (plain for paper, edged for over the world)

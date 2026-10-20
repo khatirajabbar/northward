@@ -149,6 +149,20 @@ function fullscreen() {
   }, 0x14161c);
 }
 
+// a speaker, its sound coming out of it — or, `off`, a cross where the sound would be
+function sound({ off = false } = {}) {
+  return outlined(11, 11, (g) => {
+    g.rect(0, 4, 2, 3, 0xf7efd9);                                              // the box…
+    g.vline(2, 3, 5, 0xf7efd9); g.vline(3, 2, 7, 0xf7efd9); g.vline(4, 1, 9, 0xf7efd9);   // …and its cone
+    if (off) {
+      for (let k = 0; k < 5; k++) { g.put(6 + k, 3 + k, 0xf7efd9); g.put(10 - k, 3 + k, 0xf7efd9); }
+    } else {
+      g.vline(6, 4, 3, 0xf7efd9);                                                                   // near…
+      [[8, 2], [9, 3], [9, 4], [9, 5], [9, 6], [9, 7], [8, 8]].forEach(([x, y]) => g.put(x, y, 0xf7efd9));   // …and further out
+    }
+  }, 0x14161c);
+}
+
 // the button on the sign-in page: green as the road's grass, stretched to fit
 // its words like the tag. `down` is the same button pressed in
 function button({ down = false } = {}) {
@@ -194,7 +208,7 @@ function tick() {
 export function buildAll() {
   return {
     note: note(), 'note-tall': note(158), 'note-long': note(180), tag: tag(), marker: marker(), checkbox: checkbox(), tick: tick(),
-    title: title(), bin: bin(), sign: sign(), rope: rope(), fullscreen: fullscreen(), button: button(), 'button-down': button({ down: true }),
+    title: title(), bin: bin(), sign: sign(), rope: rope(), fullscreen: fullscreen(), sound: sound(), 'sound-off': sound({ off: true }), button: button(), 'button-down': button({ down: true }),
     'key-e': key('E'), 'key-i': key('I'), 'key-f': key('F'), 'key-x': key('X'), 'key-down': key('↓'), 'key-left': key('←'), 'key-right': key('→'), 'key-up': key('↑'),
     'key-shift': key('shift', { wide: true }), 'key-esc': key('esc', { wide: true })
   };

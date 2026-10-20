@@ -9,6 +9,8 @@
 // Like the other puzzles it owns its sprites and its state; ForestScene asks
 // it for a prompt (offer), hands it actions (act) and ticks it (update).
 
+import { play, nearness } from '../audio/sound.js';
+
 const ART = 2;             // the forest's art is shown at 2x
 const PACE = 94;           // how fast a duckling goes, flat out — just past your slow walk (90)
 const KEEP_UP = 175;       // get further ahead of it than this and it has lost you
@@ -71,6 +73,7 @@ export default class DucklingPuzzle {
     const scene = this.scene, mother = this.mother;
     if (!this.missing()) return;
     mother.play('duck-call');
+    play(scene, 'quack', { volume: nearness(Math.abs(scene.player.x - mother.x), 900) });   // heard from further off than she's seen
     const note = scene.guide.text(mother.x - 22, this.floor - 44, '!', { size: 3 }).setDepth(80);
     scene.tweens.add({ targets: note, y: note.y - 20, alpha: 0, duration: 800, onComplete: () => note.destroy() });
     scene.time.delayedCall(420, () => { if (this.missing()) mother.play('duck-stand'); });
@@ -122,6 +125,7 @@ export default class DucklingPuzzle {
       scene.player.setFlipX(duckling.x < scene.player.x);
       scene.player.play(`${scene.characterId}-crouch`);
       duckling.play('duckling-held').setDepth(10.5);
+      play(scene, 'peep');
       scene.showThought("there, i've got you. somewhere ahead a duck is calling.", 4000);
       return true;
     }
@@ -140,6 +144,7 @@ export default class DucklingPuzzle {
     this.stage = 'following';
     this.waiting = false;
     duckling.setDepth(6.5).setPosition(scene.player.x + (scene.player.flipX ? -26 : 26), this.floor).play('duckling-peep');
+    play(scene, 'peep');
     scene.showThought(thought, 4400);
   }
 
@@ -169,6 +174,7 @@ export default class DucklingPuzzle {
     } else if (far > KEEP_UP && px > this.logX) {
       this.waiting = true;
       duckling.setFlipX(gap > 0).play('duckling-peep');
+      play(scene, 'peep', { volume: 0.8 });
       if (!this.said.lost) { this.said.lost = true; scene.showThought("it can't keep up with me. i'll go back for it.", 3800); }
       return;
     }
@@ -194,11 +200,13 @@ export default class DucklingPuzzle {
     this.done = true;
     this.calling.remove();
     mother.play('duck-call');
+    play(scene, 'quack');
     duckling.setFlipX(true).play('duckling-walk');
     scene.tweens.add({ targets: duckling, x: mother.x - 26, duration: Math.max(300, (mother.x - 26 - duckling.x) * 6),
       onComplete: () => {
         duckling.play('duckling-peep');
         mother.play('duck-stand');
+        play(scene, 'peep');
         this.others.forEach((other, i) => {
           other.play('duckling-hop');
           scene.tweens.add({ targets: other, y: this.floor - 12, duration: 130, yoyo: true, repeat: 1, delay: i * 90,

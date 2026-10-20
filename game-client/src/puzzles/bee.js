@@ -9,6 +9,8 @@
 // Like the other puzzles it owns its sprites and its state; ForestScene asks
 // it for a prompt (offer), hands it actions (act) and ticks it (update).
 
+import { level, nearness } from '../audio/sound.js';
+
 const ART = 2;             // the forest's art is shown at 2x
 const WATCH_MS = 9000;     // how long you keep still before it moves on by itself
 const NEAR = 160;          // come this close at a walk and you frighten it
@@ -97,6 +99,7 @@ export default class BeePuzzle {
 
   update(px) {
     const scene = this.scene, bee = this.bee;
+    level(scene, 'bee', nearness(Math.abs(px - bee.x), 380));      // its hum, louder as you come near
     if (this.done || this.stage === 'petting' || this.flying) return;
     const far = Math.abs(px - bee.x);
     const pace = Math.abs(scene.player.body.velocity.x);

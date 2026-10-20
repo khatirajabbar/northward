@@ -7,6 +7,8 @@
 // Like the other puzzles it owns its sprites and its state; ForestScene asks
 // it for a prompt (offer), hands it actions (act) and ticks it (update).
 
+import { play } from '../audio/sound.js';
+
 const ART = 2;             // the forest's art is shown at 2x
 const TURN_MS = 1700;      // how long it takes, held, to turn it the whole way over
 const PLOD = 16;           // how fast a turtle goes, in no hurry at all
@@ -89,6 +91,7 @@ export default class TurtlePuzzle {
     this.stage = 'righted';
     this.done = true;
     turtle.setAngle(0).play('turtle-shy');
+    play(scene, 'shell');
     scene.tweens.add({ targets: turtle, y: this.floor - 8, duration: 120, yoyo: true, ease: 'Quad.out' });
     for (let i = 0; i < 6; i++) {
       const dust = scene.add.rectangle(this.x + (Math.random() - 0.5) * 40, scene.groundY, 3, 3, 0xd9c7a3, 0.8).setDepth(9);
