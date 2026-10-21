@@ -206,7 +206,7 @@ export default class MorningScene extends Phaser.Scene {
   buildUI() {
     this.guide = new Guide(this);
     // the birds outside the walls, the stove ticking over, the tune from the title going on quietly
-    bed(this, { 'amb-morning': 0.6, fire: 0.25, 'music-title': 0.5 });
+    bed(this, { 'amb-morning': 0.6, fire: 0.25, 'music-title': 0.35 });
   }
 
   startAsleep() {

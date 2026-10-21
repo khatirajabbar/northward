@@ -21,7 +21,7 @@ export const CREDITS = [
   },
   {
     heading: 'sounds',
-    lines: ['sound effects made with ElevenLabs'],
+    lines: ['music written in code, note by note, for this game', 'sound effects made with ElevenLabs'],
     small: 'elevenlabs.io'
   }
 ];

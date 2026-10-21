@@ -1,5 +1,7 @@
 // Every sound in the game, and how it's described to ElevenLabs, which makes
 // them (tools/audio.mjs — you run it with your own key; nothing here needs it).
+// The music is the exception: it's written in code, note by note, by
+// tools/music.mjs, and its `text` only says what it is.
 //
 //   kind     sfx: a one-off (a footstep, a splash)   loop: something that goes on
 //            (wind, water) and is made to loop seamlessly   music: a piece of music
@@ -97,11 +99,11 @@ export const SOUNDS = [
   { id: 'logs', kind: 'sfx', seconds: 1, volume: 0.45, text: 'a few small logs of firewood set down together' },
   { id: 'ignite', kind: 'sfx', seconds: 1.5, volume: 0.5, text: 'a small campfire catching, a soft whoosh, then crackling' },
 
-  // ── music (no singing) ──
-  { id: 'music-title', kind: 'music', seconds: 70, volume: 0.35,
-    text: 'gentle acoustic folk instrumental for a cozy pixel art game title screen: solo nylon-string guitar and soft flute, warm early morning, unhurried, quiet, hopeful, loops well, no vocals' },
-  { id: 'music-forest', kind: 'music', seconds: 120, volume: 0.22,
-    text: 'soft sparse instrumental for wandering through a sunlit forest: felt piano and light strings, calm, curious, slow, lots of space between notes, loops well, no vocals' },
-  { id: 'music-ending', kind: 'music', seconds: 90, volume: 0.35,
-    text: 'tender melancholic solo piano instrumental, slow, a quiet goodbye at night by a small fire, slowly turning warm and hopeful, simple melody, no vocals' }
+  // ── music: written in code (tools/music.mjs), not made by ElevenLabs ──
+  { id: 'music-title', kind: 'music', volume: 0.35,
+    text: 'the title and the morning: a folk tune in D, in three, on a fingerpicked nylon-string guitar and a soft piano; a music box the second time round' },
+  { id: 'music-forest', kind: 'music', volume: 0.16,
+    text: 'the walk: slow open chords on a pad and a soft piano, a melody that wanders in now and then and leaves room between its phrases' },
+  { id: 'music-ending', kind: 'music', volume: 0.25,
+    text: 'by the fire: a tender piece for piano alone, A minor turning to C major, strings coming in quietly halfway' }
 ];
