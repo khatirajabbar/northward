@@ -837,7 +837,10 @@ export default class ForestScene extends Phaser.Scene {
   // What needs you along the road, in the order you come to it. A task is in
   // hand while it applies (`when`) and isn't done, until you've walked on past
   // it (`until`) — the tag and the marker follow, but helping is always your
-  // choice. `where` is the spot the marker hangs over.
+  // choice. `where` is the spot the marker hangs over; `sight` is what has to
+  // have been on screen before the task shows at all (see followTasks).
+  // The horse, the tall grass, the river and the bridge have no `until`: the
+  // road doesn't go on without them.
   buildTasks() {
     const g = this.groundY;
     const px = () => this.player.x;
@@ -859,34 +862,34 @@ export default class ForestScene extends Phaser.Scene {
         done: () => this.fox.stage !== 'hiding', until: () => this.fox.logX + 240,
         where: () => [this.fox.logX, g - 76] },
       { id: 'fox-wait', text: 'step well back, sit down and wait',
-        when: () => this.fox.stage !== 'hiding',
+        when: () => this.fox.stage !== 'hiding', sight: null,
         done: () => this.fox.done, until: () => this.fox.logX + 420,
         where: () => (this.resting ? null : [this.fox.breadX - 190, g - 46]) },
       { id: 'fill', text: 'fill the bucket at the pond',
         when: () => this.carrying !== null && !this.treeWatered,
-        done: () => this.carrying === 'full',
+        done: () => this.carrying === 'full', until: () => this.lakeFillX + 400, sight: null,
         where: () => [this.lakeFillX, g - 40] },
       { id: 'water', text: 'take the water back to the little tree',
         when: () => this.carrying === 'full',
-        done: () => this.treeWatered,
+        done: () => this.treeWatered, until: () => this.lakeFillX + 400, sight: null,
         where: () => [this.treeX, g - 130] },
       { id: 'horse-carrot', text: 'the horse is hungry — go back for a carrot',
         when: () => !this.horseFed && this.metHorse && !!firstCarrot(),
-        done: () => carrots() > 0,
+        done: () => carrots() > 0, sight: null,
         where: () => { const c = firstCarrot(); return c ? [c.itemX, g - 44] : null; } },
       { id: 'horse', text: 'give the hungry horse a carrot',
         done: () => this.horseFed,
         where: () => [this.horseSprite.x, g - 96] },
       { id: 'mount', text: 'climb onto the horse',
-        when: withHorse,
+        when: withHorse, sight: null,
         done: () => this.riding || px() > riverRight + 30,
         where: () => [this.horseSprite.x, g - 96] },
       { id: 'grass', text: 'ride through the tall grass',
-        when: withHorse,
+        when: withHorse, sight: () => this.grassX - this.grassWidth / 2,
         done: () => px() > grassRight + 30,
         where: () => [grassRight + 80, g - 70] },
       { id: 'river', text: 'ride across the river',
-        when: withHorse,
+        when: withHorse, sight: () => this.riverX - this.riverWidth / 2,
         done: () => px() > riverRight + 30,
         where: () => [riverRight + 80, g - 70] },
       { id: 'goodbye', text: 'say goodbye at the meadow',
@@ -894,14 +897,14 @@ export default class ForestScene extends Phaser.Scene {
         done: () => this.saidGoodbye, until: () => stonesRight,
         where: () => [this.meadowX, g - 110] },
       { id: 'stones', text: 'jump across the stones',
-        done: () => px() > stonesRight + 10,
+        done: () => px() > stonesRight + 10, sight: () => this.crossX - this.crossWidth / 2,
         where: () => [stonesRight + 60, g - 60] },
       { id: 'cat', text: 'climb the mushrooms up to the cat',
         done: () => this.catRescued, until: () => 6790,
         where: () => [this.catSprite.x, this.catSprite.y - 50] },
       { id: 'cat-down', text: 'carry the cat down and set it on the ground',
         when: () => this.carryingCat || this.catFollowing,
-        done: () => this.catFollowing,
+        done: () => this.catFollowing, until: () => this.cliffTopX + 700, sight: null,
         where: () => null },
       { id: 'bird', text: 'free the bird — gently, through the thorns',
         done: () => this.birdFreed, until: () => this.brambleX + this.brambleWidth / 2 + 220,
@@ -914,7 +917,7 @@ export default class ForestScene extends Phaser.Scene {
         where: () => [this.fawnX, g - 50] },
       { id: 'fawn-pull', text: 'draw it out gently: hold shift, walk away',
         when: () => this.fawn.stage === 'roped' || this.fawn.done,
-        done: () => this.fawn.done,
+        done: () => this.fawn.done, until: () => this.fawnX + 460, sight: null,
         where: () => null },
       { id: 'acorns', text: 'pick up the three acorns someone dropped',
         done: () => this.squirrel.count === 3 || this.squirrel.done, until: () => this.squirrelX + 220,
@@ -927,14 +930,14 @@ export default class ForestScene extends Phaser.Scene {
         done: () => !this.duck.onNearSide(), until: () => this.duckLogX + 260,
         where: () => (this.duck.stage === 'held' ? [this.duckLogX + 130, g - 40] : [this.duck.duckling.x, g - 44]) },
       { id: 'duck-lead', text: 'lead it to the pond — slowly, so it keeps up',
-        when: () => !this.duck.onNearSide(),
+        when: () => !this.duck.onNearSide(), sight: null,
         done: () => this.duck.done, until: () => this.duckPondX + 420,
         where: () => (this.duck.waiting ? [this.duck.duckling.x, g - 44] : [this.duck.bankX, g - 64]) },
       { id: 'stag-water', text: 'offer the old stag some water',
         done: () => this.stag.stage !== 'lying', until: () => this.stagX + 300,
         where: () => [this.stagX - 30, g - 70] },
       { id: 'stag-sit', text: "there's nothing to fix. sit with him a while",
-        when: () => this.stag.stage !== 'lying',
+        when: () => this.stag.stage !== 'lying', sight: null,
         done: () => this.stag.done, until: () => this.stagX + 300,
         where: () => (this.resting ? null : [this.stagX - 30, g - 70]) },
       { id: 'bee-watch', text: 'keep still, and watch the bee',
@@ -953,19 +956,31 @@ export default class ForestScene extends Phaser.Scene {
         done: () => this.bridge.carrying, until: () => this.brookR + 40,
         where: () => this.bridge.nextSpot(px()) },
       { id: 'bridge-lay', text: 'lay the board across the brook',
-        when: () => this.bridge.carrying,
+        when: () => this.bridge.carrying, sight: null,
         done: () => !this.bridge.carrying,
         where: () => this.bridge.nextSpot(px()) },
       { id: 'north', text: 'keep walking north', done: () => false, where: () => null }
     ];
+    this.seenTasks = new Set();
     this.guide.setTasks(this.tasks, { counted: false });
     this.taskInHand = this.tasks[0].id;
   }
 
-  // which task is in hand right now
+  // which task is in hand right now: the first in the list that has come up
+  // (`when`), isn't done, and hasn't been walked past (`until`) — and whose
+  // thing you've already had on screen, so the list never gives away what's
+  // up the road. `sight` is where that thing is (by default, where the
+  // marker hangs); a task that follows on from one you've started — fill the
+  // bucket you just picked up — has `sight: null`: there's no surprise left
   followTasks() {
     const x = this.player.x;
-    const next = this.tasks.find((t) => (!t.when || t.when()) && !t.done() && !(t.until && x > t.until()));
+    const view = this.cameras.main.worldView;
+    this.tasks.forEach((t) => {
+      if (this.seenTasks.has(t.id)) return;
+      const at = t.sight === null ? null : t.sight ? t.sight() : (t.where() || [])[0];
+      if (at == null || (at > view.x + 30 && at < view.right - 30)) this.seenTasks.add(t.id);
+    });
+    const next = this.tasks.find((t) => this.seenTasks.has(t.id) && (!t.when || t.when()) && !t.done() && !(t.until && x > t.until()));
     const id = next ? next.id : null;
     if (id === this.taskInHand) return;
     const before = this.tasks.find((t) => t.id === this.taskInHand);
