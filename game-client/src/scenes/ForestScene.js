@@ -1353,7 +1353,7 @@ export default class ForestScene extends Phaser.Scene {
     if (this.carrying === 'full' && !this.treeWatered && near(this.treeX)) { label = 'water the tree'; action = 'water'; }
     else if (nearCarrot) { label = 'pick up the carrot'; action = 'carrot'; this._nearCarrot = nearCarrot; }
     else if (foxOffer && foxOffer.action) { label = foxOffer.label; action = foxOffer.action; }
-    else if (!this.bucketPicked && near(this.bucketX)) { label = 'pick up the bucket'; action = 'pickup'; }
+    else if (!this.bucketPicked && near(this.bucketX) && this.player.body.bottom > this.groundY - 10) { label = 'pick up the bucket'; action = 'pickup'; }
     else if (this.carrying === 'empty' && near(this.lakeFillX, 130)) { label = 'fill the bucket'; action = 'fill'; }
     else if (!this.horseFed && near(this.horseX, 95) && (this.inventory.carrots || 0) > 0) { label = 'give the horse a carrot'; action = 'feedhorse'; }
     else if (!this.catRescued && Math.abs(px - this.catSprite.x) < 70 && Math.abs(this.player.y - this.catSprite.y) < 80) { label = 'pick up the cat'; action = 'pickupcat'; }
@@ -1376,17 +1376,21 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (this.horseHungryHintShown && !near(this.horseX, 95)) this.horseHungryHintShown = false;
 
-    // nothing else to do here? then you can set down whatever you're carrying —
-    // offered once you've stood still a moment, so it isn't over your head the whole walk
+    // nothing else to do here? then E sets down whatever you're carrying —
+    // whenever you like, walking or standing. the words only come up once
+    // you've stopped, so they aren't over your head the whole walk. (on the
+    // horse E means getting off, so nothing is put down from up there)
     this.stillMs = onGround && vx < 5 ? (this.stillMs || 0) + this.game.loop.delta : 0;
-    if (!label && this.stillMs > 900) {
-      if (this.carryingCat && this.player.body.bottom > this.groundY - 10) { label = 'put down the cat'; action = 'putdowncat'; }
-      else if (this.carrying) { label = 'put down the bucket'; action = 'putdownbucket'; }
+    let unsaid = false;
+    if (!label && !this.riding && !this.resting && (this.carryingCat || this.carrying)) {
+      if (this.carryingCat) { label = 'put down the cat'; action = 'putdowncat'; }
+      else { label = 'put down the bucket'; action = 'putdownbucket'; }
+      unsaid = this.stillMs < 350;
     }
 
     // the key and what it does, just over the traveler's head
     const over = [this.player.x, this.player.y - 66];
-    if (label) this.guide.prompt(['e'], label, ...over);
+    if (label && !unsaid) this.guide.prompt(['e'], label, ...over);
     else if (reminder) this.guide.prompt(reminder.keys || [], reminder.label, ...over);
     else if (this.atBrambleOnFoot) this.guide.prompt(['shift'], 'hold to move gently', ...over);
     else this.guide.hidePrompt();
@@ -1554,6 +1558,11 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'putdowncat') {
+      if (!this.player.body.blocked.down) return;                          // mid-jump: once you land
+      if (this.player.body.bottom < this.groundY - 10) {                     // still up on the mushrooms
+        this.showThought("not up here. i'll set it down on the ground.", 2600);
+        return;
+      }
       play(this, 'meow', { volume: 0.6 });
       // safe on the ground — from here it follows you, all the way to the end
       this.carryingCat = false;
@@ -1565,6 +1574,7 @@ export default class ForestScene extends Phaser.Scene {
       return;
     }
     if (action === 'putdownbucket') {
+      if (!this.player.body.blocked.down) return;                          // mid-jump: once you land
       play(this, 'bucket', { volume: 0.7 });
       this.groundBucketState = this.carrying;
       this.carrying = null;
