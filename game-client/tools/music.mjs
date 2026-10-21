@@ -1,11 +1,11 @@
-// The game's music, written in code like the pixel art: three short pieces,
+// The game's music, written in code like the pixel art: four short pieces,
 // each played by a few instruments built from scratch — a nylon-string guitar
 // (a plucked string, Karplus–Strong), a soft felt piano, a music box and a warm
 // pad — in a small room (reverb), and saved as mp3s in src/audio/files/ next
 // to the sound effects, where the game finds them by name.
 //
-//   node tools/music.mjs              all three
-//   node tools/music.mjs forest       just one: title, forest or ending
+//   node tools/music.mjs              all four
+//   node tools/music.mjs forest       just one: title, forest, night or ending
 //
 // Plain Node, apart from the very last step: ffmpeg turns the sound into an
 // mp3 (brew install ffmpeg). The same notes come out every time — the
@@ -346,11 +346,18 @@ function forest() {
     const t0 = i * span, { bass, pad: voicing } = C[name];
     const last = i === chords.length - 1;
     // the pad, overlapping into the next chord
-    voicing.forEach((m, k) => mix.add(pad(m, 0.038, span + 1, random, { attack: 2.5, release: 3 }), t0, { pan: k % 2 ? -0.45 : 0.45, room: 0.6, part: 'pad' }));
+    voicing.forEach((m, k) => mix.add(pad(m, 0.038, span + 1, random, { attack: i === 0 ? 0.8 : 2.5, release: 3 }), t0, { pan: k % 2 ? -0.45 : 0.45, room: 0.6, part: 'pad' }));
     // the piano: a low note and the chord rolled gently up from it
     mix.add(piano(bass, 0.3, span, random), human(t0), { gain: 0.5, pan: -0.2, room: 0.45, part: 'piano' });
     voicing.forEach((m, k) => mix.add(piano(m, 0.22, last ? span : 3.5, random), human(t0 + 0.5 + k * 0.08), { gain: 0.45, pan: -0.1 + k * 0.1, room: 0.45, part: 'piano' }));
     if (last) return;
+
+    // the very start: a few notes straight away, so the walk doesn't begin in a hush
+    if (i === 0) {
+      const first = rng(99);
+      line(t0 + 0.5, beat, [['G4', 1], ['B4', 1], ['D5', 1.5], ['E5', 3]]).forEach((n) =>
+        mix.add(piano(n.midi, 0.44, n.beats + 0.4, first), n.at + (first() - 0.5) * 0.02, { gain: 0.6, pan: 0.15, room: 0.5, part: 'piano' }));
+    }
 
     // now and then, the melody: a short phrase, landing on a note of the chord
     if (i >= 1 && random() < 0.75) {
@@ -377,6 +384,54 @@ function forest() {
     }
   });
   return mix.finish(length, 0.7);
+}
+
+// dusk into night: the sun going down and the cold coming in. a music box,
+// like a lullaby, high and far apart, over a slow pad in E minor and a low
+// piano note now and then — quieter and further off than the day's music
+function night() {
+  const random = rng(51), beat = 60 / 54, bar = 4 * beat;
+  const human = (t) => t + (random() - 0.5) * 0.03;
+  const C = {
+    Em9: { bass: note('E2'), pad: chord('E3 G3 B3 F#4') },
+    Cmaj7: { bass: note('C2'), pad: chord('C3 G3 B3 E4') },
+    Am7: { bass: note('A1'), pad: chord('E3 G3 A3 C4') },
+    Bm7: { bass: note('B1'), pad: chord('D3 F#3 A3 B3') },
+    Gmaj7: { bass: note('G1'), pad: chord('D3 F#3 G3 B3') },
+    Bsus4: { bass: note('B1'), pad: chord('E3 F#3 B3 E4') }
+  };
+  const chords = ['Em9', 'Cmaj7', 'Am7', 'Bm7', 'Em9', 'Gmaj7', 'Cmaj7', 'Bsus4', 'Em9', 'Cmaj7', 'Am7', 'Em9'];
+  const span = 2 * bar, length = chords.length * span;
+  const mix = new Mix(length + 9);
+  const pent = [71, 74, 76, 79, 81, 83, 86, 88];               // E minor's five notes, B4 to E6
+  let at = 3;
+
+  chords.forEach((name, i) => {
+    const t0 = i * span, { bass, pad: voicing } = C[name];
+    voicing.forEach((m, k) => mix.add(pad(m, 0.04, span + 1.2, random, { attack: i === 0 ? 1 : 3, release: 3.5 }), t0, { pan: k % 2 ? -0.5 : 0.5, room: 0.7, part: 'pad' }));
+    mix.add(piano(bass, 0.28, span, random), human(t0), { gain: 0.5, pan: -0.2, room: 0.5, part: 'piano' });
+    mix.add(piano(voicing[2], 0.18, 4 * beat, random), human(t0 + 4 * beat), { gain: 0.45, pan: 0, room: 0.5, part: 'piano' });
+
+    // the lullaby: a few notes, slow, landing on the chord — and often nothing at all
+    if (i === 0 || random() < 0.7) {
+      const tones = new Set([...voicing, bass].map((m) => m % 12));
+      let t = t0 + [0, 0.5, 1, 2][Math.floor(random() * 4)];
+      const count = 2 + Math.floor(random() * 3);
+      for (let k = 0; k < count; k++) {
+        const lastNote = k === count - 1;
+        at = Math.min(7, Math.max(0, at + [-2, -1, -1, 1, 1, 2][Math.floor(random() * 6)]));
+        if (lastNote) {
+          const near = [at, at - 1, at + 1, at - 2, at + 2].filter((j) => j >= 0 && j <= 7 && tones.has(pent[j] % 12));
+          if (near.length) at = near[0];
+        }
+        const beats = lastNote ? 3 : [1, 1, 1.5, 2][Math.floor(random() * 4)];
+        if (t + beats > t0 + span - 0.5) break;
+        mix.add(musicBox(pent[at], 0.42 + random() * 0.1), human(t), { gain: 0.6, pan: 0.2, room: 0.7, part: 'music box' });
+        t += beats;
+      }
+    }
+  });
+  return mix.finish(length, 0.8);
 }
 
 // by the fire: a tender piece for piano alone, in A minor, turning slowly to
@@ -457,10 +512,10 @@ function save(id, { out: [l, r], parts }) {
   console.log(`${id}: ${(n / SR).toFixed(1)}s, ${(fs.statSync(mp3).size / 1024).toFixed(0)} KB  (${parts})`);
 }
 
-const PIECES = { title, forest, ending };
+const PIECES = { title, forest, night, ending };
 const asked = process.argv.slice(2);
 const unknown = asked.filter((name) => !PIECES[name]);
-if (unknown.length) { console.error(`no such piece: ${unknown.join(', ')} (there's title, forest and ending)`); process.exit(1); }
+if (unknown.length) { console.error(`no such piece: ${unknown.join(', ')} (there's title, forest, night and ending)`); process.exit(1); }
 try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); } catch (err) {
   console.error('this needs ffmpeg to make the mp3s:  brew install ffmpeg');
   process.exit(1);

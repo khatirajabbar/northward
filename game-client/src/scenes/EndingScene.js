@@ -276,8 +276,9 @@ export default class EndingScene extends Phaser.Scene {
     // ── the guide: what to do next, shown the same way as everywhere else.
     // nothing here can be skipped, so the tasks simply run in order ──
     this.guide = new Guide(this);
-    // no music here: the night wind, and someone crying under the tree
-    bed(this, { 'amb-night': 1, crying: 0.5 });
+    // the night wind, someone crying under the tree, and the evening's music
+    // going on quietly from the walk here
+    bed(this, { 'amb-night': 1, crying: 0.5, 'music-night': 0.8 });
     const quiet = (spot) => () => (this.busy || this.dialogueActive || this.sitting ? null : spot());
     this.guide.setTasks([
       { id: 'talk', text: 'someone is crying. go to them', where: quiet(() => [this.figure.x, this.groundY - 96]) },
@@ -584,7 +585,7 @@ export default class EndingScene extends Phaser.Scene {
       this.player.setFlipX(false);   // both of you on the ground, facing out of the screen
       this.player.anims.stop();
       this.player.setTexture(`${this.characterId}-sit-sheet`, POSE.seated[1]);
-      fade(this, 'music-ending', 1, 5000);      // and only now, music: slow and warm
+      fade(this, 'music-ending', 1, 5000);      // sitting together: it comes up, slow and warm
       // a shoulder against a shoulder — the closest thing to words
       this.time.delayedCall(700, () => {
         this.tweens.add({ targets: this.figure, angle: 2, duration: 900, ease: 'Sine.inOut' });
@@ -701,6 +702,8 @@ export default class EndingScene extends Phaser.Scene {
   kindleFire() {
     play(this, 'ignite');
     fade(this, 'crying', 0, 3000);               // and the crying is over
+    fade(this, 'music-night', 0, 6000);          // the evening's music gives way to the fire's
+    fade(this, 'music-ending', 0.6, 6000);
     this.litAt = this.time.now;                  // the crackle comes in from here (see update)
     this.flame.setVisible(true).setScale(ART, ART * 0.3).play('campfire-burn');
     this.tweens.add({ targets: this.flame, scaleY: ART, duration: 1200, ease: 'Sine.out' });

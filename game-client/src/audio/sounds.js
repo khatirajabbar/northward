@@ -104,6 +104,8 @@ export const SOUNDS = [
     text: 'the title and the morning: a folk tune in D, in three, on a fingerpicked nylon-string guitar and a soft piano; a music box the second time round' },
   { id: 'music-forest', kind: 'music', volume: 0.16,
     text: 'the walk: slow open chords on a pad and a soft piano, a melody that wanders in now and then and leaves room between its phrases' },
+  { id: 'music-night', kind: 'music', volume: 0.2,
+    text: 'dusk into night: a music box like a lullaby, high and far apart, over a slow pad in E minor and a low piano note now and then' },
   { id: 'music-ending', kind: 'music', volume: 0.25,
     text: 'by the fire: a tender piece for piano alone, A minor turning to C major, strings coming in quietly halfway' }
 ];

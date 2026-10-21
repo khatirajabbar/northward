@@ -88,14 +88,16 @@ export default class Evening {
       this.shade.setFillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
     }
     // what you hear: the day's birds go quiet, the crickets start, and then the
-    // wind; the music falls away before the scream (only while it's evening —
-    // in daylight the forest's own sounds are left as they are)
+    // wind; the day's music hands over to the evening's as the sun goes down,
+    // and that drops back a little once the crying can be heard (only while
+    // it's evening — in daylight the forest's own sounds are left as they are)
     if (t > 0 || this.wasEvening) {
       level(scene, 'amb-forest', 1 - ramp(t, 0.6, 0.85));
       level(scene, 'amb-wind', 1 - ramp(t, 0.75, 1));             // the summer wind gives way to the cold one
       level(scene, 'amb-dusk', ramp(t, 0.4, 0.65) * (1 - ramp(t, 0.85, 1) * 0.6));
       level(scene, 'amb-night', ramp(t, 0.7, 1));
-      level(scene, 'music-forest', 1 - ramp(t, 0.55, 0.75));
+      level(scene, 'music-forest', 1 - ramp(t, 0.3, 0.5));
+      level(scene, 'music-night', ramp(t, 0.35, 0.55) * (1 - 0.4 * ramp(t, 0.85, 0.97)));
     }
     this.wasEvening = t > 0;
     this.warmSky.setAlpha(ramp(t, 0.18, 0.55));
