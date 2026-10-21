@@ -6,8 +6,8 @@ import { play } from '../audio/sound.js';
 // game's menus are written on these, the same board the sign-in form is on
 // (index.html / style.css draw that one; tools/ui-art.mjs draws the wood).
 //
-// Its art is six planks: the top one takes a heading, and a menu puts one
-// choice on each plank below it.
+// Its art is six planks (or eight, for a longer menu): the top one takes a
+// heading, and a menu puts one choice on each plank below it.
 const P = 3;                                             // the board's art is shown at 3x
 export const BOARD = { w: 156, plank: 22, planks: 6 };   // the wood, in its own pixels
 export const TAN = 0xf1d9a8;                             // quieter paint than cream
@@ -16,15 +16,16 @@ const CARVED = 0x4a2f1e;                                 // the shade under pain
 const HOME = { x: 762, y: 126 };                         // where the sign-in board hangs on the title screen
 
 export default class Board {
-  constructor(scene, { x = HOME.x, y = HOME.y, depth = 60 } = {}) {
+  constructor(scene, { x = HOME.x, y = HOME.y, depth = 60, planks = BOARD.planks } = {}) {
     this.scene = scene;
     this.restY = y;
+    this.planks = planks;
     this.box = scene.add.container(x, y).setDepth(depth).setScrollFactor(0);
     // the ropes, up out of sight, and the wood (which starts 1 across and 6 down in its picture)
     [23, 130].forEach((rx) => {
       this.box.add(scene.add.tileSprite(rx * P, 3 * P, 5 * P, 960, 'ui-rope').setOrigin(0, 1).setTileScale(P, P));
     });
-    this.box.add(scene.add.image(0, 0, 'ui-sign').setOrigin(0, 0).setScale(P));
+    this.box.add(scene.add.image(0, 0, planks === BOARD.planks ? 'ui-sign' : `ui-sign-${planks}`).setOrigin(0, 0).setScale(P));
     this.rows = [];
     this.chosen = -1;
   }
@@ -147,7 +148,7 @@ export default class Board {
       row.add(words);
       x = words.x + words.width + 26;
     });
-    const [mid, under] = this.at(BOARD.w / 2, BOARD.plank * BOARD.planks);
+    const [mid, under] = this.at(BOARD.w / 2, BOARD.plank * this.planks);
     row.setPosition(Math.round(mid - (x - 26) / 2), under + 34);
     this.hints = this.add(row);
     return row;

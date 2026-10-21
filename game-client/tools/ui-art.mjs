@@ -92,9 +92,11 @@ function title() {
 // planks are the height they are
 const SIGN = { w: 156, plank: 22, planks: 6, eye: 5, eyes: [24, 131] };
 
-function sign() {
+// `planks` more than six makes a taller board for a longer menu; the first six
+// come out the same as the usual board's
+function sign({ planks = SIGN.planks } = {}) {
   const rnd = rng(23);
-  const wd = C.wood, { w, plank, planks, eye } = SIGN;
+  const wd = C.wood, { w, plank, eye } = SIGN;
   const h = plank * planks;
   const art = new Img(w + 2, eye + h + 2);
   for (let i = 0; i < planks; i++) {
@@ -208,7 +210,7 @@ function tick() {
 export function buildAll() {
   return {
     note: note(), 'note-tall': note(158), 'note-long': note(180), tag: tag(), marker: marker(), checkbox: checkbox(), tick: tick(),
-    title: title(), bin: bin(), sign: sign(), rope: rope(), fullscreen: fullscreen(), sound: sound(), 'sound-off': sound({ off: true }), button: button(), 'button-down': button({ down: true }),
+    title: title(), bin: bin(), sign: sign(), 'sign-8': sign({ planks: 8 }), rope: rope(), fullscreen: fullscreen(), sound: sound(), 'sound-off': sound({ off: true }), button: button(), 'button-down': button({ down: true }),
     'key-e': key('E'), 'key-i': key('I'), 'key-f': key('F'), 'key-x': key('X'), 'key-down': key('↓'), 'key-left': key('←'), 'key-right': key('→'), 'key-up': key('↑'),
     'key-shift': key('shift', { wide: true }), 'key-esc': key('esc', { wide: true })
   };

@@ -2,9 +2,9 @@ import Phaser from 'phaser';
 import { game } from '../services/game.js';
 import { clock, withCurrentTime } from '../services/progress.js';
 import Board from '../ui/board.js';
-import { isMuted, toggleMuted } from '../audio/sound.js';
+import { isOn, setOn } from '../audio/sound.js';
 
-const MENU_ITEMS = ['resume', 'restart journey', 'full screen', 'sound', 'save & quit', 'quit to title'];
+const MENU_ITEMS = ['resume', 'restart journey', 'full screen', 'music', 'sounds', 'save & quit', 'quit to title'];
 const STORY_SCENES = ['MorningScene', 'ForestScene', 'EndingScene'];
 
 // The game, stopped: a board let down over it with what you can do from here.
@@ -21,11 +21,11 @@ export default class PauseScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.add.rectangle(0, 0, width, height, 0x0a0e12, 0.6).setOrigin(0, 0);
-    this.board = new Board(this, { x: Math.round(width / 2 - 241), y: 128 }).drop();
+    this.board = new Board(this, { x: Math.round(width / 2 - 241), y: 64, planks: 8 }).drop();
     this.board.heading('paused');
     this.board.menu(MENU_ITEMS.map((label) => ({ label: this.labelFor(label), item: label })), (item) => this.confirm(item.item));
-    // M works in here too: keep the line on the board saying which it is
-    const relabel = () => this.board.setRow(MENU_ITEMS.indexOf('sound'), this.labelFor('sound'));
+    // M works in here too: keep the lines on the board saying which they are
+    const relabel = () => ['music', 'sounds'].forEach((item) => this.board.setRow(MENU_ITEMS.indexOf(item), this.labelFor(item)));
     this.game.events.on('sound-toggled', relabel);
     this.events.once('shutdown', () => this.game.events.off('sound-toggled', relabel));
     this.board.keys([[['up', 'down'], 'choose'], [['e'], 'do it'], [['esc'], 'resume']]);
@@ -44,13 +44,13 @@ export default class PauseScene extends Phaser.Scene {
     if (item === 'resume') { this.resumeCaller(); return; }
     if (item === 'restart journey') { this.restartJourney(); return; }
     if (item === 'full screen') { this.scale.toggleFullscreen(); return; }
-    if (item === 'sound') { toggleMuted(this.game); return; }
+    if (item === 'music' || item === 'sounds') { setOn(this.game, item, !isOn(item)); return; }
     if (item === 'save & quit') { this.saveAndQuit(); return; }
     if (item === 'quit to title') this.quitToTitle();
   }
 
   labelFor(item) {
-    if (item === 'sound') return isMuted() ? 'sound: off' : 'sound: on';
+    if (item === 'music' || item === 'sounds') return `${item}: ${isOn(item) ? 'on' : 'off'}`;
     return item;
   }
 

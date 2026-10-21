@@ -8,7 +8,7 @@ import ForestScene from './scenes/ForestScene.js';
 import EndingScene from './scenes/EndingScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import { auth } from './services/auth.js';
-import { isMuted, toggleMuted } from './audio/sound.js';
+import { isOn, toggleAll } from './audio/sound.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -32,7 +32,6 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
-game.sound.mute = isMuted();              // off last time: off again
 // development only (stripped from the production build): lets test scripts reach the game
 if (import.meta.env.DEV) window.__northward = game;
 
@@ -44,16 +43,17 @@ window.addEventListener('keydown', (e) => {
   game.scale.toggleFullscreen();
 });
 
-// sound on and off: M, anywhere (but not while typing), the chip on the title
-// screen, or the pause menu — each keeps the others right through the event
+// sound on and off: M, anywhere (but not while typing), and the chip on the
+// title screen switch everything; the pause menu has music and sounds apart.
+// each keeps the others right through the event
 const soundBtn = document.getElementById('sound-toggle');
 function showSound() {
-  const off = isMuted();
+  const off = !isOn('music') && !isOn('sounds');
   soundBtn.querySelector('img').src = off ? '/assets/ui/sound-off.png' : '/assets/ui/sound.png';
   soundBtn.querySelector('span').textContent = off ? 'sound off' : 'sound on';
 }
 game.events.on('sound-toggled', showSound);
-const toggleSound = () => toggleMuted(game);
+const toggleSound = () => toggleAll(game);
 soundBtn.addEventListener('click', toggleSound);
 window.addEventListener('keydown', (e) => {
   if (e.key !== 'm' && e.key !== 'M') return;

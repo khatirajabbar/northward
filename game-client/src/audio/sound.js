@@ -36,7 +36,7 @@ const ready = (scene, id) => MADE.has(id) && scene.cache.audio.exists(key(id));
 const loudest = (id) => BY_ID[id].volume ?? 0.5;
 
 export function play(scene, id, { volume = 1, vary = 0.06, pan = 0 } = {}) {
-  if (!ready(scene, id) || volume < 0.02) return;           // too far off to hear
+  if (!ready(scene, id) || volume < 0.02 || !on[group(id)]) return;     // too far off to hear, or switched off
   scene.sound.play(key(id), {
     volume: loudest(id) * volume,
     rate: 1 + (Math.random() * 2 - 1) * vary,
@@ -70,7 +70,7 @@ function loop(scene, id) {
 
 function setVolume(id, sound, volume) {
   given.set(id, volume);
-  sound.setVolume(volume);
+  sound.setVolume(on[group(id)] ? volume : 0);
 }
 
 export function level(scene, id, amount) {
@@ -111,23 +111,34 @@ export function nearness(distance, reach) {
   return Phaser.Math.Clamp(1 - distance / reach, 0, 1);
 }
 
-// sound on or off, for the whole game, remembered between visits. kept here
-// rather than read back from Phaser, whose own `mute` only changes once the
-// audio has caught up — a moment later
-let muted = (() => {
-  try { return localStorage.getItem('northward-muted') === '1'; } catch (err) { return false; }
-})();
+// two switches, remembered between visits: the music, and every other sound
+// (the air, the creatures, your feet, the paper). a loop that's switched off
+// goes on playing silently, so switching it back on picks up where it is
+function group(id) { return BY_ID[id].kind === 'music' ? 'music' : 'sounds'; }
 
-export const isMuted = () => muted;
+const remembered = (name) => {
+  try {
+    const value = localStorage.getItem(`northward-${name}`);
+    if (value !== null) return value === '1';
+    return localStorage.getItem('northward-muted') !== '1';      // from when there was one switch for both
+  } catch (err) { return true; }
+};
+const on = { music: remembered('music'), sounds: remembered('sounds') };
 
-export function setMuted(game, value) {
-  muted = value;
-  game.sound.mute = value;
-  try { localStorage.setItem('northward-muted', value ? '1' : '0'); } catch (err) { /* private window: just not remembered */ }
+export const isOn = (which) => on[which];
+
+// switch one (or both, which = 'all') on or off, and let anything showing it —
+// the title chip, the pause menu — know
+export function setOn(game, which, value) {
+  (which === 'all' ? ['music', 'sounds'] : [which]).forEach((name) => {
+    on[name] = value;
+    try { localStorage.setItem(`northward-${name}`, value ? '1' : '0'); } catch (err) { /* private window: just not remembered */ }
+  });
+  looping.forEach((sound, id) => sound.setVolume(on[group(id)] ? given.get(id) ?? 0 : 0));
+  game.events.emit('sound-toggled');
 }
 
-// flip it, and let anything showing it (the title chip, the pause menu) know
-export function toggleMuted(game) {
-  setMuted(game, !muted);
-  game.events.emit('sound-toggled');
+// M and the title chip: everything off — or, if anything's off, everything on
+export function toggleAll(game) {
+  setOn(game, 'all', !(on.music && on.sounds));
 }
