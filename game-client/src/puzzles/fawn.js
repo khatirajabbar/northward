@@ -116,19 +116,21 @@ export default class FawnPuzzle {
     this.drawRope();
   }
 
-  // the doe watches from a little way off, and gives ground if you come close
+  // the doe watches from a little way off. come too close — pulling the fawn
+  // out from her side of the mud, say — and she walks on along the path in one
+  // unhurried go, then turns to watch her fawn again. she only moves again if
+  // you come close again (not a step back and forth every moment, which made
+  // her flicker). if you're already past her, she holds her ground by her fawn
   keepDoeShy(px) {
-    if (this.stage === 'free' || !this.doe.active) return;
-    const want = Math.max(this.doeHome, Math.min(px + SHY, this.doeHome + 420));
-    const step = Math.max(-2.2, Math.min(2.2, want - this.doe.x));
-    if (Math.abs(step) > 0.4) {
-      this.doe.x += step;
-      this.doe.setFlipX(step > 0);
-      this.doe.play('doe-walk', true);
-    } else {
-      this.doe.setFlipX(false);                       // looking back at her fawn
-      this.doe.play('doe-idle', true);
-    }
+    const doe = this.doe;
+    if (this.stage === 'free' || !doe.active || this.doeWalking) return;
+    if (px > doe.x || doe.x - px >= SHY) return;
+    const to = Math.min(px + SHY + 120, this.doeHome + 420);
+    if (to - doe.x < 30) return;                                   // nowhere further to go
+    this.doeWalking = true;
+    doe.setFlipX(true).play('doe-walk');
+    this.scene.tweens.add({ targets: doe, x: to, duration: (to - doe.x) / 110 * 1000, ease: 'Sine.inOut',
+      onComplete: () => { this.doeWalking = false; doe.setFlipX(false).play('doe-idle'); } });   // looking back at her fawn
   }
 
   // pulled too hard: it thrashes and slides back to where it started
@@ -191,6 +193,8 @@ export default class FawnPuzzle {
 
     scene.time.delayedCall(1300, () => {
       // she comes to it — past you, if she has to — and noses it all over
+      scene.tweens.killTweensOf(doe);
+      this.doeWalking = false;
       const side = doe.x > fawn.x ? 1 : -1;
       const meet = fawn.x + side * 50;
       doe.setFlipX(meet > doe.x).play('doe-walk');
