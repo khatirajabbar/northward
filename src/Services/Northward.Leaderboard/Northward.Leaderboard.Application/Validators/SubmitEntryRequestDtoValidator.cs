@@ -8,6 +8,17 @@ public class SubmitEntryRequestDtoValidator : AbstractValidator<SubmitEntryReque
     private static readonly string[] AllowedSeasons = { "summer", "winter" };
     private static readonly string[] AllowedCharacterTypes = { "female", "male", "knight" };
 
+    // The most kindness one journey can hold: every kind thing the road offers,
+    // once each (the tree, the fox cub, the horse and the three in the meadow,
+    // the goodbye, the cat, the bird, the fawn, the stag, the squirrel, the
+    // duckling, the bee, the turtle and the bridge). The game sends its own
+    // count, so anything above this didn't come from playing.
+    // Raise it whenever a puzzle that gives kindness is added to the game.
+    public const int MaxKindness = 16;
+
+    // Nobody walks from the cabin to the end of the road this fast.
+    public static readonly TimeSpan FastestPossible = TimeSpan.FromMinutes(1);
+
     public SubmitEntryRequestDtoValidator()
     {
         RuleFor(x => x.CharacterType)
@@ -21,9 +32,11 @@ public class SubmitEntryRequestDtoValidator : AbstractValidator<SubmitEntryReque
             .WithMessage("season must be 'summer' or 'winter'");
 
         RuleFor(x => x.Score)
-            .GreaterThanOrEqualTo(0).WithMessage("score cannot be negative");
+            .GreaterThanOrEqualTo(0).WithMessage("score cannot be negative")
+            .LessThanOrEqualTo(MaxKindness).WithMessage($"score cannot be more than {MaxKindness}");
 
         RuleFor(x => x.CompletionTime)
-            .Must(t => t > TimeSpan.Zero).WithMessage("completion time must be positive");
+            .Must(t => t >= FastestPossible).WithMessage("completion time is too short")
+            .Must(t => t < TimeSpan.FromDays(1)).WithMessage("completion time must be under a day");
     }
 }

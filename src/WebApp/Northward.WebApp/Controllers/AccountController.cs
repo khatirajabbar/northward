@@ -74,6 +74,17 @@ public class AccountController : Controller
         var profile = await _authApi.GetCurrentUserAsync(token);
         if (profile is null)
         {
+            // most likely the 15-minute access token ran out: renew it once and ask again
+            var refreshToken = HttpContext.Session.GetString("RefreshToken");
+            var renewed = refreshToken is null ? null : await _authApi.RefreshAsync(refreshToken);
+            if (renewed is not null)
+            {
+                SaveSession(renewed);
+                profile = await _authApi.GetCurrentUserAsync(renewed.AccessToken);
+            }
+        }
+        if (profile is null)
+        {
             HttpContext.Session.Clear();
             return RedirectToAction("Login");
         }

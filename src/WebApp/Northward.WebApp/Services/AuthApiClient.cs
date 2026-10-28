@@ -51,6 +51,18 @@ public class AuthApiClient
         return new AuthResult(true, data, null);
     }
 
+    // The access token only lasts 15 minutes; this trades the refresh token
+    // (which lasts 7 days, and works once) for a new pair. null if it's no good.
+    public async Task<AuthResponse?> RefreshAsync(string refreshToken)
+    {
+        var client = _httpClientFactory.CreateClient("AuthApi");
+        var response = await client.PostAsJsonAsync("api/auth/refresh", new { RefreshToken = refreshToken });
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return await response.Content.ReadFromJsonAsync<AuthResponse>();
+    }
+
     public async Task<UserProfile?> GetCurrentUserAsync(string accessToken)
     {
         var client = _httpClientFactory.CreateClient("AuthApi");
