@@ -529,7 +529,7 @@ export default class MorningScene extends Phaser.Scene {
         const sessionId = this.registry.get('sessionId');
         // saved with a real "start of the forest" state (and the time so far), so
         // continuing this journey later doesn't arrive with nothing
-        if (sessionId) game.updateProgress(sessionId, 'ForestScene', 0, withCurrentTime(null)).catch((err) => console.warn('could not save progress:', err.message));
+        game.saveProgress(sessionId, 'ForestScene', 0, withCurrentTime(null));
         this.time.delayedCall(1400, () => this.scene.start('ForestScene'));
       });
     });

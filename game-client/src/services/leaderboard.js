@@ -1,4 +1,4 @@
-import { auth } from './auth.js';
+import { auth, withPass } from './auth.js';
 
 const LEADERBOARD_API_BASE = import.meta.env.VITE_LEADERBOARD_URL || 'http://localhost:5294';
 
@@ -8,27 +8,20 @@ export const leaderboard = {
       throw new Error('not logged in');
     }
 
-    const post = () => fetch(`${LEADERBOARD_API_BASE}/api/leaderboard`, {
+    // (the name on the board is taken from your sign-in on the server, not from here)
+    const response = await withPass((token) => fetch(`${LEADERBOARD_API_BASE}/api/leaderboard`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${auth.accessToken}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        username: auth.user.username,
         characterType,
         season,
         score,
         completionTime // format "HH:MM:SS"
       })
-    });
-
-    let response = await post();
-
-    if (response.status === 401) {
-      await auth.refresh();
-      response = await post();
-    }
+    }));
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({ error: 'submit failed' }));

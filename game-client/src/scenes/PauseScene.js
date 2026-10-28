@@ -64,6 +64,9 @@ export default class PauseScene extends Phaser.Scene {
     this.registry.set('inventory', {});
     this.registry.remove('checkpoint');
     clock.seconds = 0;
+    // saved straight away as back at the start, so closing the game now doesn't
+    // leave the old journey's progress waiting to be continued
+    game.saveProgress(this.registry.get('sessionId'), 'MorningScene', 0, withCurrentTime(null));
     STORY_SCENES.forEach((key) => this.scene.stop(key));
     this.scene.start('MorningScene');
   }
@@ -76,8 +79,8 @@ export default class PauseScene extends Phaser.Scene {
       let checkpoint;
       if (this.caller === 'ForestScene') checkpoint = this.scene.get('ForestScene').snapshot();
       else checkpoint = withCurrentTime(this.caller === 'MorningScene' ? null : this.registry.get('checkpoint'));
-      game.updateProgress(sessionId, this.caller, this.registry.get('kindness') || 0, checkpoint)
-        .catch((err) => console.warn('could not save progress:', err.message));
+      // the journeys board this goes to waits for the save before it lists anything
+      game.saveProgress(sessionId, this.caller, this.registry.get('kindness') || 0, checkpoint);
     } else {
       console.warn('no session to save — quitting without saving');
     }

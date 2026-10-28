@@ -677,6 +677,12 @@ export default class ForestScene extends Phaser.Scene {
     }
     const has = (flag) => (saved.flags & flag) !== 0;
 
+    // every torch up to the one you're starting at was lit on the way here
+    if (this.currentCheckpoint) {
+      const reached = this.torchCheckpoints[this.currentCheckpoint];
+      Object.values(this.torches).forEach((torch) => { if (torch.x <= reached) this.lightTorch(torch, true); });
+    }
+
     // the bag you packed at home, minus whatever the saved run already gave away
     this.inventory = { bread: has(FLAGS.fox) ? 0 : 1, water: has(FLAGS.stag) ? 0 : 1, rope: 1, carrots: saved.carrots };
     if (has(FLAGS.fox)) this.fox.restore();
@@ -758,15 +764,12 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   // keep the registry copy current (PauseScene and EndingScene read it) and
-  // save to the backend, fire-and-forget, when a session exists
+  // save to the backend when a session exists (game.saveProgress sends saves
+  // one at a time, in order, so the newest is always the one that's kept)
   saveProgress(sceneKey = 'ForestScene') {
     const state = this.snapshot();
     this.registry.set('checkpoint', state);
-    const sessionId = this.registry.get('sessionId');
-    if (sessionId) {
-      game.updateProgress(sessionId, sceneKey, this.kindness, state)
-        .catch((err) => console.warn('could not save progress:', err.message));
-    }
+    game.saveProgress(this.registry.get('sessionId'), sceneKey, this.kindness, state);
   }
 
   // a checkpoint torch — unlit until you walk past it
@@ -778,15 +781,18 @@ export default class ForestScene extends Phaser.Scene {
     return { x, post, flame, glow, lit: false };
   }
 
-  lightTorch(torch) {
+  // `already`: one you lit before this journey was saved — it's simply burning
+  // when you come back, with no whoosh of sparks
+  lightTorch(torch, already = false) {
     torch.lit = true;
-    play(this, 'torch');
+    if (!already) play(this, 'torch');
     torch.flame.setVisible(true).play('flame-burn');
-    this.tweens.add({ targets: torch.glow, alpha: 0.18, duration: 600, ease: 'Sine.out',
+    this.tweens.add({ targets: torch.glow, alpha: 0.18, duration: already ? 1 : 600, ease: 'Sine.out',
       onComplete: () => {
         this.tweens.add({ targets: torch.glow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
           duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       } });
+    if (already) return;
     // a little whoosh of sparks
     for (let i = 0; i < 10; i++) {
       const sp = this.add.rectangle(torch.x, this.groundY - 68, 2, 2, 0xffd27a, 0.9).setDepth(7);
@@ -962,8 +968,8 @@ export default class ForestScene extends Phaser.Scene {
       { id: 'north', text: 'keep walking north', done: () => false, where: () => null }
     ];
     this.seenTasks = new Set();
-    this.guide.setTasks(this.tasks, { counted: false });
-    this.taskInHand = this.tasks[0].id;
+    this.guide.setTasks(this.tasks, { counted: false, waitForFocus: true });
+    this.taskInHand = null;                  // the first update picks it (see followTasks)
   }
 
   // which task is in hand right now: the first in the list that has come up
@@ -974,11 +980,14 @@ export default class ForestScene extends Phaser.Scene {
   // bucket you just picked up — has `sight: null`: there's no surprise left
   followTasks() {
     const x = this.player.x;
-    const view = this.cameras.main.worldView;
+    // what's on screen, from where the camera is (its worldView is only worked
+    // out when it draws, so on the very first frame it would say "nothing")
+    const cam = this.cameras.main;
+    const viewLeft = cam.scrollX, viewRight = cam.scrollX + cam.width / cam.zoom;
     this.tasks.forEach((t) => {
       if (this.seenTasks.has(t.id)) return;
       const at = t.sight === null ? null : t.sight ? t.sight() : (t.where() || [])[0];
-      if (at == null || (at > view.x + 30 && at < view.right - 30)) this.seenTasks.add(t.id);
+      if (at == null || (at > viewLeft + 30 && at < viewRight - 30)) this.seenTasks.add(t.id);
     });
     const next = this.tasks.find((t) => this.seenTasks.has(t.id) && (!t.when || t.when()) && !t.done() && !(t.until && x > t.until()));
     const id = next ? next.id : null;

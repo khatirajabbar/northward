@@ -109,11 +109,14 @@ export default class Guide {
   // each is { id, text, where } — where() gives the world [x, y] to mark, or
   // null. a scene either walks its list in order (complete), or says which
   // task is in hand as the world changes (focus). `counted` adds "2/7".
+  // `waitForFocus`: show nothing until the scene's first focus() — for a scene
+  // that works out what's in hand by itself, so the tag doesn't first show the
+  // top of the list (and tick it off) when you continue a journey further on
 
-  setTasks(tasks, { counted = true } = {}) {
+  setTasks(tasks, { counted = true, waitForFocus = false } = {}) {
     this.tasks = tasks;
     this.counted = counted;
-    this.at = 0;
+    this.at = waitForFocus ? tasks.length : 0;
     this.turning = false;
     this.showTag();
   }
