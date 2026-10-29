@@ -9,12 +9,12 @@ public class SubmitEntryRequestDtoValidator : AbstractValidator<SubmitEntryReque
     private static readonly string[] AllowedCharacterTypes = { "female", "male", "knight" };
 
     // The most kindness one journey can hold: every kind thing the road offers,
-    // once each (the tree, the fox cub, the horse and the three in the meadow,
-    // the goodbye, the cat, the bird, the fawn, the stag, the squirrel, the
+    // once each (the fox cub, the horse and the three in the meadow, the
+    // goodbye, the cat, the bird, the fawn, the stag, the squirrel, the
     // duckling, the bee, the turtle and the bridge). The game sends its own
     // count, so anything above this didn't come from playing.
-    // Raise it whenever a puzzle that gives kindness is added to the game.
-    public const int MaxKindness = 16;
+    // Change it whenever a puzzle that gives kindness is added or taken out.
+    public const int MaxKindness = 15;
 
     // Nobody walks from the cabin to the end of the road this fast.
     public static readonly TimeSpan FastestPossible = TimeSpan.FromMinutes(1);

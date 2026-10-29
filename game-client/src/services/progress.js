@@ -4,7 +4,7 @@
 // e.g.      "torch-2;t312;c4;f31;m3;b47"
 
 export const FLAGS = {
-  tree: 1,          // the weak tree was watered
+  tree: 1,          // the weak tree was watered — that puzzle is gone; only read from old saves
   horseFed: 2,      // the horse ate its carrot — the gate is open, it follows you
   grassLearned: 4,  // rode through the tall grass — it's passable on foot now
   goodbye: 8,       // the horse stayed with its friends in the meadow

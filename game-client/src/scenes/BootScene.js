@@ -41,7 +41,7 @@ export default class BootScene extends Phaser.Scene {
     ['sky', 'far', 'mid', 'near', 'ground', 'fringe',
       'spruce-a', 'spruce-b', 'spruce-c', 'pine-a', 'birch-a', 'birch-b', 'oak-a', 'bush-a', 'bush-b',
       'tuft-a', 'tuft-b', 'tuft-c', 'flower-white', 'flower-yellow', 'flower-pink', 'fern', 'pebble', 'stump',
-      'bucket-empty', 'bucket-full', 'carrot', 'mound-a', 'mound-b', 'sapling-weak', 'sapling-healthy', 'pond',
+      'carrot', 'mound-a', 'mound-b', 'pond',
       'fox-log', 'fox-cub', 'fox-cub-sit', 'fox-eyes', 'bread',
       'icon-bread', 'icon-carrot', 'icon-water', 'icon-rope',
       'tallgrass-a', 'tallgrass-b', 'tallgrass-c', 'tallgrass-low-a', 'tallgrass-low-b', 'bramble-a', 'bramble-b', 'bramble-c', 'bramble-low',

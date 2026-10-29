@@ -223,20 +223,7 @@ function stump() {
   });
 }
 
-// ── the first stretch: bucket, carrots, the thirsty tree, the pond ──
-
-function bucket(full) {
-  return piece(10, 13, (g) => {
-    const w = C.wood;
-    g.poly([[0.5, 4], [9.5, 4], [8.5, 13], [1.5, 13]], w[2]);
-    g.vline(1, 5, 7, w[1]); g.vline(3, 5, 8, w[1]); g.vline(6, 5, 8, w[1]); g.vline(7, 5, 8, w[3]); g.vline(8, 5, 7, w[4]);
-    g.hline(1, 6, 8, C.iron[2]); g.hline(1, 7, 8, C.iron[4]); g.hline(2, 11, 6, C.iron[2]);
-    g.hline(0, 4, 10, w[4]); g.hline(1, 3, 8, w[5]);
-    if (full) { g.hline(1, 4, 8, 0x4f93a4); g.hline(2, 4, 3, 0xa8dbe0); g.hline(1, 3, 8, 0x6fb0bc); g.put(6, 3, 0xdff3f2); }
-    else g.hline(1, 4, 8, w[0]);
-    for (let i = 0; i <= 7; i++) g.put(1 + i, 2 - Math.round(Math.sin((i / 7) * Math.PI) * 2.2), C.iron[1]);   // handle
-  });
-}
+// ── the first stretch: carrots and the pond ──
 
 function carrot() {
   // only the leafy top and the shoulder of the root show — the rest is in the ground
@@ -255,50 +242,6 @@ function mound(seed) {
   const img = new Img(14, 5);
   img.ellipse(7, 4, 7, 3.2, C.dirt[0]); img.ellipse(7, 3.6, 5.6, 2.4, C.dirt[2]); img.ellipse(7.5, 2.6, 3.4, 1.2, C.dirt[3]);
   for (let i = 0; i < 4; i++) img.put(rnd.int(3, 10), rnd.int(2, 4), C.dirt[1]);
-  return img;
-}
-
-// the little tree by the path: thirsty, and then — after a bucket of water — in bloom
-function sapling(healthy) {
-  const rnd = rng(healthy ? 71 : 72);
-  const w = 60, h = 116, cx = 30;
-  const img = new Img(w, h);
-  const bark = [0x4a3526, 0x65493a, 0x82624c, 0x9c7a5f];
-  const boughs = [[-17, 46], [16, 40], [-8, 30], [9, 26], [-22, 60], [21, 56]];
-  boughs.forEach(([dx, y1], i) => {
-    const y0 = 70 - i * 3;
-    img.line(cx, y0, cx + dx, y1, bark[0]); img.line(cx + 1, y0, cx + dx + 1, y1, bark[1]);
-    img.line(cx + dx, y1, cx + dx + Math.sign(dx) * 5, y1 - 7, bark[0]);
-  });
-  for (let y = h - 1; y >= 36; y--) {
-    const t = (h - y) / (h - 36), half = t < 0.08 ? 4 : t < 0.55 ? 2.5 : t < 0.8 ? 2 : 1.5;
-    for (let dx = -Math.ceil(half); dx <= Math.floor(half); dx++) {
-      const k = (dx + half) / (2 * half);
-      let c = k < 0.3 ? bark[0] : k < 0.6 ? bark[1] : k < 0.9 ? bark[2] : bark[3];
-      if ((y * 3 + dx * 7) % 9 === 0) c = bark[0];
-      img.put(cx + dx, y, c);
-    }
-  }
-  img.rect(cx - 6, h - 2, 12, 2, bark[1]); img.hline(cx - 6, h - 1, 12, bark[0]);
-  if (healthy) {
-    const green = [0x2f5f44, 0x43815a, 0x5aa374, 0x7cc08e];
-    [[-18, 50, 12, 9], [18, 46, 12, 9], [-23, 62, 9, 7], [22, 58, 9, 7], [-8, 34, 13, 10], [9, 30, 13, 10], [0, 20, 15, 10], [0, 44, 13, 9]]
-      .forEach(([dx, y, rx, ry]) => leafClump(img, cx + dx, y, rx, ry, green, rnd));
-    for (let i = 0; i < 26; i++) {                       // blossom
-      const x = rnd.int(6, w - 7), y = rnd.int(12, 66);
-      if (!img.alpha(x, y)) continue;
-      const c = rnd.chance(0.6) ? 0xf7f4ee : 0xf0b6c9;
-      img.put(x, y, c); if (rnd.chance(0.5)) img.put(x + 1, y, c); if (rnd.chance(0.3)) img.put(x, y - 1, 0xffe680);
-    }
-  } else {
-    const dry = [0x6e6242, 0x8a7a48, 0xa8944f, 0xc2ad62];
-    [[-18, 49, 6, 4], [17, 43, 6, 4], [-8, 31, 7, 4], [9, 27, 6, 4], [0, 22, 7, 5], [-22, 62, 4, 3]]
-      .forEach(([dx, y, rx, ry]) => leafClump(img, cx + dx, y, rx, ry, dry, rnd));
-    for (let i = 0; i < 9; i++) {                        // the leaves it has already dropped
-      const x = rnd.int(6, w - 8), c = rnd.pick([dry[1], dry[2], dry[3]]);
-      img.put(x, h - 1, c); img.put(x + 1, h - 1, c); if (rnd.chance(0.4)) img.put(x, h - 2, c);
-    }
-  }
   return img;
 }
 
@@ -1176,9 +1119,7 @@ export function buildAll() {
     'flower-white': flower(0xf7f4ee), 'flower-yellow': flower(0xffe27a, 0xe8a02c), 'flower-pink': flower(0xf0b6c9),
     fern: fern(), pebble: pebble(), stump: stump(),
     // the first stretch
-    'bucket-empty': bucket(false), 'bucket-full': bucket(true),
     carrot: carrot(), 'mound-a': mound(1), 'mound-b': mound(2),
-    'sapling-weak': sapling(false), 'sapling-healthy': sapling(true),
     pond: pond(),
     'fox-log': foxLog(), 'fox-cub': foxCub(false), 'fox-cub-sit': foxCub(true), 'fox-eyes': foxEyes(),
     bread: bread(),

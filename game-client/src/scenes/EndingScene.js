@@ -771,7 +771,6 @@ export default class EndingScene extends Phaser.Scene {
     this.guide.showNote({
       title: 'today',
       lines: [
-        { text: 'watered the little tree', ticked: did(FLAGS.tree) },
         { text: 'fed a fox cub', ticked: did(FLAGS.fox) },
         { text: 'carried a cat down', ticked: did(FLAGS.cat) },
         { text: 'freed a bird', ticked: did(FLAGS.bird) },

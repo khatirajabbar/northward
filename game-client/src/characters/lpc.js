@@ -77,13 +77,6 @@ export function createLpcAnims(scene, characterId) {
     repeat: -1
   });
 
-  scene.anims.create({
-    key: `${characterId}-water`,
-    frames: scene.anims.generateFrameNumbers(`${characterId}-watering-sheet`, { start: 39, end: 46 }),
-    frameRate: 8,
-    repeat: 0
-  });
-
   // seen from behind, at the window: both arms out to draw the curtains apart
   scene.anims.create({
     key: `${characterId}-part-curtains`,

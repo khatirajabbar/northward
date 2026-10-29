@@ -62,11 +62,6 @@ export const SOUNDS = [
     text: 'an old wooden cabin door swinging slowly open: one smooth, low creak of its hinges that fades out, no knocking, no clicking, no rattling' },
 
   // ── on the road ──
-  { id: 'bucket', kind: 'sfx', seconds: 0.8, volume: 0.45, text: 'picking up an old metal bucket, a small clank of its handle' },
-  { id: 'fill', kind: 'sfx', seconds: 2, volume: 0.3, follow: 0.7,
-    text: 'a bucket gently dipped into a calm lake and lifted out full: a soft gurgle of water filling it and a few drips, quiet and close, no metal clanking' },
-  { id: 'pour', kind: 'sfx', seconds: 2, volume: 1, follow: 0.7,
-    text: 'water poured slowly from a bucket onto soft earth around a small plant: a gentle trickle and soft splash soaking into the soil, quiet, no metal clanking' },
   { id: 'carrot', kind: 'sfx', seconds: 0.7, volume: 0.5, text: 'a carrot pulled up out of soft garden soil' },
   { id: 'crunch', kind: 'sfx', seconds: 1.4, volume: 0.45, text: 'a small animal happily munching and crunching food' },
   { id: 'horse-snort', kind: 'sfx', seconds: 1.2, volume: 0.45, text: 'a gentle horse snorting softly through its nose' },
