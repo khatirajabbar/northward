@@ -638,6 +638,38 @@ function fallenLog() {
   });
 }
 
+// a big trunk the wind brought down across the road, too high to step over:
+// you jump it. broken off at the root end, narrowing to a snapped top, with a
+// bough still sticking up and moss along its back (two lie in the gallop's dips)
+function windfall() {
+  return piece(80, 24, (g) => {
+    const t = C.timber, rnd = rng(81);
+    for (let x = 5; x < 79; x++) {
+      const top = 7 + (x > 68 ? Math.round((x - 68) * 0.4) : 0);   // the last of it, thinner
+      g.rect(x, top, 1, 23 - top, t[3]);
+      g.put(x, top, t[4]); g.put(x, top + 1, mix(t[4], t[3], 0.5));
+      g.rect(x, 19, 1, 3, t[2]); g.put(x, 22, t[1]);
+    }
+    for (let i = 0; i < 46; i++) {                                   // bark
+      const x = rnd.int(9, 72), y = rnd.int(9, 19);
+      g.hline(x, y, rnd.int(3, 9), rnd.chance(0.5) ? t[2] : t[4], 0.7);
+    }
+    [24, 41, 60].forEach((x) => { g.vline(x, 9, 11, t[1]); g.vline(x + 1, 10, 9, t[4], 0.5); });   // splits in the bark
+    g.poly([[48, 8], [54, 0], [57, 1], [52, 9]], t[3]); g.line(54, 1, 51, 7, t[4]); g.put(55, 0, C.cut[2]);   // a snapped-off bough
+    g.poly([[16, 8], [12, 2], [14, 1], [19, 7]], t[2]); g.put(13, 1, C.cut[1]);
+    // the broken end: torn wood, pale where it splintered
+    g.poly([[6, 7], [2, 8], [4, 10], [0, 12], [3, 14], [1, 17], [4, 19], [2, 21], [6, 22]], C.cut[1]);
+    [[1, 12, 5], [3, 15, 4], [2, 18, 5], [3, 9, 3]].forEach(([x, y, len]) => g.hline(x, y, len, C.cut[3]));
+    [[4, 11], [5, 16], [4, 20]].forEach(([x, y]) => g.put(x, y, C.cut[0]));
+    g.vline(6, 7, 16, t[1]);
+    // the snapped top
+    g.poly([[78, 12], [80, 14], [78, 16], [80, 19], [78, 22]], t[2]);
+    // moss along its back, and grass at its foot
+    [[30, 7, 9], [46, 7, 5], [66, 8, 6]].forEach(([x, y, rx]) => { g.ellipse(x, y, rx, 1.6, C.grass[1]); g.ellipse(x - 1, y - 0.6, rx * 0.6, 0.9, C.grass[3]); });
+    for (let x = 7; x < 78; x += 3) if (rnd.chance(0.6)) g.put(x, 23, C.grass[rnd.int(1, 2)]);
+  });
+}
+
 // a tall daisy on a long stem — the kind you could pick and carry. a few of
 // them grow together past the tired bee; `heart` and `petal` vary them
 function tallDaisy(petal = 0xf7f4ee, heart = 0xffd23f) {
@@ -1135,6 +1167,7 @@ export function buildAll() {
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
     cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
     duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(), bee: bee(),
+    windfall: windfall(),
     plank: plank(), trestle: trestle(),
     'daisy-tall': tallDaisy(), 'daisy-tall-yellow': tallDaisy(0xffe27a, 0xe8a02c),
     'bee-pet': petTheBee(),

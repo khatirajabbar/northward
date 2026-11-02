@@ -6,9 +6,10 @@
 // without the walk to it. In the morning the same keys skip straight out to
 // that place, bag packed.
 import { setTravelerBody } from '../characters/lpc.js';
+import { along } from '../world/road.js';
 
-const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS', 'PLUS', 'OPEN_BRACKET', 'CLOSED_BRACKET'];   // PLUS is the = key
-const HINT = 'test keys: 1-9, 0, -, =, [ and ] jump along the road';
+const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS', 'PLUS', 'OPEN_BRACKET', 'CLOSED_BRACKET', 'G'];   // PLUS is the = key
+const HINT = 'test keys: 1-9, 0, -, =, [, ] and g jump along the road';
 
 // key → [what's there, where to stand] — a little before each thing, so you arrive at it
 function stops(forest) {
@@ -17,7 +18,7 @@ function stops(forest) {
     TWO: ['the fox cub', forest.fox.logX - 330],
     THREE: ['the horse', 2180],
     FOUR: ['the stepping stones', forest.torchX - 60],
-    FIVE: ['the mushroom hill', 5640],
+    FIVE: ['the mushroom hill', along(5640)],
     SIX: ['the bird in the thorns', forest.brambleTorchX - 60],
     SEVEN: ['the resting tree', forest.restTreeX - 280],
     EIGHT: ['the fawn', forest.restTorchX - 60],
@@ -26,7 +27,8 @@ function stops(forest) {
     MINUS: ['the old stag', forest.stagX - 340],
     PLUS: ['the bumblebee', forest.beeX - 300],
     OPEN_BRACKET: ['the turtle', forest.turtleX - 300],
-    CLOSED_BRACKET: ['the broken bridge', forest.brookL - 800]
+    CLOSED_BRACKET: ['the broken bridge', forest.brookL - 800],
+    G: ['the gallop', forest.gallop.from - 160]
   };
 }
 

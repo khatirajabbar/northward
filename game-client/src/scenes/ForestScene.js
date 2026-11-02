@@ -13,6 +13,10 @@ import BridgePuzzle from '../puzzles/bridge.js';
 import TurtlePuzzle from '../puzzles/turtle.js';
 import BeePuzzle from '../puzzles/bee.js';
 import Evening from '../world/evening.js';
+import Hills from '../world/hills.js';
+import Gallop from '../world/gallop.js';
+import GuideBird from '../world/guideBird.js';
+import { along } from '../world/road.js';
 import { play, bed, level, fade, steps, nearness, nowAndThen } from '../audio/sound.js';
 import Guide, { INK, PENCIL } from '../ui/guide.js';
 
@@ -40,8 +44,14 @@ export default class ForestScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.W = width;
     this.H = height;
-    const worldWidth = 16600;
+    // positions past the tall grass are written as they were on the first,
+    // shorter road; along() moves each one on past the stretches added since
+    // (see world/road.js)
+    const worldWidth = along(16600);
     this.groundY = height - 60;
+    // the ground is flat but for the hills of the stretches that have them
+    this.hills = new Hills(this, this.groundY);
+    this.gallop = new Gallop(this);
     // where the sprite's centre sits when the traveler stands on the ground
     this.standY = this.groundY - FEET * FOREST_SCALE - 4;
     // riding: how far the drawing is lifted so the traveler's seat rests on the horse's back
@@ -65,31 +75,31 @@ export default class ForestScene extends Phaser.Scene {
     // ── the horse (a gate: hungry, won't let you pass until fed) ──
     this.horseX = 2400;
     this.grassX = 2900;          // tall-grass gate (only passable on horseback)
-    this.meadowX = 4700;         // where the other horses graze — the goodbye, a little after the river
-    this.crossX = 5200;          // stepping-stone water crossing (crossed alone, after the goodbye)
+    this.meadowX = along(4700);  // where the other horses graze — the goodbye, a little after the river
+    this.crossX = along(5200);   // stepping-stone water crossing (crossed alone, after the goodbye)
     this.crossWidth = 460;       // gap in the ground (water)
-    this.riverX = 3900;          // the river — the horse carries you across, together, before goodbye
+    this.riverX = along(3900);   // the river — the horse carries you across, together, before goodbye
     this.riverWidth = 420;       // a real river — too wide and deep to cross on foot
-    this.riverTorchX = 3680;     // checkpoint torch on the near bank of the river
-    this.stoneXs = [5020, 5110, 5200, 5290, 5380];  // 5 stones with real gaps to jump across
-    this.respawnX = 3680;        // default checkpoint — updates to each torch you light
+    this.riverTorchX = along(3680);   // checkpoint torch on the near bank of the river
+    this.stoneXs = [5020, 5110, 5200, 5290, 5380].map(along);  // 5 stones with real gaps to jump across
+    this.respawnX = this.riverTorchX;  // default checkpoint — updates to each torch you light
     this.respawnY = this.standY;
-    this.torchX = 4940;          // torch checkpoint before the crossing
-    this.brambleTorchX = 6900;   // torch checkpoint before the bramble (sprite built below)
+    this.torchX = along(4940);   // torch checkpoint before the crossing
+    this.brambleTorchX = along(6900);   // torch checkpoint before the bramble (sprite built below)
     // checkpoint torches in world order — stable id -> world x. passing a torch
     // saves it as the active checkpoint (respawn a step past it on resume).
-    this.restTorchX = 8700;      // torch checkpoint past the rest field, before the mud
-    this.fawnX = 9050;           // the boggy hollow where the fawn is stuck
-    this.acornTorchX = 9880;     // torch checkpoint past the mud, where the dropped acorns begin
-    this.squirrelX = 10640;      // the old oak the squirrel lives in (its acorns lie along the road before it)
-    this.duckLogX = 11120;       // the fallen log a duckling can't get over…
-    this.duckPondX = 12030;      // …and the pond where its family is, a good walk further on
-    this.stagX = 12650;          // the glade where the old stag lies under his oak
-    this.beeX = 13250;           // the bumblebee busy in the daisies (three clumps of them, from here on)
-    this.turtleX = 13900;        // the turtle on its back, beside the road
-    this.bridgeTorchX = 14140;   // torch checkpoint before the last of the road
-    this.brookL = 14848;         // the brook near the end, bank to bank — its bridge is down
-    this.brookR = 15184;         //   (three boards' width: see puzzles/bridge.js)
+    this.restTorchX = along(8700);     // torch checkpoint past the rest field, before the mud
+    this.fawnX = along(9050);          // the boggy hollow where the fawn is stuck
+    this.acornTorchX = along(9880);    // torch checkpoint past the mud, where the dropped acorns begin
+    this.squirrelX = along(10640);     // the old oak the squirrel lives in (its acorns lie along the road before it)
+    this.duckLogX = along(11120);      // the fallen log a duckling can't get over…
+    this.duckPondX = along(12030);     // …and the pond where its family is, a good walk further on
+    this.stagX = along(12650);         // the glade where the old stag lies under his oak
+    this.beeX = along(13250);          // the bumblebee busy in the daisies (three clumps of them, from here on)
+    this.turtleX = along(13900);       // the turtle on its back, beside the road
+    this.bridgeTorchX = along(14140);  // torch checkpoint before the last of the road
+    this.brookL = along(14848);        // the brook near the end, bank to bank — its bridge is down
+    this.brookR = along(15184);        //   (three boards' width: see puzzles/bridge.js)
     this.lastStretchX = this.brookL - 110;   // the scream reaches you at the water's edge; the rest lies beyond the brook
     this.torchCheckpoints = { 'torch-1': this.riverTorchX, 'torch-2': this.torchX, 'torch-3': this.brambleTorchX,
       'torch-4': this.restTorchX, 'torch-5': this.acornTorchX, 'torch-6': this.bridgeTorchX };
@@ -129,13 +139,15 @@ export default class ForestScene extends Phaser.Scene {
     const rivL = this.riverX - this.riverWidth / 2;
     const rivR = this.riverX + this.riverWidth / 2;
     // physics tiles are invisible now — the layered earth below draws the look,
-    // in unbroken runs that stop exactly where the tiles stop (the water gaps)
+    // in unbroken runs that stop exactly where the tiles stop (the water gaps,
+    // and the hills, which draw and hold up their own ground)
     const groundRuns = [];
     let runStart = null;
     for (let x = 0; x < worldWidth; x += 16) {
       if ((x > gapL - 16 && x < gapR) ||         // gap over the stepping-stone water
           (x > rivL - 16 && x < rivR) ||         // gap over the river
-          (x >= this.brookL && x < this.brookR)) {   // gap over the brook with the broken bridge
+          (x >= this.brookL && x < this.brookR) ||   // gap over the brook with the broken bridge
+          this.hills.on(x + 8)) {
         if (runStart !== null) { groundRuns.push([runStart, x]); runStart = null; }
         continue;
       }
@@ -145,19 +157,24 @@ export default class ForestScene extends Phaser.Scene {
       tile.setVisible(false);
     }
     if (runStart !== null) groundRuns.push([runStart, worldWidth]);
+    // every run shows the ground art as it falls at its own x on the road, so a
+    // hill (or the next run) picks up exactly where the last one left off
     groundRuns.forEach(([x0, x1]) => {
       this.add.tileSprite(x0, this.groundY, x1 - x0, 80, 'woods-ground')
-        .setOrigin(0, 0).setTileScale(ART, ART).setDepth(2);
+        .setOrigin(0, 0).setTileScale(ART, ART).setTilePosition(x0 / ART, 0).setDepth(2);
       this.add.tileSprite(x0, this.groundY + 2, x1 - x0, 12, 'woods-fringe')
-        .setOrigin(0, 1).setTileScale(ART, ART).setDepth(5);
+        .setOrigin(0, 1).setTileScale(ART, ART).setTilePosition(x0 / ART, 0).setDepth(5);
     });
+    this.hills.draw();
 
     // ── forest dressing — spruce, pine and birch along the whole road, with
     // bushes, ferns, grass and flowers under them. everything sits at depth 1
     // (trees) or 4-5 (undergrowth), behind the gameplay objects, and the
-    // placements stay clear of the landmarks so nothing readable is covered ──
+    // placements stay clear of the landmarks so nothing readable is covered.
+    // `y` is given as if the road were flat; on a hill it's lifted to match ──
     const prop = (key, x, depth, flip = false, y = this.groundY + 4) =>
-      this.add.image(x, y, `woods-${key}`).setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(flip);
+      this.add.image(x, y - (this.groundY - this.hills.surfaceAt(x)), `woods-${key}`)
+        .setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(flip);
     const pick = (list) => list[Math.floor(Math.random() * list.length)];
     [[120, 'spruce-b'], [300, 'birch-a'], [470, 'spruce-a'], [700, 'pine-a'], [760, 'spruce-c'],
      [1230, 'birch-b'], [1400, 'spruce-a'], [1510, 'spruce-b'], [1790, 'birch-a'], [2150, 'spruce-a', true],
@@ -172,12 +189,13 @@ export default class ForestScene extends Phaser.Scene {
      // the duckling's stretch: the log, and the pond
      [11160, 'spruce-a'], [11300, 'pine-a'], [11430, 'birch-b'], [11560, 'spruce-c'], [11830, 'spruce-b'],
      [11960, 'birch-a'], [12110, 'spruce-a', true], [12270, 'pine-a'], [12410, 'spruce-a'], [12480, 'birch-b'],
-    ].forEach(([x, key, flip]) => prop(key, x, 1, !!flip));
+    ].forEach(([x, key, flip]) => prop(key, along(x), 1, !!flip));
     [260, 560, 1300, 1450, 2180, 2500, 3250, 3420, 4380, 4900, 5540, 6820, 7480, 8820, 9420, 9560, 9700,
      10800, 11240, 11600, 12330].forEach((x, i) => {
-      prop(i % 2 ? 'bush-b' : 'bush-a', x + (Math.random() * 20 - 10), 4, Math.random() < 0.5, this.groundY + 3);
+      prop(i % 2 ? 'bush-b' : 'bush-a', along(x) + (Math.random() * 20 - 10), 4, Math.random() < 0.5, this.groundY + 3);
     });
-    [380, 2230, 4240, 9840, this.brookR + 150].forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
+    [380, 2230, 4240, 9840].map(along).concat(this.brookR + 150).forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
+    this.gallop.dress(prop, seeded(31));
     // the last of the road, from the stag's glade on, is dressed by rule rather
     // than by hand — it keeps growing — with nothing standing in the brook
     const dice = seeded(12);
@@ -194,7 +212,7 @@ export default class ForestScene extends Phaser.Scene {
     const dressSkip = [
       [rivL - 40, rivR + 40], [gapL - 40, gapR + 40],
       [this.grassX - this.grassWidth / 2 - 60, this.grassX + this.grassWidth / 2 + 60],
-      [5700, 6700], [7020, 7380], [7650, 8660],
+      [along(5700), along(6700)], [along(7020), along(7380)], [along(7650), along(8660)],
       [1520, 1740],                                  // the fox cub's log
       [this.fawnX - 200, this.fawnX + 200],          // the mud
       [this.stagX - 130, this.stagX + 90],           // where the old stag lies
@@ -305,8 +323,12 @@ export default class ForestScene extends Phaser.Scene {
     setTravelerBody(this.player);
     this.player.setDepth(10);
     this.physics.add.collider(this.player, this.platforms);
+    this.hills.hold(this.player.body);
 
     this.physics.add.collider(this.player, this.stones);
+
+    // ── the gallop's trunks, and the bird from the window waiting on the first ──
+    this.windowBird = new GuideBird(this, this.gallop.place());
 
     // ── river crossing: an invisible floor across the gap, solid ONLY while riding ──
     // ride over it and the horse carries you across the surface; on foot it passes and you fall in
@@ -337,7 +359,7 @@ export default class ForestScene extends Phaser.Scene {
       ledge.body.checkCollision.right = false;
       this.ledges.add(ledge);
     };
-    this.cliffTopX = 6460;
+    this.cliffTopX = along(6460);
     this.cliffTopY = this.groundY - 300;
     makeLedge(this.cliffTopX + 10, this.cliffTopY, 240, 16);   // collision strip — only under the visible flat green
 
@@ -389,7 +411,7 @@ export default class ForestScene extends Phaser.Scene {
     // ── a green mountain SLOPE rising to the cliff, with bounce mushrooms and
     // little flowers growing on it. the slope is the look; the mushrooms on top
     // are what you bounce up. ──
-    const mtnLeft = 5760, peakX = 6440;
+    const mtnLeft = along(5760), peakX = along(6440);
     const peakTop = this.cliffTopY;                 // slope meets the cliff height
 
     // the green surface height at a given x — a smooth diagonal rising left->right
@@ -509,7 +531,7 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── bramble thicket past the cliff — a frightened bird is tangled inside.
     // tall canes behind you and low runners in front, so you're IN the thorns ──
-    this.brambleX = 7200;
+    this.brambleX = along(7200);
     this.brambleWidth = 280;
     this.brambleBlades = [];
     const brambleKinds = ['bramble-a', 'bramble-b', 'bramble-c'];
@@ -526,7 +548,7 @@ export default class ForestScene extends Phaser.Scene {
       thicket('bramble-low', bx, 11);
     }
     // the trapped bird, low in the thorns near the far side
-    this.birdX = 7280;
+    this.birdX = along(7280);
     this.birdFreed = false;
     this.birdHintShown = false;
     this.birdPanicking = false;
@@ -535,7 +557,7 @@ export default class ForestScene extends Phaser.Scene {
     this.birdSprite.play('bird-struggle');   // beating its wings — it's struggling to get free
 
     // ── resting field — trees, bushes, grass, and flowers, a wide quiet place after the bird ──
-    this.restTreeX = 8000;
+    this.restTreeX = along(8000);
     // a smaller tree close beside the big one, slightly behind — a natural pair, not a row
     prop('birch-a', this.restTreeX - 120, 4, true);
     prop('oak-a', this.restTreeX, 6);
@@ -628,6 +650,7 @@ export default class ForestScene extends Phaser.Scene {
     this.evening = new Evening(this, this.stagX, this.brookR + 620);
 
     this.restoreProgress();
+    this.windowBird.start(this.player.x);
     this.buildTasks();
     if (this.saved.place === 'start') {
       this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
@@ -863,7 +886,7 @@ export default class ForestScene extends Phaser.Scene {
         done: () => px() > stonesRight + 10, sight: () => this.crossX - this.crossWidth / 2,
         where: () => [stonesRight + 60, g - 60] },
       { id: 'cat', text: 'climb the mushrooms up to the cat',
-        done: () => this.catRescued, until: () => 6790,
+        done: () => this.catRescued, until: () => along(6790),
         where: () => [this.catSprite.x, this.catSprite.y - 50] },
       { id: 'cat-down', text: 'carry the cat down and set it on the ground',
         when: () => this.carryingCat || this.catFollowing,
@@ -1012,6 +1035,7 @@ export default class ForestScene extends Phaser.Scene {
     this.bumblebee.update(px);
     this.turtle.update(px);
     this.evening.update(px);
+    this.windowBird.update(px);
     this.bridge.update(px);
 
     // ── arriving at the resting field ──
@@ -1123,7 +1147,9 @@ export default class ForestScene extends Phaser.Scene {
     let speed = this.movingSlow ? 90 : baseSpeed, jumpSpeed = -480;
     if (wading) speed = 150;   // the horse slows to wade through the deep water
     if (this.fawn.hauling) speed = Math.min(speed, 46);   // and drawing the fawn out of the mud is slow work
-    const left = this.cursors.left.isDown || this.wasd.A.isDown;
+    // the speed limit is your own pace on foot, and the horse's when you ride
+    this.player.body.maxVelocity.x = baseSpeed;
+    const left =this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
                  Phaser.Input.Keyboard.JustDown(this.wasd.W) ||
@@ -1184,7 +1210,8 @@ export default class ForestScene extends Phaser.Scene {
     } else if (!onGround && !this.resting) {
       if (this.player.anims.currentAnim?.key !== `${this.characterId}-jump`) this.player.play(`${this.characterId}-jump`);
     }
-    if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -540 : -340);
+    // the horse clears a fallen trunk with room to spare: a leap, not a flight
+    if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -440 : -340);
     // the river bed sits lower than the banks — the horse steps up and out by itself
     if (wading && onGround && (this.player.body.blocked.left || this.player.body.blocked.right)) this.player.setVelocityY(-300);
 
@@ -1268,10 +1295,12 @@ export default class ForestScene extends Phaser.Scene {
       this.catSprite.y = this.player.y + 21 * FOREST_SCALE;
       this.catSprite.setFlipX(!this.player.flipX);
     } else if (this.catFollowing) {
-      updateCatFollow(this, this.catSprite, this.player, this.groundY);
+      updateCatFollow(this, this.catSprite, this.player, this.hills.surfaceAt(this.catSprite.x) - this.gallop.hop(this.catSprite.x));
     }
 
     const horse = this.horseSprite;
+    // on your feet you stand up straight, whatever the ground does
+    if (!this.riding && this.player.angle !== 0) this.player.setAngle(0);
     if (this.riding) {
       // the horse under you: hooves on whatever you're standing on, its back
       // under your seat — on the road and in the river alike
@@ -1292,7 +1321,14 @@ export default class ForestScene extends Phaser.Scene {
         }
       }
       setTravelerBody(this.player, this.rideLift - bob);
-      horse.x = this.player.x + facing * 8;
+      // it leans with a hill under it, and in a leap rears up going over and
+      // dips coming down. you lean with it; it shifts under you so its back
+      // stays under your seat
+      const lean = onGround ? this.hills.slantAt(this.player.x)
+        : Phaser.Math.Clamp(this.player.body.velocity.y * 0.02, -12, 12) * facing;
+      horse.setAngle(horse.angle + (lean - horse.angle) * 0.2);
+      this.player.setAngle(horse.angle);
+      horse.x = this.player.x + facing * 8 - Math.sin(Phaser.Math.DegToRad(horse.angle)) * HORSE_BACK * ART;
       horse.y = this.player.body.bottom + 2 + bob;
       horse.setFlipX(!this.player.flipX);
       horse.play(Math.abs(this.player.body.velocity.x) > 20 ? 'horse-walk' : 'horse-idle', true);
@@ -1302,7 +1338,8 @@ export default class ForestScene extends Phaser.Scene {
       const behind = Math.min(this.player.x - (this.player.flipX ? -70 : 70), this.horseStopX);
       const gap = behind - horse.x;
       horse.x += gap * 0.04;
-      horse.y = this.groundY + 2;
+      horse.y = this.hills.surfaceAt(horse.x) + 2 - this.gallop.hop(horse.x);
+      horse.setAngle(horse.angle + (this.hills.slantAt(horse.x) - horse.angle) * 0.2);
       horse.anims.timeScale = 1;
       if (horse.anims.currentAnim?.key !== 'horse-eat' || !horse.anims.isPlaying) {
         horse.setFlipX(horse.x < this.player.x);
@@ -1358,6 +1395,7 @@ export default class ForestScene extends Phaser.Scene {
     if (label && !unsaid) this.guide.prompt(['e'], label, ...over);
     else if (reminder) this.guide.prompt(reminder.keys || [], reminder.label, ...over);
     else if (this.atBrambleOnFoot) this.guide.prompt(['shift'], 'hold to move gently', ...over);
+    else if (this.gallop.against()) this.guide.prompt(['up'], 'jump', ...over);
     else this.guide.hidePrompt();
 
     if (this.riding && action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
@@ -1471,6 +1509,7 @@ export default class ForestScene extends Phaser.Scene {
       // the horse trots off to join the meadow, and puts its head down with the others
       const horse = this.horseSprite;
       horse.y = this.groundY + 2;
+      horse.setAngle(0);
       horse.anims.timeScale = 1;
       horse.setFlipX(this.meadowX - 30 > horse.x).play('horse-walk');
       this.tweens.add({ targets: horse, x: this.meadowX - 30, duration: 2600,
