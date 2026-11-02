@@ -11,10 +11,22 @@ const ART = 2;
 const NEAR_ON_FOOT = 240;     // how close you get before it goes
 const NEAR_RIDING = 320;      // further on a horse: it hears the hooves
 
+// what goes through your head at its stops, in the order you come to them
+// (not every stop: most of the time you just watch it go)
+const THOUGHTS = [
+  { seen: "that's the bird from my window! it came this way too.", gone: "north again. i'm coming, i'm coming." },
+  null,
+  { seen: 'there it is again. waiting for me.' },
+  null,
+  { gone: 'still north. always north.' },
+  null,
+  { seen: "it keeps stopping. as if it wants me to follow." }
+];
+
 export default class GuideBird {
   constructor(scene, perches) {
     this.scene = scene;
-    this.perches = [...perches].sort((a, b) => a.x - b.x);
+    this.perches = [...perches].sort((a, b) => a.x - b.x).map((p, i) => ({ ...THOUGHTS[i], ...p }));
     this.at = -1;
     this.flying = false;
     // the sheet faces left, at the traveler coming up the road

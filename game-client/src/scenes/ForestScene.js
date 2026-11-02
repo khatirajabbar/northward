@@ -16,6 +16,8 @@ import Evening from '../world/evening.js';
 import Hills from '../world/hills.js';
 import Gallop from '../world/gallop.js';
 import GuideBird from '../world/guideBird.js';
+import Walks from '../world/walks.js';
+import Leaps from '../world/leaps.js';
 import { along } from '../world/road.js';
 import { play, bed, level, fade, steps, nearness, nowAndThen } from '../audio/sound.js';
 import Guide, { INK, PENCIL } from '../ui/guide.js';
@@ -23,6 +25,10 @@ import Guide, { INK, PENCIL } from '../ui/guide.js';
 // The forest's art is drawn small by tools/forest-art.mjs (the same palette and
 // trees as the cabin) and shown at 2x.
 const ART = 2;
+// how far the horse and the cat reach out in front of their middles: where
+// they stop short of something to jump it, and land clear past it
+const HORSE_ROOM = 70;
+const CAT_ROOM = 30;
 
 // the same throws of the dice every time — for dressing a stretch of road by rule
 function seeded(seed) {
@@ -49,16 +55,19 @@ export default class ForestScene extends Phaser.Scene {
     // (see world/road.js)
     const worldWidth = along(16600);
     this.groundY = height - 60;
-    // the ground is flat but for the hills of the stretches that have them
+    // the ground is flat but for the hills of the stretches that have them,
+    // and wherever you have to jump, whoever follows you jumps too
     this.hills = new Hills(this, this.groundY);
+    this.leaps = new Leaps(this);
     this.gallop = new Gallop(this);
+    this.walks = new Walks(this);
     // where the sprite's centre sits when the traveler stands on the ground
     this.standY = this.groundY - FEET * FOREST_SCALE - 4;
     // riding: how far the drawing is lifted so the traveler's seat rests on the horse's back
     this.rideLift = Math.round(HORSE_BACK * ART - 7 - 13 * FOREST_SCALE);
 
     // ── landmark positions ──
-    this.lakeCenterX = 1980;
+    this.lakeCenterX = along(1980);
 
     // ── state ──
     this.characterId = this.registry.get('playAs') || 'lpc-khatira';
@@ -73,8 +82,8 @@ export default class ForestScene extends Phaser.Scene {
     this.carrotSprites = [];
 
     // ── the horse (a gate: hungry, won't let you pass until fed) ──
-    this.horseX = 2400;
-    this.grassX = 2900;          // tall-grass gate (only passable on horseback)
+    this.horseX = along(2400);
+    this.grassX = along(2900);   // tall-grass gate (only passable on horseback)
     this.meadowX = along(4700);  // where the other horses graze — the goodbye, a little after the river
     this.crossX = along(5200);   // stepping-stone water crossing (crossed alone, after the goodbye)
     this.crossWidth = 460;       // gap in the ground (water)
@@ -139,27 +148,31 @@ export default class ForestScene extends Phaser.Scene {
     const rivL = this.riverX - this.riverWidth / 2;
     const rivR = this.riverX + this.riverWidth / 2;
     // physics tiles are invisible now — the layered earth below draws the look,
-    // in unbroken runs that stop exactly where the tiles stop (the water gaps,
-    // and the hills, which draw and hold up their own ground)
+    // in unbroken runs that stop exactly where the tiles stop at the water gaps.
+    // the hills draw and hold up their own ground: there's no tile under them,
+    // and the runs stop right at their edges
     const groundRuns = [];
     let runStart = null;
     for (let x = 0; x < worldWidth; x += 16) {
-      if ((x > gapL - 16 && x < gapR) ||         // gap over the stepping-stone water
-          (x > rivL - 16 && x < rivR) ||         // gap over the river
-          (x >= this.brookL && x < this.brookR) ||   // gap over the brook with the broken bridge
-          this.hills.on(x + 8)) {
+      const water = (x > gapL - 16 && x < gapR) ||         // gap over the stepping-stone water
+          (x > rivL - 16 && x < rivR) ||                   // gap over the river
+          (x >= this.brookL && x < this.brookR);           // gap over the brook with the broken bridge
+      if (water) {
         if (runStart !== null) { groundRuns.push([runStart, x]); runStart = null; }
         continue;
       }
       if (runStart === null) runStart = x;
+      if (this.hills.on(x + 8)) continue;
       const tile = this.platforms.create(x, this.groundY, 'grass').setOrigin(0, 0);
       tile.refreshBody();
       tile.setVisible(false);
     }
     if (runStart !== null) groundRuns.push([runStart, worldWidth]);
+    const runs = this.hills.list.reduce((left, hill) => left.flatMap(([x0, x1]) =>
+      (hill.to <= x0 || hill.from >= x1) ? [[x0, x1]] : [[x0, hill.from], [hill.to, x1]].filter(([a, b]) => b > a)), groundRuns);
     // every run shows the ground art as it falls at its own x on the road, so a
     // hill (or the next run) picks up exactly where the last one left off
-    groundRuns.forEach(([x0, x1]) => {
+    runs.forEach(([x0, x1]) => {
       this.add.tileSprite(x0, this.groundY, x1 - x0, 80, 'woods-ground')
         .setOrigin(0, 0).setTileScale(ART, ART).setTilePosition(x0 / ART, 0).setDepth(2);
       this.add.tileSprite(x0, this.groundY + 2, x1 - x0, 12, 'woods-fringe')
@@ -196,6 +209,7 @@ export default class ForestScene extends Phaser.Scene {
     });
     [380, 2230, 4240, 9840].map(along).concat(this.brookR + 150).forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
     this.gallop.dress(prop, seeded(31));
+    this.walks.dress(prop);
     // the last of the road, from the stag's glade on, is dressed by rule rather
     // than by hand — it keeps growing — with nothing standing in the brook
     const dice = seeded(12);
@@ -213,7 +227,7 @@ export default class ForestScene extends Phaser.Scene {
       [rivL - 40, rivR + 40], [gapL - 40, gapR + 40],
       [this.grassX - this.grassWidth / 2 - 60, this.grassX + this.grassWidth / 2 + 60],
       [along(5700), along(6700)], [along(7020), along(7380)], [along(7650), along(8660)],
-      [1520, 1740],                                  // the fox cub's log
+      [along(1520), along(1740)],                    // the fox cub's log
       [this.fawnX - 200, this.fawnX + 200],          // the mud
       [this.stagX - 130, this.stagX + 90],           // where the old stag lies
       [this.squirrelX - 490, this.squirrelX - 410],  // the bush with an acorn in it
@@ -327,8 +341,9 @@ export default class ForestScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.stones);
 
-    // ── the gallop's trunks, and the bird from the window waiting on the first ──
-    this.windowBird = new GuideBird(this, this.gallop.place());
+    // ── the gallop's trunks, and the bird from the window: waiting on the
+    // first trunk, and on a stump in some of the quiet stretches ──
+    this.windowBird = new GuideBird(this, [...this.gallop.place(), ...this.walks.perches()]);
 
     // ── river crossing: an invisible floor across the gap, solid ONLY while riding ──
     // ride over it and the horse carries you across the surface; on foot it passes and you fall in
@@ -338,7 +353,7 @@ export default class ForestScene extends Phaser.Scene {
 
     // ── the horse goes no further than the far edge of the meadow: the stones
     // are yours to cross alone. an invisible stop, solid only while riding ──
-    this.horseStopX = this.torchX - 90;
+    this.horseStopX = this.meadowX + 150;
     const horseStop = this.add.rectangle(this.horseStopX + 16, this.groundY - 300, 12, 640).setVisible(false);
     this.physics.add.existing(horseStop, true);
     this.physics.add.collider(this.player, horseStop, () => {
@@ -630,7 +645,7 @@ export default class ForestScene extends Phaser.Scene {
 
     this.player.play(`${this.characterId}-idle`);
     // ── the fox cub in the hollow log, between the carrot field and the lake ──
-    this.fox = new FoxCubPuzzle(this, 1680);
+    this.fox = new FoxCubPuzzle(this, along(1680));
     // ── the fawn in the mud, on the new road past the rest tree ──
     this.fawn = new FawnPuzzle(this, this.fawnX);
     // ── the squirrel and its dropped acorns, on the way to its oak ──
@@ -718,7 +733,7 @@ export default class ForestScene extends Phaser.Scene {
       this.catRescued = true;
       this.catFollowing = true;
       this.calmCat();
-      this.catSprite.setPosition(this.player.x - 50, this.groundY + 2);
+      this.catSprite.setPosition(this.player.x - 50, this.hills.surfaceAt(this.player.x - 50) + 2);
       this.catSprite.play('cat-stand');
     }
     if (has(FLAGS.bird)) {
@@ -1147,8 +1162,6 @@ export default class ForestScene extends Phaser.Scene {
     let speed = this.movingSlow ? 90 : baseSpeed, jumpSpeed = -480;
     if (wading) speed = 150;   // the horse slows to wade through the deep water
     if (this.fawn.hauling) speed = Math.min(speed, 46);   // and drawing the fawn out of the mud is slow work
-    // the speed limit is your own pace on foot, and the horse's when you ride
-    this.player.body.maxVelocity.x = baseSpeed;
     const left =this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
@@ -1211,7 +1224,8 @@ export default class ForestScene extends Phaser.Scene {
       if (this.player.anims.currentAnim?.key !== `${this.characterId}-jump`) this.player.play(`${this.characterId}-jump`);
     }
     // the horse clears a fallen trunk with room to spare: a leap, not a flight
-    if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -440 : -340);
+    if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -480 : -340);
+    this.gallop.reins();
     // the river bed sits lower than the banks — the horse steps up and out by itself
     if (wading && onGround && (this.player.body.blocked.left || this.player.body.blocked.right)) this.player.setVelocityY(-300);
 
@@ -1294,8 +1308,20 @@ export default class ForestScene extends Phaser.Scene {
       this.catSprite.x = this.player.x + (this.player.flipX ? -7 : 7) * FOREST_SCALE;
       this.catSprite.y = this.player.y + 21 * FOREST_SCALE;
       this.catSprite.setFlipX(!this.player.flipX);
-    } else if (this.catFollowing) {
-      updateCatFollow(this, this.catSprite, this.player, this.hills.surfaceAt(this.catSprite.x) - this.gallop.hop(this.catSprite.x));
+    } else if (this.catFollowing && !this.catSprite.leaping) {
+      // it follows you on the ground, and where you had to jump, it jumps
+      const cat = this.catSprite;
+      let leap = null;
+      updateCatFollow(this, cat, this.player, this.hills.surfaceAt(cat.x), 0, (want) => {
+        const plan = this.leaps.plan(cat.x, want, CAT_ROOM);
+        leap = plan.leap;
+        return plan.want;
+      });
+      if (leap) {
+        cat.play('cat-walk');
+        this.leaps.jump(cat, leap, CAT_ROOM, (x) => this.hills.surfaceAt(x) + 2,
+          { height: 14, speed: 240, pose: (t, dir) => cat.setFlipX(dir > 0) });
+      }
     }
 
     const horse = this.horseSprite;
@@ -1333,17 +1359,28 @@ export default class ForestScene extends Phaser.Scene {
       horse.setFlipX(!this.player.flipX);
       horse.play(Math.abs(this.player.body.velocity.x) > 20 ? 'horse-walk' : 'horse-idle', true);
       horse.anims.timeScale = wading ? 0.7 : 1.3;                  // a slow wade, a quick trot
-    } else if (this.horseFed && !this.saidGoodbye) {
-      // dismounted companion — the horse gently trails behind you
-      const behind = Math.min(this.player.x - (this.player.flipX ? -70 : 70), this.horseStopX);
-      const gap = behind - horse.x;
-      horse.x += gap * 0.04;
-      horse.y = this.hills.surfaceAt(horse.x) + 2 - this.gallop.hop(horse.x);
-      horse.setAngle(horse.angle + (this.hills.slantAt(horse.x) - horse.angle) * 0.2);
-      horse.anims.timeScale = 1;
-      if (horse.anims.currentAnim?.key !== 'horse-eat' || !horse.anims.isPlaying) {
-        horse.setFlipX(horse.x < this.player.x);
-        horse.play(Math.abs(gap) > 10 ? 'horse-walk' : 'horse-idle', true);
+    } else if (this.horseFed && !this.saidGoodbye && !horse.leaping) {
+      // dismounted companion — the horse gently trails behind you, and where
+      // you had to jump, it walks up, stops short and jumps too: nose up going
+      // over, nose down coming in
+      const plan = this.leaps.plan(horse.x, Math.min(this.player.x - (this.player.flipX ? -70 : 70), this.horseStopX), HORSE_ROOM);
+      if (plan.leap) {
+        horse.anims.timeScale = 1;
+        horse.play('horse-walk', true);
+        this.leaps.jump(horse, plan.leap, HORSE_ROOM, (x) => this.hills.surfaceAt(x) + 2, {
+          height: 18, speed: 300,
+          pose: (t, dir) => horse.setFlipX(dir > 0).setAngle(-14 * dir * (1 - 2 * t))
+        });
+      } else {
+        const gap = plan.want - horse.x;
+        horse.x += gap * 0.04;
+        horse.y = this.hills.surfaceAt(horse.x) + 2;
+        horse.setAngle(horse.angle + (this.hills.slantAt(horse.x) - horse.angle) * 0.2);
+        horse.anims.timeScale = 1;
+        if (horse.anims.currentAnim?.key !== 'horse-eat' || !horse.anims.isPlaying) {
+          horse.setFlipX(horse.x < this.player.x);
+          horse.play(Math.abs(gap) > 10 ? 'horse-walk' : 'horse-idle', true);
+        }
       }
     }
 
@@ -1563,7 +1600,7 @@ export default class ForestScene extends Phaser.Scene {
     }
     if (action === 'putdowncat') {
       if (!this.player.body.blocked.down) return;                          // mid-jump: once you land
-      if (this.player.body.bottom < this.groundY - 10) {                     // still up on the mushrooms
+      if (this.player.body.bottom < this.hills.surfaceAt(this.player.x) - 10) {   // still up on the mushrooms
         this.showThought("not up here. i'll set it down on the ground.", 2600);
         return;
       }
@@ -1573,7 +1610,8 @@ export default class ForestScene extends Phaser.Scene {
       this.catFollowing = true;
       this.catSprite.stillMs = 0;
       this.catSprite.play('cat-stand').setDepth(9);
-      this.catSprite.setPosition(Math.round(this.player.x) + (this.player.flipX ? -30 : 30), this.groundY + 2);
+      const setX = Math.round(this.player.x) + (this.player.flipX ? -30 : 30);
+      this.catSprite.setPosition(setX, this.hills.surfaceAt(setX) + 2);
       this.showThought('there. safe on the ground.', 2400);
       return;
     }

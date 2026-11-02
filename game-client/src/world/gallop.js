@@ -37,52 +37,53 @@ export default class Gallop {
     }
   }
 
-  // the trunks, and the bird: after the traveler is made, since the trunks stop them
+  // the trunks: after the traveler is made, since they stop them. each is a
+  // leap for whoever follows you (world/leaps.js). returns where the bird waits
   place() {
     const scene = this.scene;
     this.trunks = this.trunkXs.map((x) => {
       const ground = scene.hills.surfaceAt(x);
       const art = scene.add.image(x, ground + 4, 'woods-windfall').setOrigin(0.5, 1).setScale(ART).setDepth(6);
       const top = ground - 30;                        // the bark along its back (the moss is softer)
-      const block = (w) => {
-        const r = scene.add.rectangle(x + 4, (top + ground) / 2, w, ground - top).setVisible(false);
-        scene.physics.add.existing(r, true);
-        return r;
-      };
-      // on foot you stop at the bark; on the horse a little sooner, so its
-      // head doesn't go through the trunk before it pulls up
-      const onFoot = block(art.displayWidth - 16);
-      const mounted = block(art.displayWidth + 60);
-      scene.physics.add.collider(scene.player, onFoot, null, () => !scene.riding);
-      scene.physics.add.collider(scene.player, mounted, null, () => scene.riding);
-      return { x, top, onFoot, mounted };
+      const half = (art.displayWidth - 16) / 2, mid = x + 4;
+      const block = scene.add.rectangle(mid, (top + ground) / 2, half * 2, ground - top).setVisible(false);
+      scene.physics.add.existing(block, true);
+      scene.physics.add.collider(scene.player, block);
+      scene.leaps.add(mid - half, mid + half, top);
+      return { x: mid, half, top };
     });
     const first = this.trunks[0];
-    return [{
-      x: first.x + 20, y: first.top + 2,
-      seen: "that's the bird from my window! it came this way too.",
-      gone: "north again. i'm coming, i'm coming."
-    }];
+    return [{ x: first.x + 16, y: first.top + 2 }];
   }
 
-  // the horse (or the cat) walking along after you hops over a trunk rather
-  // than through it: how far it's lifted at x
-  hop(x) {
-    for (const t of this.trunks) {
-      const half = 100, d = x - (t.x + 4);
-      if (Math.abs(d) < half) {
-        const ground = this.scene.hills.surfaceAt(x);
-        return Math.sin(((d + half) / (2 * half)) * Math.PI) * (ground - t.top + 8);
+  // on the horse you pull up before its nose is in the trunk: the traveler's
+  // body is narrow, but the horse reaches out in front of it. call after the
+  // horse's speed is set for this frame
+  reins() {
+    const scene = this.scene, body = scene.player.body;
+    this.pulledUp = false;
+    if (!scene.riding || !body.blocked.down || body.velocity.y < 0) return;   // (not as it jumps)
+    const dir = Math.sign(body.velocity.x);
+    if (!dir) return;
+    this.trunks.forEach((t) => {
+      const end = t.x - dir * t.half;                 // the end of the trunk you're coming to
+      const nose = body.center.x + dir * NOSE;
+      if ((end - body.center.x) * dir > 0 && (nose - end) * dir > 0 && body.bottom > t.top + 4) {
+        body.x -= nose - end;
+        body.setVelocityX(0);
+        this.pulledUp = true;
       }
-    }
-    return 0;
+    });
   }
 
-  // pushing up against a trunk: say which key gets you over it
+  // up against a trunk, on foot or on the horse: say which key gets you over it
   against() {
     const body = this.scene.player.body;
+    if (this.pulledUp) return true;
     if (!body.blocked.left && !body.blocked.right) return false;
-    const x = body.center.x;
-    return this.trunks.some((t) => Math.abs(x - t.x) < 150 && body.bottom > t.top + 4);
+    return this.trunks.some((t) => Math.abs(body.center.x - t.x) < t.half + 30 && body.bottom > t.top + 4);
   }
 }
+
+// from the middle of the rider to the tip of the horse's nose
+const NOSE = 66;

@@ -16,7 +16,7 @@ function stops(forest) {
   return {
     ONE: ['the start', 120],
     TWO: ['the fox cub', forest.fox.logX - 330],
-    THREE: ['the horse', 2180],
+    THREE: ['the horse', along(2180)],
     FOUR: ['the stepping stones', forest.torchX - 60],
     FIVE: ['the mushroom hill', along(5640)],
     SIX: ['the bird in the thorns', forest.brambleTorchX - 60],
@@ -61,7 +61,7 @@ function jumpTo(forest, name, x) {
   catchUp(forest, x);
   forest.player.setVelocity(0, 0);
   forest.player.setPosition(x, forest.standY);
-  if (forest.catFollowing) forest.catSprite.setPosition(x - 50, forest.groundY + 2);
+  if (forest.catFollowing) forest.catSprite.setPosition(x - 50, forest.hills.surfaceAt(x - 50) + 2);
   forest.cameras.main.centerOn(x, forest.player.y);          // no long slide across the forest
   forest.guide.tip([], `jumped to ${name}`, 1800);
 }

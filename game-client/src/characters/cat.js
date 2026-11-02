@@ -19,7 +19,9 @@ const SIT_MS = 1500;       // stillness before it sits down
 
 // call every frame. `floorY` is the y of the ground under the cat's feet.
 // `restSide` (-1 left, 1 right) picks where it settles when that matters.
-export function updateCatFollow(scene, cat, player, floorY, restSide = 0) {
+// `aim(target)`, if given, can change where it heads for (to stop short of
+// something it has to jump)
+export function updateCatFollow(scene, cat, player, floorY, restSide = 0, aim = null) {
   const moving = Math.abs(player.body.velocity.x) > 20;
   cat.stillMs = moving ? 0 : (cat.stillMs || 0) + scene.game.loop.delta;
 
@@ -31,6 +33,7 @@ export function updateCatFollow(scene, cat, player, floorY, restSide = 0) {
   let target = cat.x;
   if (Math.abs(gap) > wanted) target = player.x + side * wanted;
   if (restSide && cat.stillMs > SETTLE_MS) target = player.x + restSide * CLOSE_GAP;
+  if (aim) target = aim(target);
   const step = (target - cat.x) * 0.06;
   cat.x += step;
   cat.y += (floorY + SINK - cat.y) * 0.18;
