@@ -1225,7 +1225,6 @@ export default class ForestScene extends Phaser.Scene {
     }
     // the horse clears a fallen trunk with room to spare: a leap, not a flight
     if (jump && onGround && !this.resting) this.player.setVelocityY(this.riding ? -480 : -340);
-    this.gallop.reins();
     // the river bed sits lower than the banks — the horse steps up and out by itself
     if (wading && onGround && (this.player.body.blocked.left || this.player.body.blocked.right)) this.player.setVelocityY(-300);
 
@@ -1357,7 +1356,8 @@ export default class ForestScene extends Phaser.Scene {
       horse.x = this.player.x + facing * 8 - Math.sin(Phaser.Math.DegToRad(horse.angle)) * HORSE_BACK * ART;
       horse.y = this.player.body.bottom + 2 + bob;
       horse.setFlipX(!this.player.flipX);
-      horse.play(Math.abs(this.player.body.velocity.x) > 20 ? 'horse-walk' : 'horse-idle', true);
+      const going = Math.abs(this.player.body.velocity.x) > 20 && !this.gallop.pulledUp;
+      horse.play(going ? 'horse-walk' : 'horse-idle', true);
       horse.anims.timeScale = wading ? 0.7 : 1.3;                  // a slow wade, a quick trot
     } else if (this.horseFed && !this.saidGoodbye && !horse.leaping) {
       // dismounted companion — the horse gently trails behind you, and where

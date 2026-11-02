@@ -7,6 +7,7 @@
 // Like the fox, the puzzle owns its sprites and its state; ForestScene asks it
 // for a prompt (offer), hands it actions (act) and ticks it (update).
 
+import Phaser from 'phaser';
 import { play } from '../audio/sound.js';
 
 const ART = 2;             // the forest's art is shown at 2x
@@ -14,6 +15,8 @@ const ROPE = 110;          // how far the rope reaches
 const HAUL = 120;          // how far the fawn has to come before the mud lets go
 const GENTLE = 130;        // pull faster than this and it panics
 const SHY = 190;           // how close the doe lets you get
+const THICKET = 640;       // how far past the mud the thicket is, where the deer go when they leave
+const IN_COVER = 100;      // how far into it they go as they fade
 
 export default class FawnPuzzle {
   constructor(scene, x) {
@@ -37,6 +40,26 @@ export default class FawnPuzzle {
     this.rope = scene.add.graphics().setDepth(9.6);
     // it struggles, uselessly, every little while
     this.struggle = scene.tweens.add({ targets: this.fawn, x: x + 3, duration: 130, yoyo: true, repeat: -1, repeatDelay: 900 });
+    this.thicket = this.plantThicket(x + THICKET);
+  }
+
+  // a thicket beside the road, a little way on: two young spruce with long
+  // grass and bushes at their feet, all in front of the deer. it's where the
+  // two of them go when they leave — in among it, and gone
+  plantThicket(tx) {
+    const scene = this.scene, floor = scene.groundY + 4;
+    const plant = (dx, key, depth, flip = false) => scene.add.image(tx + dx, floor, `woods-${key}`)
+      .setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(flip);
+    plant(-58, 'spruce-c', 8.1);
+    plant(54, 'spruce-c', 8.1, true);
+    const blades = [];
+    for (let dx = -110; dx <= 110; dx += 22) {
+      const blade = plant(dx + (dx % 44 ? 4 : -3), ['tallgrass-a', 'tallgrass-b', 'tallgrass-c'][Math.abs(dx / 22) % 3], 8.2, dx % 3 === 0);
+      scene.tweens.add({ targets: blade, angle: { from: -2, to: 2 }, duration: 1500 + Math.abs(dx) * 6, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      blades.push(blade);
+    }
+    [-84, -20, 40, 96].forEach((dx, i) => plant(dx, i % 2 ? 'bush-a' : 'bush-b', 8.3, i % 2 === 0));
+    return { x: tx, blades };
   }
 
   // the world as a finished save left it: mother and fawn long gone
@@ -214,14 +237,25 @@ export default class FawnPuzzle {
     });
   }
 
-  // a deer leaving in long bounds, fading into the trees
+  // a deer leaving in long bounds, into the thicket: by the time it's there
+  // it's behind the spruce and the long grass, and it's gone. the grass
+  // shivers where it went in
   boundAway(deer, kind, delay, height) {
-    const scene = this.scene;
+    const scene = this.scene, into = this.thicket.x + (kind === 'doe' ? 14 : -10);
     scene.time.delayedCall(delay, () => {
+      const far = Math.max(60, into - deer.x);
+      const duration = Math.max(700, far * 2.6), bounds = Math.max(1, Math.round(duration / 460));
       deer.setFlipX(true).play(`${kind}-leap`);
-      scene.tweens.add({ targets: deer, x: deer.x + 900, duration: 2600, ease: 'Sine.in' });
-      scene.tweens.add({ targets: deer, y: this.floor - height, duration: 230, yoyo: true, repeat: 5, ease: 'Quad.out' });
-      scene.tweens.add({ targets: deer, alpha: 0, duration: 700, delay: 1900, onComplete: () => deer.destroy() });
+      // it fades only once it's in among the grass, so nothing of it is left showing over the top
+      scene.tweens.add({ targets: deer, x: into, duration, ease: 'Sine.in',
+        onUpdate: () => deer.setAlpha(Phaser.Math.Clamp((into - deer.x) / IN_COVER, 0, 1)),
+        onComplete: () => deer.destroy() });
+      scene.tweens.add({ targets: deer, y: this.floor - height, duration: duration / bounds / 2, yoyo: true, repeat: bounds - 1, ease: 'Quad.out',
+        onComplete: () => {
+          play(scene, 'rustle', { volume: 0.5 });
+          this.thicket.blades.forEach((blade, i) => scene.tweens.add({
+            targets: blade, angle: (i % 2 ? 7 : -7), duration: 90, yoyo: true, repeat: 2, delay: i * 20 }));
+        } });
     });
   }
 }

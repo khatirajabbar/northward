@@ -3,6 +3,7 @@
 // to the river. A trunk the wind brought down lies across each of the two
 // dips; on foot it's a scramble, on the horse a leap. The bird from the
 // window is waiting on the first of them.
+import Phaser from 'phaser';
 import { stretch } from './road.js';
 
 const ART = 2;
@@ -52,25 +53,32 @@ export default class Gallop {
       scene.leaps.add(mid - half, mid + half, top);
       return { x: mid, half, top };
     });
+    // the reins are checked inside each physics step, like a wall would be, so
+    // the horse simply stands at the trunk however long you keep pushing
+    const world = scene.physics.world;
+    const reins = () => this.reins();
+    world.on(Phaser.Physics.Arcade.Events.WORLD_STEP, reins);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => world.off(Phaser.Physics.Arcade.Events.WORLD_STEP, reins));
     const first = this.trunks[0];
     return [{ x: first.x + 16, y: first.top + 2 }];
   }
 
   // on the horse you pull up before its nose is in the trunk: the traveler's
-  // body is narrow, but the horse reaches out in front of it. call after the
-  // horse's speed is set for this frame
+  // body is narrow, but the horse reaches out in front of it. `pulledUp` says
+  // you're standing at a trunk, pushing on: no walking on the spot
   reins() {
     const scene = this.scene, body = scene.player.body;
     this.pulledUp = false;
     if (!scene.riding || !body.blocked.down || body.velocity.y < 0) return;   // (not as it jumps)
     const dir = Math.sign(body.velocity.x);
     if (!dir) return;
+    const middle = body.x + body.halfWidth;
     this.trunks.forEach((t) => {
       const end = t.x - dir * t.half;                 // the end of the trunk you're coming to
-      const nose = body.center.x + dir * NOSE;
-      if ((end - body.center.x) * dir > 0 && (nose - end) * dir > 0 && body.bottom > t.top + 4) {
+      const nose = middle + dir * NOSE;
+      if ((end - middle) * dir > 0 && (nose - end) * dir >= 0 && body.bottom > t.top + 4) {
         body.x -= nose - end;
-        body.setVelocityX(0);
+        body.velocity.x = 0;
         this.pulledUp = true;
       }
     });
