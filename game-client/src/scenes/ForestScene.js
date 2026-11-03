@@ -12,6 +12,7 @@ import DucklingPuzzle from '../puzzles/duckling.js';
 import BridgePuzzle from '../puzzles/bridge.js';
 import TurtlePuzzle from '../puzzles/turtle.js';
 import BeePuzzle from '../puzzles/bee.js';
+import CatRope from '../puzzles/catRope.js';
 import Evening from '../world/evening.js';
 import Hills from '../world/hills.js';
 import Gallop from '../world/gallop.js';
@@ -387,8 +388,9 @@ export default class ForestScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.ledges);
 
-    // ── stone wall behind the cat — grounded on the cliff top, blocks the
-    // right edge so the mushrooms are the only way down ──
+    // ── the big rock on the cliff top, behind the cat. you walk past it to
+    // the lip of the cliff, loop your rope round it and let yourselves down
+    // the rock face together (puzzles/catRope.js) ──
     this.rockWall = this.add.image(this.cliffTopX + 100, this.cliffTopY + 6, 'woods-boulder')
       .setOrigin(0.5, 1).setScale(ART).setDepth(8);
     // seat the rock into the grass — tufts against its base in front
@@ -396,9 +398,29 @@ export default class ForestScene extends Phaser.Scene {
       this.add.image(this.cliffTopX + 100 + dx, this.cliffTopY + 4, i % 2 ? 'woods-tuft-b' : 'woods-tuft-a')
         .setOrigin(0.5, 1).setScale(ART).setDepth(9);
     });
-    const rockBody = this.add.rectangle(this.cliffTopX + 108, this.cliffTopY - 45, 24, 100).setVisible(false);
-    this.physics.add.existing(rockBody, true);
-    this.physics.add.collider(this.player, rockBody);
+    // the flat top runs on past the rock to the lip, where you can't just walk off
+    const lipX = this.cliffTopX + 230;
+    makeLedge(this.cliffTopX + 180, this.cliffTopY, 100, 16);
+    const lip = this.add.rectangle(lipX + 3, this.cliffTopY - 60, 6, 120).setVisible(false);
+    this.physics.add.existing(lip, true);
+    this.physics.add.collider(this.player, lip);
+    this.catRope = new CatRope(this, { rockX: this.cliffTopX + 100, waistY: this.cliffTopY - 34, edgeX: lipX, topY: this.cliffTopY });
+    // with the cat in your arms, the mushrooms are no way down: you stop at the top of them
+    const mushroomTop = this.add.rectangle(this.cliffTopX - 113, this.cliffTopY - 60, 6, 120).setVisible(false);
+    this.physics.add.existing(mushroomTop, true);
+    this.physics.add.collider(this.player, mushroomTop, () => {
+      if (this.mushroomsSaid) return;
+      this.mushroomsSaid = true;
+      this.showThought("not down the mushrooms, not with the cat. one bad bounce and we'd both fall.", 4200);
+    }, () => this.carryingCat, this);
+    // and you don't go on without your rope: at the foot of the stone stair you remember it
+    const ropeStop = this.add.rectangle(this.stair.from + 180, this.groundY - 300, 12, 640).setVisible(false);
+    this.physics.add.existing(ropeStop, true);
+    this.physics.add.collider(this.player, ropeStop, () => {
+      if (this.ropeStopSaid) return;
+      this.ropeStopSaid = true;
+      this.showThought("wait. my rope's still up on the cliff, round that rock. i'll need it.", 4200);
+    }, () => this.catRope.left, this);
 
     // ── bounce mushrooms: one on the ground, then one on each step, climbing to the cliff ──
     this.mushrooms = this.physics.add.staticGroup();
@@ -907,10 +929,19 @@ export default class ForestScene extends Phaser.Scene {
       { id: 'cat', text: 'climb the mushrooms up to the cat',
         done: () => this.catRescued, until: () => along(6790),
         where: () => [this.catSprite.x, this.catSprite.y - 50] },
+      { id: 'cat-rope', text: 'loop your rope round the rock, and let yourselves down',
+        when: () => this.carryingCat || this.catRope.done,
+        done: () => this.catRope.lowering || this.catRope.done || this.catFollowing || this.player.body.bottom > this.cliffTopY + 60,
+        until: () => this.cliffTopX + 700, sight: null,
+        where: () => [this.cliffTopX + 200, this.cliffTopY - 56] },
       { id: 'cat-down', text: 'carry the cat down and set it on the ground',
         when: () => this.carryingCat || this.catFollowing,
         done: () => this.catFollowing, until: () => this.cliffTopX + 700, sight: null,
         where: () => null },
+      { id: 'rope-back', text: 'go back up the mushrooms for your rope',
+        when: () => this.catRope.left || this.catRope.taken, sight: null,
+        done: () => this.catRope.taken,
+        where: () => [this.cliffTopX + 100, this.cliffTopY - 118] },
       { id: 'bird', text: 'free the bird — gently, through the thorns',
         done: () => this.birdFreed, until: () => this.brambleX + this.brambleWidth / 2 + 220,
         where: () => [this.birdX, g - 84] },
@@ -1041,6 +1072,8 @@ export default class ForestScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.keyI)) this.toggleBag();
     this.followTasks();
     if (this.player.x < this.horseStopX - 200) this.horseStopShown = false;   // it will say so again next time
+    if (this.player.x > this.cliffTopX - 40) this.mushroomsSaid = false;        // …and these too
+    if (this.player.x < this.stair.from + 60) this.ropeStopSaid = false;
     // a net under everything: nobody should ever be left falling out of sight
     if (this.player.y > this.H + 240) this.respawn();
 
@@ -1177,7 +1210,9 @@ export default class ForestScene extends Phaser.Scene {
     const poseHold = this.player.anims.isPlaying &&
       [`${this.characterId}-crouch`, `${this.characterId}-toss`].includes(this.player.anims.currentAnim?.key);
 
-    if (this.resting) {
+    if (this.catRope.lowering) {
+      this.catRope.hang();
+    } else if (this.resting) {
       this.player.setVelocity(0, 0);
       this.restTimer += this.game.loop.delta;
 
@@ -1225,7 +1260,7 @@ export default class ForestScene extends Phaser.Scene {
     // riding and airborne poses override the on-foot walk/idle above
     if (this.riding) {
       if (this.player.anims.currentAnim?.key !== `${this.characterId}-sit`) this.player.play(`${this.characterId}-sit`);
-    } else if (!onGround && !this.resting) {
+    } else if (!onGround && !this.resting && !this.catRope.lowering) {
       if (this.player.anims.currentAnim?.key !== `${this.characterId}-jump`) this.player.play(`${this.characterId}-jump`);
     }
     // you jump; the horse doesn't (on its back, up does nothing)
@@ -1307,7 +1342,9 @@ export default class ForestScene extends Phaser.Scene {
       });
     }
 
-    if (this.carryingCat) {
+    if (this.carryingCat && this.catRope.lowering) {
+      this.catRope.lap(this.catSprite);
+    } else if (this.carryingCat) {
       // held in your arms — the only way it's coming down from the cliff
       this.catSprite.x = this.player.x + (this.player.flipX ? -7 : 7) * FOREST_SCALE;
       this.catSprite.y = this.player.y + 21 * FOREST_SCALE;
@@ -1377,7 +1414,8 @@ export default class ForestScene extends Phaser.Scene {
     // ── interaction prompt + action ──
     let label = null, action = null;
     const near = (x, r = 75) => Math.abs(px - x) < r;
-    const offers = [this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround),
+    if (this.catRope.lowering) { this.guide.prompt(['down'], 'hold to let the rope out', this.player.x, this.player.y - 66); return; }
+    const offers = [this.catRope.offer(px), this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround),
       this.squirrel.offer(px, onGround), this.duck.offer(px, onGround), this.bumblebee.offer(px, onGround), this.turtle.offer(px, onGround),
       this.bridge.offer(px, onGround)].filter(Boolean);
     const foxOffer = offers.find((o) => o.action) || null;
@@ -1480,7 +1518,7 @@ export default class ForestScene extends Phaser.Scene {
   }
 
   doAction(action) {
-    if (this.fox.act(action) || this.fawn.act(action) || this.stag.act(action) || this.squirrel.act(action) ||
+    if (this.catRope.act(action) || this.fox.act(action) || this.fawn.act(action) || this.stag.act(action) || this.squirrel.act(action) ||
         this.duck.act(action) || this.bumblebee.act(action) || this.turtle.act(action) ||
         this.bridge.act(action)) return;
     if (action === 'restdown') {
