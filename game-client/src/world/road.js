@@ -9,8 +9,8 @@
 // Most stretches are a quiet bit of road between one thing and the next,
 // time to just walk for a while (`walk`: its trees, and whether the bird
 // from the window is waiting there). The gallop is a stretch of its own
-// (world/gallop.js). Four of the quiet ones are where the stone stair, the
-// boardwalk, the windfall and the sunset ridge will go.
+// (world/gallop.js), and so is the stone stair (world/stoneStair.js). Three of
+// the quiet ones are where the boardwalk, the windfall and the sunset ridge will go.
 //
 // Every length is a multiple of 16: the road's ground is laid in 16px tiles,
 // so whatever comes after a stretch (a river bank, the brook) still meets the
@@ -24,7 +24,8 @@ export const STRETCHES = [
   { id: 'over-the-river', at: 4300, length: 1008, walk: { trees: 'open', seed: 3 } },
   { id: 'on-alone', at: 4880, length: 1296, walk: { trees: 'mixed', seed: 4, bird: true } },
   { id: 'past-the-stones', at: 5470, length: 1008, walk: { trees: 'pine', seed: 5 } },
-  { id: 'stone-stair', at: 6750, length: 1200, walk: { trees: 'birch', seed: 6, bird: true } },
+  // rocks to climb up to a lookout, and a long slope down, after the cat
+  { id: 'stone-stair', at: 6750, length: 1728 },
   { id: 'past-the-thorns', at: 7480, length: 1008, walk: { trees: 'spruce', seed: 7 } },
   { id: 'boardwalk', at: 8680, length: 1200, walk: { trees: 'mixed', seed: 8, bird: true } },
   { id: 'past-the-mud', at: 9860, length: 1008, walk: { trees: 'pine', seed: 9 } },   // past where the doe and fawn run off

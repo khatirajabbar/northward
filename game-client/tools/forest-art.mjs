@@ -638,6 +638,59 @@ function fallenLog() {
   });
 }
 
+// a rock of the stone stair: grey stone standing up out of the ground, each
+// a step higher than the one before. a flat top to stand on, rough sides,
+// lit from the upper left like the boulder, cracked, with moss along the top.
+// `w`/`h` are art pixels (the sizes come from world/stoneStair.js: its step's
+// width plus a lip that leans over the step below, and its height above the
+// road plus two to sink it into the ground)
+function ledge(w, h, seed) {
+  const st = C.stone, rnd = rng(seed);
+  // the outline, row by row: a worn round top, sides that wander a little
+  const lefts = [], rights = [];
+  let l = 1, r = w - 2;
+  for (let y = 0; y < h; y++) {
+    const top = [4, 2, 1][y] ?? 0;
+    if (y > 2 && rnd.chance(0.3)) l = Math.max(0, Math.min(3, l + rnd.int(-1, 1)));
+    if (y > 2 && rnd.chance(0.3)) r = Math.max(w - 4, Math.min(w - 1, r + rnd.int(-1, 1)));
+    lefts.push(Math.max(top, l)); rights.push(Math.min(w - 1 - top, r));
+  }
+  return piece(w, h, (g) => {
+    for (let y = 0; y < h; y++) {
+      for (let x = lefts[y]; x <= rights[y]; x++) {
+        const fromLeft = x - lefts[y], fromRight = rights[y] - x;
+        let c = st[2];
+        if (fromLeft < 3 || y < 3) c = st[3];                          // the lit side and top
+        if (fromRight < 3 || y > h - 3) c = st[1];                     // the shaded side and foot
+        g.put(x, y, c);
+      }
+    }
+    const inside = (x, y) => y >= 0 && y < h && x >= lefts[y] && x <= rights[y];
+    const dab = (x, y, c, alpha) => { if (inside(x, y)) g.hline(x, y, 1, c, alpha); };
+    // broken faces: a lighter one up to the left, a darker one down to the right
+    for (let y = 3; y < h * 0.45; y++) for (let x = 3; x < w * 0.45 - y * 0.3; x++) dab(x, y, st[3], 0.55);
+    for (let y = Math.round(h * 0.5); y < h - 2; y++) for (let x = Math.round(w * 0.62 - (y - h * 0.5) * 0.4); x < w - 3; x++) dab(x, y, st[1], 0.5);
+    for (let i = 0; i < Math.round(w * h / 18); i++) {                 // the grain of the stone
+      const x = rnd.int(1, w - 2), y = rnd.int(3, h - 2);
+      if (inside(x, y)) g.put(x, y, rnd.chance(0.5) ? st[1] : st[3]);
+    }
+    for (let i = 0; i < Math.max(2, Math.round(h / 12)); i++) {         // cracks, each with a thin lit lip
+      let x = rnd.int(6, w - 8), y = rnd.int(3, Math.max(4, h - 12));
+      for (let k = rnd.int(4, 9); k > 0 && y < h - 2; k--) {
+        if (inside(x + 1, y)) g.put(x + 1, y, st[4]);
+        if (inside(x, y)) g.put(x, y, st[0]);
+        x += rnd.int(-1, 1); y += 1;
+      }
+    }
+    for (let x = lefts[0]; x <= rights[0]; x++) {                       // moss along the top, hanging over here and there
+      if (!rnd.chance(0.7)) continue;
+      g.put(x, 0, C.grass[3]); g.put(x, 1, C.grass[1]);
+      if (rnd.chance(0.4)) g.put(x, 2, C.grass[0]);
+      if (rnd.chance(0.1)) g.vline(x, 2, rnd.int(2, 5), C.grass[1]);
+    }
+  });
+}
+
 // a big trunk the wind brought down across the road, too high to step over:
 // you jump it. broken off at the root end, narrowing to a snapped top, with a
 // bough still sticking up and moss along its back (two lie in the gallop's dips)
@@ -1168,6 +1221,8 @@ export function buildAll() {
     cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
     duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(), bee: bee(),
     windfall: windfall(),
+    // the stone stair's four steps (sizes: world/stoneStair.js)
+    'ledge-1': ledge(49, 22, 61), 'ledge-2': ledge(49, 42, 62), 'ledge-3': ledge(49, 62, 63), 'ledge-4': ledge(39, 82, 64),
     plank: plank(), trestle: trestle(),
     'daisy-tall': tallDaisy(), 'daisy-tall-yellow': tallDaisy(0xffe27a, 0xe8a02c),
     'bee-pet': petTheBee(),

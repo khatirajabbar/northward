@@ -17,9 +17,11 @@ export default class Leaps {
     this.list.push({ from, to, top });
   }
 
-  // the first leap between a follower at x and the spot it's heading for
+  // the first leap a follower at x comes to on its way to the spot it's
+  // heading for (the nearest, when there are a few in a row, like steps)
   between(x, want) {
-    return this.list.find((l) => (x <= l.from && want > l.from) || (x >= l.to && want < l.to)) || null;
+    const ahead = this.list.filter((l) => (x <= l.from && want > l.from) || (x >= l.to && want < l.to));
+    return ahead.sort((a, b) => Math.abs(this.short(a, x, 0) - x) - Math.abs(this.short(b, x, 0) - x))[0] || null;
   }
 
   // where to stop short of it (`room`: from the follower's middle to its front)
