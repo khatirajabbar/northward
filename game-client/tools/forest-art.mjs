@@ -723,6 +723,39 @@ function windfall() {
   });
 }
 
+// the long one of the windfall: the same kind of trunk as the one above, more
+// than twice as long. it lies across the others, high enough to walk along
+// (world/windfall.js)
+function longTrunk() {
+  return piece(180, 24, (g) => {
+    const t = C.timber, rnd = rng(82);
+    for (let x = 5; x < 179; x++) {
+      const top = 7 + (x > 164 ? Math.round((x - 164) * 0.35) : 0);   // the last of it, thinner
+      g.rect(x, top, 1, 23 - top, t[3]);
+      g.put(x, top, t[4]); g.put(x, top + 1, mix(t[4], t[3], 0.5));
+      g.rect(x, 19, 1, 3, t[2]); g.put(x, 22, t[1]);
+    }
+    for (let i = 0; i < 104; i++) {                                  // bark
+      const x = rnd.int(9, 170), y = rnd.int(9, 19);
+      g.hline(x, y, rnd.int(3, 9), rnd.chance(0.5) ? t[2] : t[4], 0.7);
+    }
+    [26, 51, 77, 104, 129, 155].forEach((x) => { g.vline(x, 9, 11, t[1]); g.vline(x + 1, 10, 9, t[4], 0.5); });   // splits in the bark
+    [[44, 2], [96, 0], [142, 1]].forEach(([x, tip], i) => {              // boughs snapped off short
+      g.poly([[x, 8], [x + 5, tip], [x + 8, tip + 1], [x + 4, 9]], i % 2 ? t[2] : t[3]); g.put(x + 6, tip, C.cut[i % 2 ? 1 : 2]);
+    });
+    // the broken end: torn wood, pale where it splintered
+    g.poly([[6, 7], [2, 8], [4, 10], [0, 12], [3, 14], [1, 17], [4, 19], [2, 21], [6, 22]], C.cut[1]);
+    [[1, 12, 5], [3, 15, 4], [2, 18, 5], [3, 9, 3]].forEach(([x, y, len]) => g.hline(x, y, len, C.cut[3]));
+    [[4, 11], [5, 16], [4, 20]].forEach(([x, y]) => g.put(x, y, C.cut[0]));
+    g.vline(6, 7, 16, t[1]);
+    // the snapped top
+    g.poly([[178, 12], [180, 14], [178, 16], [180, 19], [178, 22]], t[2]);
+    // moss along its back, and grass at its foot
+    [[22, 7, 8], [68, 7, 10], [116, 7, 6], [160, 8, 7]].forEach(([x, y, rx]) => { g.ellipse(x, y, rx, 1.6, C.grass[1]); g.ellipse(x - 1, y - 0.6, rx * 0.6, 0.9, C.grass[3]); });
+    for (let x = 7; x < 178; x += 3) if (rnd.chance(0.6)) g.put(x, 23, C.grass[rnd.int(1, 2)]);
+  });
+}
+
 // a tall daisy on a long stem — the kind you could pick and carry. a few of
 // them grow together past the tired bee; `heart` and `petal` vary them
 function tallDaisy(petal = 0xf7f4ee, heart = 0xffd23f) {
@@ -1268,7 +1301,7 @@ export function buildAll() {
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
     cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
     duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(), bee: bee(),
-    windfall: windfall(),
+    windfall: windfall(), 'trunk-long': longTrunk(),
     // the boardwalk over the bog
     bog: bog(), 'bog-post': bogPost(), 'plank-rotten': rottenPlank(),
     // the stone stair's four steps (sizes: world/stoneStair.js)

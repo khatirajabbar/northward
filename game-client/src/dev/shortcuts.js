@@ -8,8 +8,8 @@
 import { setTravelerBody } from '../characters/lpc.js';
 import { along } from '../world/road.js';
 
-const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS', 'PLUS', 'OPEN_BRACKET', 'CLOSED_BRACKET', 'G', 'T', 'B'];   // PLUS is the = key
-const HINT = 'test keys: 1-9, 0, -, =, [, ], g, t and b jump along the road';
+const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS', 'PLUS', 'OPEN_BRACKET', 'CLOSED_BRACKET', 'G', 'T', 'B', 'N'];   // PLUS is the = key
+const HINT = 'test keys: 1-9, 0, -, =, [, ], g, t, b and n jump along the road';
 
 // key → [what's there, where to stand] — a little before each thing, so you arrive at it
 function stops(forest) {
@@ -30,7 +30,8 @@ function stops(forest) {
     CLOSED_BRACKET: ['the broken bridge', forest.brookL - 800],
     G: ['the gallop', forest.gallop.from - 160],
     T: ['the stone stair', forest.stair.from + 60],
-    B: ['the boardwalk', forest.boardwalk.from + 40]
+    B: ['the boardwalk', forest.boardwalk.from + 40],
+    N: ['the windfall', forest.windfall.from + 20]
   };
 }
 

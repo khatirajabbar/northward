@@ -18,6 +18,7 @@ import Hills from '../world/hills.js';
 import Gallop from '../world/gallop.js';
 import StoneStair from '../world/stoneStair.js';
 import Boardwalk from '../world/boardwalk.js';
+import Windfall from '../world/windfall.js';
 import GuideBird from '../world/guideBird.js';
 import Walks from '../world/walks.js';
 import Leaps from '../world/leaps.js';
@@ -64,6 +65,7 @@ export default class ForestScene extends Phaser.Scene {
     this.gallop = new Gallop(this);
     this.stair = new StoneStair(this);
     this.boardwalk = new Boardwalk(this);
+    this.windfall = new Windfall(this);
     this.walks = new Walks(this);
     // where the sprite's centre sits when the traveler stands on the ground
     this.standY = this.groundY - FEET * FOREST_SCALE - 4;
@@ -215,6 +217,7 @@ export default class ForestScene extends Phaser.Scene {
     this.gallop.dress(prop, seeded(31));
     this.stair.dress(prop, seeded(41));
     this.boardwalk.dress(prop);
+    this.windfall.dress(prop);
     this.walks.dress(prop);
     // the last of the road, from the stag's glade on, is dressed by rule rather
     // than by hand — it keeps growing — with nothing standing in the brook
@@ -352,7 +355,7 @@ export default class ForestScene extends Phaser.Scene {
     // on a stump in the gallop and in some of the quiet stretches, and on top
     // of the stair ──
     this.stair.place();
-    this.windowBird = new GuideBird(this, [...this.gallop.perches(), ...this.stair.perches(), ...this.boardwalk.place(), ...this.walks.perches()]);
+    this.windowBird = new GuideBird(this, [...this.gallop.perches(), ...this.stair.perches(), ...this.boardwalk.place(), ...this.windfall.place(), ...this.walks.perches()]);
 
     // ── river crossing: an invisible floor across the gap, solid ONLY while riding ──
     // ride over it and the horse carries you across the surface; on foot it passes and you fall in
@@ -1094,6 +1097,7 @@ export default class ForestScene extends Phaser.Scene {
     this.windowBird.update(px);
     this.stair.update(px);
     this.boardwalk.update(px);
+    this.windfall.update(px);
     this.bridge.update(px);
 
     // ── arriving at the resting field ──
@@ -1358,8 +1362,8 @@ export default class ForestScene extends Phaser.Scene {
     } else if (this.catFollowing && !this.catSprite.leaping) {
       // it follows you on the ground, and where you had to jump, it jumps
       const cat = this.catSprite;
-      // the ground under its feet: the boards over the bog, or the road and its hills
-      const floor = (x) => this.boardwalk.floorAt(x) ?? this.hills.surfaceAt(x);
+      // the ground under its feet: the boards over the bog, the tops of fallen trunks, or the road and its hills
+      const floor = (x) => this.boardwalk.floorAt(x) ?? this.windfall.floorAt(x) ?? this.hills.surfaceAt(x);
       let leap = null;
       updateCatFollow(this, cat, this.player, floor(cat.x), 0, (want) => {
         const plan = this.leaps.plan(cat.x, want, CAT_ROOM);
@@ -1468,7 +1472,7 @@ export default class ForestScene extends Phaser.Scene {
     if (label && !unsaid) this.guide.prompt(['e'], label, ...over);
     else if (reminder) this.guide.prompt(reminder.keys || [], reminder.label, ...over);
     else if (this.atBrambleOnFoot) this.guide.prompt(['shift'], 'hold to move gently', ...over);
-    else if (this.stair.against()) this.guide.prompt(['up'], 'jump', ...over);
+    else if (this.stair.against() || this.windfall.against()) this.guide.prompt(['up'], 'jump', ...over);
     else if (this.boardwalk.hint()) this.guide.prompt(this.boardwalk.hint().keys, this.boardwalk.hint().label, ...over);
     else this.guide.hidePrompt();
 
