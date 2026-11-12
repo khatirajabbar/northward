@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { game, CHARACTER_ID_BY_TYPE } from '../services/game.js';
+import { auth } from '../services/auth.js';
 import { clock, decodeProgress } from '../services/progress.js';
 import Roadside from '../ui/roadside.js';
 import Board from '../ui/board.js';
@@ -116,7 +117,7 @@ export default class SessionSelectScene extends Phaser.Scene {
   showKeys() {
     if (this.mode === 'forget') this.board.keys([[['e'], 'let it go'], [['esc'], 'keep it']]);
     else if (this.mode === 'room') this.board.keys([[['up', 'down'], 'choose'], [['e'], 'let it go'], [['esc'], 'back']]);
-    else this.board.keys([[['up', 'down'], 'choose'], [['e'], 'begin'], [['x'], 'forget'], [['f'], 'full screen']]);
+    else this.board.keys([[['up', 'down'], 'choose'], [['e'], 'begin'], [['x'], 'forget'], [['esc'], 'sign out']]);
   }
 
   move(dir) {
@@ -166,7 +167,17 @@ export default class SessionSelectScene extends Phaser.Scene {
       this.board.setRow(this.slots.length, null);
       if (this.notice) { this.notice.destroy(); this.notice = null; }
       this.showKeys();
+      return;
     }
+    this.signOut();
+  }
+
+  // esc, with nothing to back out of: you leave, and the title's board comes down again
+  signOut() {
+    if (this.confirmed) return;
+    this.confirmed = true;
+    auth.logout();
+    this.board.lift(() => this.scene.start('LoginScene'));
   }
 
   async forget() {

@@ -48,15 +48,15 @@ canvas {
 
 #login-overlay.shown { opacity: 1; }
 
-/* the board (tools/ui-art.mjs draws it: 156 x 132, starting 1 across and 6
-   down inside its picture) */
+/* the board (tools/ui-art.mjs draws it: eight planks, 156 x 176, starting 1
+   across and 6 down inside its picture) */
 .login-sign {
   position: absolute;
   left: calc(var(--u) * 762);
-  top: calc(var(--u) * 126);
+  top: calc(var(--u) * 92);
   width: calc(var(--p) * 161);
-  height: calc(var(--p) * 143);
-  background: url('/assets/ui/sign.png') 0 0 / 100% 100% no-repeat;
+  height: calc(var(--p) * 187);
+  background: url('/assets/ui/sign-8.png') 0 0 / 100% 100% no-repeat;
   image-rendering: pixelated;
   color: var(--cream);
   font-size: calc(var(--p) * 10);          /* ten pixels to the em: the letters land on the board's own pixels */
@@ -115,8 +115,9 @@ canvas {
 
 /* each field: its name painted on the board, and under it a slot cut into the
    wood to write in */
-.login-field { top: calc(var(--p) * 30); }
-.login-field + .login-field { top: calc(var(--p) * 60); }
+.login-field-name { display: none; top: calc(var(--p) * 30); }
+.login-field-email { top: calc(var(--p) * 30); }
+.login-field-password { top: calc(var(--p) * 60); }
 
 .login-field label { display: block; height: calc(var(--p) * 12); color: var(--tan); }
 
@@ -187,6 +188,34 @@ canvas {
 }
 
 .login-link a:hover, .login-link a:focus-visible { border-color: var(--cream); outline: none; }
+
+/* the other way on, written small on the last planks: no button, just words to press */
+.login-other {
+  top: calc(var(--p) * 146);
+  height: calc(var(--p) * 18);
+  background: none;
+  border: none;
+  color: var(--cream);
+  font: inherit;
+  font-size: calc(var(--u) * 20);
+  line-height: calc(var(--u) * 22);
+  text-transform: lowercase;
+  text-shadow: 0 calc(var(--u) * 2) 0 var(--carved);
+  cursor: pointer;
+}
+.login-other:hover, .login-other:focus-visible { color: #fff; outline: none; text-decoration: underline; text-underline-offset: calc(var(--u) * 6); }
+
+/* let down in the middle of a game (to keep a journey, or at the end of the
+   road): it hangs in the middle, right over the pause board if that's there */
+.login-sign.is-centre { left: calc(var(--u) * 398); top: calc(var(--u) * 46); }
+
+/* making an account: a third field, so everything under it moves down a plank and a bit */
+.login-sign.is-register .login-field-name { display: block; }
+.login-sign.is-register .login-field-email { top: calc(var(--p) * 60); }
+.login-sign.is-register .login-field-password { top: calc(var(--p) * 90); }
+.login-sign.is-register .login-submit { top: calc(var(--p) * 124); }
+.login-sign.is-register .login-link { top: calc(var(--p) * 148); }
+.login-sign.is-register .login-other { top: calc(var(--p) * 160); }
 
 /* ── a small thing to click in the corner of the title screen ──
    (full screen is the F key everywhere else, but here F is a letter you may

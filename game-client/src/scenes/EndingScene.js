@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { leaderboard, formatTime } from '../services/leaderboard.js';
+import { auth, titleScene } from '../services/auth.js';
 import { game } from '../services/game.js';
 import { makeCat, updateCatFollow } from '../characters/cat.js';
 import { FOREST_SCALE, FEET, setTravelerBody } from '../characters/lpc.js';
@@ -69,6 +70,10 @@ export default class EndingScene extends Phaser.Scene {
     this.skyBirdFlown = false;
     this.saidGoodbye = false;
     this.ended = false;
+    // (a scene is kept and reused: what the last ending left behind is cleared here)
+    this.leaving = false;
+    this.canLeave = false;
+    this.offered = false;
     this.busy = false;
     this.walkSpeed = 220;
     this.dialogueActive = false;
@@ -745,7 +750,8 @@ export default class EndingScene extends Phaser.Scene {
     this.guide.hidePrompt();
     this.finalKindness = this.registry.get('kindness') || 0;
     this.finalTime = formatTime(clock.seconds);
-    this.submitKindnessScore();
+    // (walking without an account, your name can still go on the board at the very end: see returnToTitle)
+    if (auth.isAuthenticated()) this.submitKindnessScore().catch((err) => console.error('could not submit kindness score:', err.message));
     const sessionId = this.registry.get('sessionId');
     if (sessionId) game.completeSession(sessionId).catch((err) => console.warn('could not complete session:', err.message));
     // you walk on home, and the view stays behind with the fire
@@ -825,23 +831,32 @@ export default class EndingScene extends Phaser.Scene {
 
   returnToTitle() {
     if (this.leaving) return;
+    // walking without an account: one last offer, to sign in (or make an
+    // account) and put this journey's kindness on the board
+    if (!auth.isAuthenticated() && !this.offered) {
+      this.offered = true;
+      this.game.events.emit('door-open', {
+        purpose: 'board',
+        kept: () => this.submitKindnessScore().then(() => null, () => "couldn't reach the board just now"),
+        closed: () => this.returnToTitle()
+      });
+      return;
+    }
     this.leaving = true;
     bed(this, {}, 900);                          // everything goes quiet with the picture
     this.cameras.main.fadeOut(900, 0, 0, 0);
-    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('SessionSelectScene'));
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(titleScene()));
   }
 
   submitKindnessScore() {
-    const kindness = this.registry.get('kindness') || 0;
-    leaderboard.submitScore({
+    const kindness = this.finalKindness ?? (this.registry.get('kindness') || 0);
+    return leaderboard.submitScore({
       characterType: CHARACTER_TYPE[this.characterId] || 'female',
       season: 'summer',
       score: kindness,
       completionTime: this.finalTime
     }).then(() => {
       console.log('kindness score submitted:', kindness);
-    }).catch((err) => {
-      console.error('could not submit kindness score:', err.message);
     });
   }
 }

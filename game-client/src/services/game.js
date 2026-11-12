@@ -86,6 +86,15 @@ export const game = {
     return request('/api/gamesession', 'POST', { playerCharacterId, season });
   },
 
+  // a new journey for this traveler (the first one makes the traveler too)
+  async startJourney(travelerId, name) {
+    const characterType = CHARACTER_TYPE_BY_ID[travelerId];
+    const characters = await this.getCharacters();
+    let character = characters.find((c) => c.characterType === characterType);
+    if (!character) character = await this.createCharacter(characterType, name);
+    return this.createSession(character.id, 'summer');
+  },
+
   // remember where a journey has got to. it goes when it's its turn (see above);
   // there's nothing to wait for and nothing that needs catching
   saveProgress(sessionId, currentScene, score, checkpoint) {

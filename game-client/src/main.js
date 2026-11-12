@@ -64,13 +64,15 @@ showSound();
 
 const overlay = document.getElementById('login-overlay');
 const form = document.getElementById('login-form');
+const heading = document.getElementById('login-heading');
+const nameInput = document.getElementById('login-name');
 const emailInput = document.getElementById('login-email');
 const passwordInput = document.getElementById('login-password');
 const submitBtn = document.getElementById('login-submit');
 const errorBox = document.getElementById('login-error');
-
-const WEBSITE_BASE = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5222';
-document.getElementById('login-register').href = `${WEBSITE_BASE}/Account/Register`;
+const switchAsk = document.getElementById('login-switch-ask');
+const switchLink = document.getElementById('login-switch');
+const otherBtn = document.getElementById('login-other');
 
 // the sign-in page is drawn in the game's own pixels: keep it laid exactly over
 // the canvas, and tell it how big one game pixel is on screen right now
@@ -96,41 +98,111 @@ document.addEventListener('fullscreenchange', () => {
   fullscreenBtn.querySelector('span').textContent = document.fullscreenElement ? 'leave full screen' : 'full screen';
 });
 
-// it is let down once the title screen is there to hang it over
-game.events.once('title-ready', () => {
+// ── the board ──
+// The wooden board is the way in, and it comes down for three reasons:
+//   'enter'  on the title screen: sign in, make an account, or just walk without one
+//   'keep'   from the pause menu, walking without an account: sign in to keep this journey
+//   'board'  at the end of the road, without an account: sign in to put your name on the leaderboard
+// A scene asks for the last two with the 'door-open' event, giving `kept` (what
+// to do once signed in — it may answer with a line saying why it couldn't) and
+// `closed` (called when the board has gone back up, with whether you signed in).
+const door = { purpose: 'enter', register: false, kept: null, closed: null };
+
+const HEADINGS = { enter: "who's walking today?", keep: 'keep this journey', board: 'your name on the board' };
+
+function dressDoor() {
+  form.classList.toggle('is-register', door.register);
+  form.classList.toggle('is-centre', door.purpose !== 'enter');
+  heading.textContent = door.register && door.purpose === 'enter' ? 'a new traveler' : HEADINGS[door.purpose];
+  submitBtn.textContent = door.register ? 'make my account' : door.purpose === 'enter' ? 'enter the forest' : 'sign in';
+  switchAsk.textContent = door.register ? 'been here before?' : 'no account?';
+  switchLink.textContent = door.register ? 'sign in' : 'make one here';
+  otherBtn.textContent = door.purpose === 'enter' ? 'or just walk, without one' : 'not now';
+  passwordInput.autocomplete = door.register ? 'new-password' : 'current-password';
+  passwordInput.placeholder = door.register ? '8 letters or more' : 'your password';
+  submitBtn.disabled = false;
+  hideError();
+}
+
+function openDoor(purpose, { kept = null, closed = null } = {}) {
+  Object.assign(door, { purpose, kept, closed, register: purpose !== 'enter' });   // someone walking without an account most likely has none
+  passwordInput.value = '';
+  dressDoor();
+  // while you type, the keys are letters: the game underneath doesn't hear them
+  game.input.keyboard.enabled = false;
+  overlay.style.display = '';
+  overlay.classList.remove('leaving');
   fitOverlay();
   overlay.classList.add('shown');
-  emailInput.focus({ preventScroll: true });
-});
+  (door.register ? nameInput : emailInput).focus({ preventScroll: true });
+}
 
-async function attemptLogin() {
+// the board is drawn back up, and then whatever comes next
+function closeDoor(then) {
+  overlay.classList.add('leaving');
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    game.input.keyboard.enabled = true;
+    then();
+  }, 600);
+}
+
+// the title screen is there to hang it over. if you were signed in last time
+// you still are: straight to your journeys, and the board stays up
+let firstTitle = true;
+game.events.on('title-ready', async () => {
+  if (firstTitle) {
+    firstTitle = false;
+    if (await auth.restore()) {
+      game.scene.stop('LoginScene');
+      game.scene.start('SessionSelectScene', { seamless: true });
+      return;
+    }
+  }
+  openDoor('enter');
+});
+game.events.on('door-open', ({ purpose, kept, closed }) => openDoor(purpose, { kept, closed }));
+
+async function attempt() {
+  const name = nameInput.value.trim();
   const email = emailInput.value.trim();
   const password = passwordInput.value;
 
-  if (!email || !password) {
-    showError('please enter both email and password');
-    return;
-  }
+  if (door.register && name.length < 3) { showError('your name needs 3 letters or more'); return; }
+  if (!email || !password) { showError('please enter both email and password'); return; }
+  if (door.register && password.length < 8) { showError('the password needs 8 letters or more'); return; }
 
+  const label = submitBtn.textContent;
   submitBtn.disabled = true;
-  submitBtn.textContent = 'signing in...';
+  submitBtn.textContent = door.register ? 'one moment...' : 'signing in...';
   hideError();
 
   try {
-    const user = await auth.login(email, password);
-    console.log('logged in as', user.username);
-    // the sign-in board is drawn back up, and the board with your journeys
-    // comes down in its place over the same road
-    overlay.classList.add('leaving');
-    setTimeout(() => {
-      overlay.style.display = 'none';
-      game.scene.stop('LoginScene');
-      game.scene.start('SessionSelectScene', { seamless: true });
-    }, 600);
+    if (door.register) await auth.register(name, email, password);
+    else await auth.login(email, password);
+
+    if (door.purpose === 'enter') {
+      // the board with your journeys comes down in its place over the same road
+      closeDoor(() => {
+        game.scene.stop('LoginScene');
+        game.scene.start('SessionSelectScene', { seamless: true });
+      });
+      return;
+    }
+    // signed in to keep something: do that now. if it can't be done, you're
+    // told why, and you're walking without an account again
+    const why = door.kept ? await door.kept() : null;
+    if (why) {
+      auth.logout();
+      auth.guest = true;
+      throw new Error(why);
+    }
+    const closed = door.closed;
+    closeDoor(() => closed && closed(true));
   } catch (err) {
-    showError(err.message);
+    showError(err.message.toLowerCase());
     submitBtn.disabled = false;
-    submitBtn.textContent = 'enter the forest';
+    submitBtn.textContent = label;
   }
 }
 
@@ -149,5 +221,27 @@ function hideError() {
 // a real form, so Enter sends it and a password manager knows what it's looking at
 form.addEventListener('submit', (e) => {
   e.preventDefault();
-  attemptLogin();
+  attempt();
+});
+
+// signing in, or making an account: the same board, one more field
+switchLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  door.register = !door.register;
+  dressDoor();
+  (door.register ? nameInput : emailInput).focus({ preventScroll: true });
+});
+
+// the other way on: without an account, or without keeping anything
+otherBtn.addEventListener('click', () => {
+  if (door.purpose === 'enter') {
+    auth.guest = true;
+    closeDoor(() => {
+      game.scene.stop('LoginScene');
+      game.scene.start('CharacterSelectScene', { seamless: true });
+    });
+    return;
+  }
+  const closed = door.closed;
+  closeDoor(() => closed && closed(false));
 });

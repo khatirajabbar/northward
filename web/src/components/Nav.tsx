@@ -89,7 +89,7 @@ export default function Nav() {
         <br />
         it plays in your browser.
         <br />
-        nothing to install.
+        no download, no account.
       </p>
       <Link href="/" className="nav__mark" aria-hidden="true" tabIndex={-1}>
         <Bird />

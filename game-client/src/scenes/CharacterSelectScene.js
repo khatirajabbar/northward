@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { game, CHARACTER_TYPE_BY_ID } from '../services/game.js';
-import { auth } from '../services/auth.js';
+import { game } from '../services/game.js';
+import { auth, titleScene } from '../services/auth.js';
 import { clock } from '../services/progress.js';
 import Roadside from '../ui/roadside.js';
 import Board, { BOARD, GOLD } from '../ui/board.js';
@@ -75,7 +75,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
   back() {
     if (this.confirmed) return;
     this.confirmed = true;
-    this.board.lift(() => this.scene.start('SessionSelectScene', { seamless: true }));
+    this.board.lift(() => this.scene.start(titleScene(), { seamless: true }));
   }
 
   confirm() {
@@ -95,12 +95,9 @@ export default class CharacterSelectScene extends Phaser.Scene {
   }
 
   async startJourney(travelerId) {
+    if (!auth.isAuthenticated()) return;          // walking without an account: nothing is kept
     try {
-      const characterType = CHARACTER_TYPE_BY_ID[travelerId];
-      const characters = await game.getCharacters();
-      let character = characters.find((c) => c.characterType === characterType);
-      if (!character) character = await game.createCharacter(characterType, auth.user.username);
-      const session = await game.createSession(character.id, 'summer');
+      const session = await game.startJourney(travelerId, auth.user.username);
       this.registry.set('sessionId', session.id);
       this.registry.set('sessionStartedAt', session.startedAt);
     } catch (err) {

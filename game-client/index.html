@@ -14,15 +14,21 @@
     <div id="login-overlay">
       <form id="login-form" class="login-sign" novalidate>
         <span class="login-rope"></span><span class="login-rope"></span>
-        <h1>who's walking today?</h1>
+        <h1 id="login-heading">who's walking today?</h1>
         <div id="login-error" class="login-error" hidden></div>
 
-        <div class="login-field">
+        <!-- only when making an account -->
+        <div class="login-field login-field-name">
+          <label for="login-name">traveler's name</label>
+          <input id="login-name" type="text" placeholder="what the board will call you" autocomplete="username" spellcheck="false" maxlength="50" />
+        </div>
+
+        <div class="login-field login-field-email">
           <label for="login-email">email</label>
           <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email" spellcheck="false" />
         </div>
 
-        <div class="login-field">
+        <div class="login-field login-field-password">
           <label for="login-password">password</label>
           <input id="login-password" type="password" placeholder="your password" autocomplete="current-password" />
         </div>
@@ -30,8 +36,11 @@
         <button id="login-submit" class="login-submit" type="submit">enter the forest</button>
 
         <p class="login-link">
-          no account? <a id="login-register" href="http://localhost:5222/Account/Register" target="_blank" rel="noopener">register on the website</a>
+          <span id="login-switch-ask">no account?</span> <a id="login-switch" href="#">make one here</a>
         </p>
+
+        <!-- the other way on: without an account (or, later, without keeping the journey) -->
+        <button id="login-other" class="login-other" type="button">or just walk, without one</button>
       </form>
 
       <button id="fullscreen-toggle" class="title-chip" type="button">
