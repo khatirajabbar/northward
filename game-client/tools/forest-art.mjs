@@ -862,6 +862,54 @@ function plank() {
   });
 }
 
+// ── the boardwalk over the bog (world/boardwalk.js) ──
+
+// the bog: still, dark peaty water with a dull shine along the top and
+// duckweed floating on it — tiles sideways, under the boardwalk
+const BOG = [0x1f2018, 0x2b2b1f, 0x383826, 0x4a4a31, 0x63623f, 0x8a8c62];
+function bog() {
+  const rnd = rng(33);
+  const w = 64, h = 22;
+  const img = new Img(w, h);
+  for (let y = 0; y < h; y++) img.hline(0, y, w, y < 2 ? BOG[4] : y < 5 ? BOG[3] : y < 11 ? BOG[2] : y < 16 ? BOG[1] : BOG[0]);
+  for (let x = 0; x < w; x++) {
+    if (rnd.chance(0.5)) img.put(x, 0, BOG[5]);                        // the shine on the top
+    if (rnd.chance(0.16)) img.put(x, 1, C.grass[rnd.int(2, 4)]);       // duckweed
+    if (rnd.chance(0.08)) img.hline(x, 2, rnd.int(1, 3), C.grass[2]);
+  }
+  for (let i = 0; i < 10; i++) img.hline(rnd.int(0, w - 6), rnd.int(4, 12), rnd.int(2, 6), BOG[3]);   // slow ripples
+  for (let i = 0; i < 14; i++) img.put(rnd.int(0, w - 1), rnd.int(12, h - 1), BOG[2]);
+  return img;
+}
+
+// a pair of posts the boardwalk stands on, going down into the bog: darker
+// below the top of the water, as the brook's are
+function bogPost() {
+  const t = C.timber;
+  const under = (c, y) => (y < 8 ? c : mix(c, BOG[1], Math.min(0.8, 0.35 + (y - 8) * 0.05)));
+  return piece(18, 18, (g) => {
+    g.rect(0, 0, 18, 2, t[3]); g.hline(0, 0, 18, t[4]); g.hline(0, 1, 18, t[2]);   // the beam under the boards
+    [3, 12].forEach((x) => {
+      for (let y = 2; y < 18; y++) { g.put(x, y, under(t[1], y)); g.put(x + 1, y, under(t[2], y)); g.put(x + 2, y, under(t[3], y)); }
+    });
+    [3, 12].forEach((x) => { g.put(x - 1, 8, BOG[5]); g.put(x + 3, 8, BOG[5]); });   // where the water meets them
+  });
+}
+
+// a board of the boardwalk gone soft: darker, green with moss, split along
+// its length. it holds you for a moment, and then it doesn't
+function rottenPlank() {
+  const w = C.wood, rnd = rng(72);
+  const soft = [mix(w[0], C.grass[0], 0.3), mix(w[1], C.grass[0], 0.35), mix(w[2], C.grass[1], 0.3), mix(w[3], C.grass[2], 0.3)];
+  return piece(56, 6, (g) => {
+    g.rect(0, 0, 56, 6, soft[2]); g.hline(0, 0, 56, soft[3]); g.hline(0, 5, 56, soft[0]); g.hline(0, 4, 56, soft[1]);
+    for (let i = 0; i < 14; i++) g.hline(rnd.int(2, 48), rnd.int(1, 3), rnd.int(3, 7), rnd.chance(0.5) ? soft[1] : soft[3]);
+    let y = 2; for (let x = 8; x < 46; x++) { if (rnd.chance(0.2)) y = Math.max(1, Math.min(4, y + rnd.int(-1, 1))); g.put(x, y, soft[0]); }   // the split
+    [[12, 0, 5], [30, 0, 4], [44, 0, 6]].forEach(([x, yy, len]) => g.hline(x, yy, len, C.grass[1]));                    // moss
+    g.put(0, 5, w[0]); g.put(55, 0, soft[1]); g.put(27, 5, soft[0]); g.put(28, 5, soft[0]); g.put(28, 4, soft[0]);   // crumbled corners and a bite out of it
+  });
+}
+
 // a pair of posts standing in the stream with a beam across them: where two
 // boards meet. the beam sits right under the boards, just above the water; the
 // posts go down from it into the brook, so below the waterline they're drawn
@@ -1221,6 +1269,8 @@ export function buildAll() {
     cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
     duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(), bee: bee(),
     windfall: windfall(),
+    // the boardwalk over the bog
+    bog: bog(), 'bog-post': bogPost(), 'plank-rotten': rottenPlank(),
     // the stone stair's four steps (sizes: world/stoneStair.js)
     'ledge-1': ledge(49, 22, 61), 'ledge-2': ledge(49, 42, 62), 'ledge-3': ledge(49, 62, 63), 'ledge-4': ledge(39, 82, 64),
     plank: plank(), trestle: trestle(),

@@ -17,6 +17,7 @@ import Evening from '../world/evening.js';
 import Hills from '../world/hills.js';
 import Gallop from '../world/gallop.js';
 import StoneStair from '../world/stoneStair.js';
+import Boardwalk from '../world/boardwalk.js';
 import GuideBird from '../world/guideBird.js';
 import Walks from '../world/walks.js';
 import Leaps from '../world/leaps.js';
@@ -62,6 +63,7 @@ export default class ForestScene extends Phaser.Scene {
     this.leaps = new Leaps(this);
     this.gallop = new Gallop(this);
     this.stair = new StoneStair(this);
+    this.boardwalk = new Boardwalk(this);
     this.walks = new Walks(this);
     // where the sprite's centre sits when the traveler stands on the ground
     this.standY = this.groundY - FEET * FOREST_SCALE - 4;
@@ -212,6 +214,7 @@ export default class ForestScene extends Phaser.Scene {
     [380, 2230, 4240, 9840].map(along).concat(this.brookR + 150).forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
     this.gallop.dress(prop, seeded(31));
     this.stair.dress(prop, seeded(41));
+    this.boardwalk.dress(prop);
     this.walks.dress(prop);
     // the last of the road, from the stag's glade on, is dressed by rule rather
     // than by hand — it keeps growing — with nothing standing in the brook
@@ -238,7 +241,8 @@ export default class ForestScene extends Phaser.Scene {
       [this.duckLogX - 110, this.duckLogX + 90],     // the log the duckling is stuck behind
       [this.duckPondX - 150, this.duckPondX - 30],   // the bank where its family waits
       [this.brookL - 60, this.brookR + 60],          // the brook
-      [this.beeX - 70, this.beeX + 480]              // the bee's daisies (no other flowers about among them)
+      [this.beeX - 70, this.beeX + 480],             // the bee's daisies (no other flowers about among them)
+      [this.boardwalk.bogL - 20, this.boardwalk.bogR + 20]   // the bog under the boardwalk
     ];
     for (let x = 140; x < worldWidth - 80; x += 90) {
       if (dressSkip.some(([a, b]) => x > a && x < b)) continue;
@@ -348,7 +352,7 @@ export default class ForestScene extends Phaser.Scene {
     // on a stump in the gallop and in some of the quiet stretches, and on top
     // of the stair ──
     this.stair.place();
-    this.windowBird = new GuideBird(this, [...this.gallop.perches(), ...this.stair.perches(), ...this.walks.perches()]);
+    this.windowBird = new GuideBird(this, [...this.gallop.perches(), ...this.stair.perches(), ...this.boardwalk.place(), ...this.walks.perches()]);
 
     // ── river crossing: an invisible floor across the gap, solid ONLY while riding ──
     // ride over it and the horse carries you across the surface; on foot it passes and you fall in
@@ -1089,6 +1093,7 @@ export default class ForestScene extends Phaser.Scene {
     this.evening.update(px);
     this.windowBird.update(px);
     this.stair.update(px);
+    this.boardwalk.update(px);
     this.bridge.update(px);
 
     // ── arriving at the resting field ──
@@ -1200,6 +1205,7 @@ export default class ForestScene extends Phaser.Scene {
     let speed = this.movingSlow ? 90 : baseSpeed, jumpSpeed = -480;
     if (wading) speed = 150;   // the horse slows to wade through the deep water
     if (this.fawn.hauling) speed = Math.min(speed, 46);   // and drawing the fawn out of the mud is slow work
+    speed = this.boardwalk.pace(speed);                    // as is wading through the bog
     const left =this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
@@ -1264,7 +1270,7 @@ export default class ForestScene extends Phaser.Scene {
       if (this.player.anims.currentAnim?.key !== `${this.characterId}-jump`) this.player.play(`${this.characterId}-jump`);
     }
     // you jump; the horse doesn't (on its back, up does nothing)
-    if (jump && onGround && !this.resting && !this.riding) this.player.setVelocityY(-340);
+    if (jump && onGround && !this.resting && !this.riding) this.player.setVelocityY(this.boardwalk.jump(-340));
     // the river bed sits lower than the banks — the horse steps up and out by itself
     if (wading && onGround && (this.player.body.blocked.left || this.player.body.blocked.right)) this.player.setVelocityY(-300);
 
@@ -1352,15 +1358,17 @@ export default class ForestScene extends Phaser.Scene {
     } else if (this.catFollowing && !this.catSprite.leaping) {
       // it follows you on the ground, and where you had to jump, it jumps
       const cat = this.catSprite;
+      // the ground under its feet: the boards over the bog, or the road and its hills
+      const floor = (x) => this.boardwalk.floorAt(x) ?? this.hills.surfaceAt(x);
       let leap = null;
-      updateCatFollow(this, cat, this.player, this.hills.surfaceAt(cat.x), 0, (want) => {
+      updateCatFollow(this, cat, this.player, floor(cat.x), 0, (want) => {
         const plan = this.leaps.plan(cat.x, want, CAT_ROOM);
         leap = plan.leap;
         return plan.want;
       });
       if (leap) {
         cat.play('cat-walk');
-        this.leaps.jump(cat, leap, CAT_ROOM, (x) => this.hills.surfaceAt(x) + 2,
+        this.leaps.jump(cat, leap, CAT_ROOM, (x) => floor(x) + 2,
           { height: 14, speed: 240, pose: (t, dir) => cat.setFlipX(dir > 0) });
       }
     }
@@ -1461,6 +1469,7 @@ export default class ForestScene extends Phaser.Scene {
     else if (reminder) this.guide.prompt(reminder.keys || [], reminder.label, ...over);
     else if (this.atBrambleOnFoot) this.guide.prompt(['shift'], 'hold to move gently', ...over);
     else if (this.stair.against()) this.guide.prompt(['up'], 'jump', ...over);
+    else if (this.boardwalk.hint()) this.guide.prompt(this.boardwalk.hint().keys, this.boardwalk.hint().label, ...over);
     else this.guide.hidePrompt();
 
     if (this.riding && action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
