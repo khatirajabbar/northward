@@ -178,6 +178,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .door { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 26rem); gap: clamp(2rem, 6vw, 6rem); align-items: start; }
 @media (max-width: 860px) { .door { grid-template-columns: 1fr; } }
 .form { display: grid; gap: 1.25rem; }
+.form--narrow { max-width: 26rem; }
 .field { display: grid; gap: 0.4rem; }
 .field input { font: inherit; color: var(--white); background: var(--black); border: 1px solid var(--line-strong); padding: 0.75rem 0.85rem; border-radius: 0; width: 100%; }
 .field input:focus { outline: none; border-color: var(--white); }

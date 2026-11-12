@@ -55,6 +55,11 @@ public class LeaderboardRepository : ILeaderboardRepository
         await _context.LeaderboardEntries.AddAsync(entry);
     }
 
+    public async Task DeleteByUserIdAsync(Guid userId)
+    {
+        await _context.LeaderboardEntries.Where(e => e.UserId == userId).ExecuteDeleteAsync();
+    }
+
     public async Task SaveChangesAsync()
     {
         await _context.SaveChangesAsync();

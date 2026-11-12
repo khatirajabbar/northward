@@ -48,6 +48,12 @@ public class LeaderboardService : ILeaderboardService
         return entries.Select(e => MapToDto(e, rank: null)).ToList();
     }
 
+    // when an account is deleted, its name comes off the board
+    public async Task DeleteMyEntriesAsync(Guid userId)
+    {
+        await _leaderboardRepository.DeleteByUserIdAsync(userId);
+    }
+
     private static LeaderboardEntryDto MapToDto(LeaderboardEntry entry, int? rank)
     {
         return new LeaderboardEntryDto(

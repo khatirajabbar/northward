@@ -43,4 +43,9 @@ public class GameSessionRepository : IGameSessionRepository
         _context.GameSessions.Remove(gameSession);
         await _context.SaveChangesAsync();
     }
+
+    public async Task DeleteByUserIdAsync(Guid userId)
+    {
+        await _context.GameSessions.Where(gs => gs.UserId == userId).ExecuteDeleteAsync();
+    }
 }

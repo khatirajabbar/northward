@@ -29,6 +29,10 @@ public class UserRepository : IUserRepository
     public void Update(User user) =>
         _context.Users.Update(user);
 
+    // (the user's refresh tokens are removed with them: see AuthDbContext)
+    public void Remove(User user) =>
+        _context.Users.Remove(user);
+
     public async Task SaveChangesAsync() =>
         await _context.SaveChangesAsync();
 }

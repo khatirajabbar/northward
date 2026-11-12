@@ -37,4 +37,9 @@ public class PlayerCharacterRepository : IPlayerCharacterRepository
         _context.PlayerCharacters.Update(playerCharacter);
         await _context.SaveChangesAsync();
     }
+
+    public async Task DeleteByUserIdAsync(Guid userId)
+    {
+        await _context.PlayerCharacters.Where(pc => pc.UserId == userId).ExecuteDeleteAsync();
+    }
 }

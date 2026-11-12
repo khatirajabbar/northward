@@ -8,10 +8,22 @@ namespace Northward.Game.Application.Services;
 public class PlayerCharacterService : IPlayerCharacterService
 {
     private readonly IPlayerCharacterRepository _playerCharacterRepository;
+    private readonly IGameSessionRepository _gameSessionRepository;
 
-    public PlayerCharacterService(IPlayerCharacterRepository playerCharacterRepository)
+    public PlayerCharacterService(
+        IPlayerCharacterRepository playerCharacterRepository,
+        IGameSessionRepository gameSessionRepository)
     {
         _playerCharacterRepository = playerCharacterRepository;
+        _gameSessionRepository = gameSessionRepository;
+    }
+
+    // Everything this service holds for a user, for when their account is
+    // deleted: their journeys first (each belongs to a traveler), then the travelers.
+    public async Task DeleteAllAsync(Guid userId)
+    {
+        await _gameSessionRepository.DeleteByUserIdAsync(userId);
+        await _playerCharacterRepository.DeleteByUserIdAsync(userId);
     }
 
     public async Task<PlayerCharacterDto> CreateAsync(Guid userId, CreatePlayerCharacterDto dto)

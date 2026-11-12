@@ -7,4 +7,5 @@ public interface IPlayerCharacterRepository
     Task<List<PlayerCharacter>> GetByUserIdAsync(Guid userId);
     Task AddAsync(PlayerCharacter playerCharacter);
     Task UpdateAsync(PlayerCharacter playerCharacter);
+    Task DeleteByUserIdAsync(Guid userId);
 }

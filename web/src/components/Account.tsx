@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clock, day } from "@/lib/format";
-import { type Entry, type Profile, getMyEntries, getProfile, signOut, useSession } from "@/lib/session";
+import { type Entry, type Profile, deleteAccount, getMyEntries, getProfile, signOut, useSession } from "@/lib/session";
 import Shuffle from "./Shuffle";
 
 export default function Account() {
@@ -14,6 +14,10 @@ export default function Account() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [looked, setLooked] = useState(false);
+  // deleting the account: asked for in two steps, the second with the password
+  const [deleting, setDeleting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [wrong, setWrong] = useState<string | null>(null);
 
   useEffect(() => {
     let here = true;
@@ -37,6 +41,17 @@ export default function Account() {
     signOut();
     router.push("/");
   };
+
+  async function remove(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const password = String(new FormData(event.currentTarget).get("password"));
+    setBusy(true);
+    setWrong(null);
+    const problem = await deleteAccount(password);
+    setBusy(false);
+    if (problem) setWrong(problem);
+    else router.push("/");
+  }
 
   const best = entries && entries.length ? Math.max(...entries.map((e) => e.score)) : null;
 
@@ -103,6 +118,42 @@ export default function Account() {
           <Shuffle text="play" />
           <span aria-hidden="true">↗</span>
         </Link>
+      </div>
+
+      <div className="part" id="delete">
+        <div className="part__head">
+          <span className="label">delete your account</span>
+        </div>
+        <p className="text">
+          this removes your account, your travelers and saved journeys, and your name from the leaderboard. it can&apos;t be undone.
+        </p>
+        {!deleting ? (
+          <div>
+            <button className="box" onClick={() => setDeleting(true)}>
+              <Shuffle text="delete my account" />
+            </button>
+          </div>
+        ) : (
+          <form className="form form--narrow" onSubmit={remove}>
+            <label className="field">
+              <span className="label">your password, to be sure it&apos;s you</span>
+              <input name="password" type="password" autoComplete="current-password" required autoFocus />
+            </label>
+            {wrong && (
+              <p className="form__wrong" role="alert">
+                {wrong}
+              </p>
+            )}
+            <button className="box box--wide" disabled={busy}>
+              <Shuffle text={busy ? "one moment" : "delete everything, for good"} />
+            </button>
+            <p className="form__other">
+              <button type="button" className="plain" onClick={() => { setDeleting(false); setWrong(null); }}>
+                <Shuffle text="no, keep my account" />
+              </button>
+            </p>
+          </form>
+        )}
       </div>
     </section>
   );

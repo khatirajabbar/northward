@@ -79,4 +79,27 @@ public class AuthController : ControllerBase
             return NotFound(new { error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Delete the signed-in user's account, for good. Asks for the password again.
+    /// </summary>
+    [Authorize]
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeleteMe([FromBody] DeleteAccountRequestDto request)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { error = "Invalid authentication token." });
+
+        try
+        {
+            await _authService.DeleteAccountAsync(userId, request.Password);
+            return NoContent();
+        }
+        catch (DomainException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }

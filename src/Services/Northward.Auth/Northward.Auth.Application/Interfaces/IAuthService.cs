@@ -8,4 +8,5 @@ public interface IAuthService
     Task<AuthResponseDto> LoginAsync(LoginRequestDto request);
     Task<AuthResponseDto> RefreshAsync(RefreshTokenRequestDto request);
     Task<UserProfileResponseDto> GetCurrentUserAsync(Guid userId);
+    Task DeleteAccountAsync(Guid userId, string password);
 }

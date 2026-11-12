@@ -9,4 +9,5 @@ public interface IGameSessionRepository
     Task AddAsync(GameSession gameSession);
     Task UpdateAsync(GameSession gameSession);
     Task DeleteAsync(GameSession gameSession);
+    Task DeleteByUserIdAsync(Guid userId);
 }

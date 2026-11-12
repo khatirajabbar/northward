@@ -124,6 +124,33 @@ async function asMe(path: string): Promise<Response | null> {
   return response.ok ? response : null;
 }
 
+// Delete the signed-in account, for good: its lines on the leaderboard, its
+// travelers and saved journeys, and then the account itself. The password is
+// checked first, so nothing is removed if it's wrong; and the account goes
+// last, so if anything fails on the way it can simply be tried again.
+// Returns null when it's done, or what to tell the person.
+export async function deleteAccount(password: string): Promise<string | null> {
+  const profile = await getProfile();
+  if (!profile) return "you're not signed in any more. log in and try again.";
+  try {
+    const check = await post("/svc/auth/login", { email: profile.email, password });
+    if (!check.ok) return "that password isn't right.";
+    const { accessToken } = await check.json();
+    const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+
+    const board = await fetch("/svc/leaderboard/me", { method: "DELETE", headers });
+    const journeys = await fetch("/svc/game/playercharacter", { method: "DELETE", headers });
+    if (!board.ok || !journeys.ok) return "couldn't delete everything just now. nothing of your account is gone yet; try again in a moment.";
+
+    const account = await fetch("/svc/auth/me", { method: "DELETE", headers, body: JSON.stringify({ password }) });
+    if (!account.ok) return problem(account);
+  } catch {
+    return "can't reach the forest right now. try again in a moment.";
+  }
+  write(null);
+  return null;
+}
+
 export async function getProfile(): Promise<Profile | null> {
   const response = await asMe("/svc/auth/me");
   return response ? response.json() : null;

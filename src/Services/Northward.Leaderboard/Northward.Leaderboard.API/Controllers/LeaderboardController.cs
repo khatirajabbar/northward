@@ -75,6 +75,19 @@ public class LeaderboardController : ControllerBase
         return Created(string.Empty, entry);
     }
 
+    /// <summary>
+    /// Delete every leaderboard entry of the signed-in user
+    /// (part of deleting their account).
+    /// </summary>
+    [Authorize]
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeleteMyEntries()
+    {
+        var userId = GetUserId();
+        await _leaderboardService.DeleteMyEntriesAsync(userId);
+        return NoContent();
+    }
+
     private Guid GetUserId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

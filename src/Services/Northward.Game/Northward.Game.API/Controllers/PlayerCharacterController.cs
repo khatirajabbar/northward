@@ -50,6 +50,18 @@ public class PlayerCharacterController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Delete every traveler and saved journey of the signed-in user
+    /// (part of deleting their account).
+    /// </summary>
+    [HttpDelete]
+    public async Task<IActionResult> DeleteAllMine()
+    {
+        var userId = GetUserId();
+        await _playerCharacterService.DeleteAllAsync(userId);
+        return NoContent();
+    }
+
     private Guid GetUserId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

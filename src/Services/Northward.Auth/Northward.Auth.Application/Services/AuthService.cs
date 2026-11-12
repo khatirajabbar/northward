@@ -96,6 +96,21 @@ public class AuthService : IAuthService
         );
     }
 
+    // The account and every sign-in it has. What the other services hold for
+    // this user (travelers, journeys, leaderboard entries) is deleted by them,
+    // each at its own DELETE endpoint: whoever calls this calls those first.
+    public async Task DeleteAccountAsync(Guid userId, string password)
+    {
+        var user = await _userRepository.GetByIdAsync(userId)
+            ?? throw new DomainException("User not found.");
+
+        if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+            throw new DomainException("That password isn't right.");
+
+        _userRepository.Remove(user);
+        await _userRepository.SaveChangesAsync();
+    }
+
     private async Task<AuthResponseDto> BuildAuthResponseAsync(User user)
     {
         var accessToken = _jwtService.GenerateAccessToken(user);
