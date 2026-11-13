@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Door from "@/components/Door";
+import Path from "@/components/Path";
 
 export const metadata: Metadata = { title: "register" };
 
@@ -8,7 +9,7 @@ export default function Page() {
     <section className="page">
       <div className="door">
         <div className="page__top">
-          <p className="label">register</p>
+          <Path to="register" />
           <h1 className="line">
             pack a bag.
           </h1>

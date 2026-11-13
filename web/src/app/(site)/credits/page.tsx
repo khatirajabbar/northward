@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Path from "@/components/Path";
 
 export const metadata: Metadata = { title: "credits" };
 
@@ -7,7 +8,7 @@ export default function Credits() {
   return (
     <section className="page">
       <div className="page__top">
-        <p className="label">credits</p>
+        <Path to="credits" />
         <h1 className="line">
           who made this.
         </h1>

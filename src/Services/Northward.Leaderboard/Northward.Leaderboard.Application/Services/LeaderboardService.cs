@@ -54,6 +54,12 @@ public class LeaderboardService : ILeaderboardService
         await _leaderboardRepository.DeleteByUserIdAsync(userId);
     }
 
+    public async Task<LeaderboardStatsDto> GetStatsAsync()
+    {
+        var stats = await _leaderboardRepository.GetStatsAsync();
+        return new LeaderboardStatsDto(stats.Travelers, stats.Journeys, stats.Kindest, stats.Quickest);
+    }
+
     private static LeaderboardEntryDto MapToDto(LeaderboardEntry entry, int? rank)
     {
         return new LeaderboardEntryDto(

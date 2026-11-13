@@ -13,7 +13,8 @@ namespace Northward.Auth.API.Controllers;
 // Messages from players (the website's "say something" page), and the admin
 // page that reads them. A signed-in player can send; reading and deleting
 // need the admin pass, which is given for the admin password (Admin:Password
-// in the service's settings) and lasts a couple of hours.
+// in the service's settings) and lasts a couple of hours. A message is shown
+// on the website only if its writer agreed AND the admin chose it.
 [ApiController]
 [Route("api/[controller]")]
 public class MessagesController : ControllerBase
@@ -46,7 +47,7 @@ public class MessagesController : ControllerBase
 
         try
         {
-            await _messageService.SendAsync(userId, request.Text);
+            await _messageService.SendAsync(userId, request.Text, request.MayShow);
             return NoContent();
         }
         catch (DomainException ex)
@@ -86,6 +87,33 @@ public class MessagesController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         return Ok(await _messageService.GetAllAsync());
+    }
+
+    /// <summary>
+    /// The messages shown on the website: name and words only. Public.
+    /// </summary>
+    [HttpGet("shown")]
+    public async Task<IActionResult> GetShown()
+    {
+        return Ok(await _messageService.GetShownAsync());
+    }
+
+    /// <summary>
+    /// Put a message on the website, or take it off. Admin only, and only
+    /// for a message whose writer agreed to it being shown.
+    /// </summary>
+    [Authorize(Roles = AdminRole)]
+    [HttpPut("{id:guid}/shown")]
+    public async Task<IActionResult> SetShown(Guid id, [FromBody] SetShownRequestDto request)
+    {
+        try
+        {
+            return await _messageService.SetShownAsync(id, request.Shown) ? NoContent() : NotFound(new { error = "Message not found." });
+        }
+        catch (DomainException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     /// <summary>

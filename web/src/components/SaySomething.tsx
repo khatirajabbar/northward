@@ -12,6 +12,7 @@ const LONGEST = 2000;
 export default function SaySomething() {
   const session = useSession();
   const [text, setText] = useState("");
+  const [mayShow, setMayShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [wrong, setWrong] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -24,12 +25,13 @@ export default function SaySomething() {
     }
     setBusy(true);
     setWrong(null);
-    const problem = await sendMessage(text);
+    const problem = await sendMessage(text, mayShow);
     setBusy(false);
     if (problem) setWrong(problem);
     else {
       setSent(true);
       setText("");
+      setMayShow(false); // the say-so is for that message only
     }
   }
 
@@ -43,7 +45,7 @@ export default function SaySomething() {
             <span aria-hidden="true">↗</span>
           </Link>
           <Link href="/register" className="plain">
-            <Shuffle text="register" />
+            register
           </Link>
         </div>
       </div>
@@ -57,7 +59,7 @@ export default function SaySomething() {
         <p className="text">it&apos;s been read by a person, or will be soon.</p>
         <div>
           <button className="plain" onClick={() => setSent(false)}>
-            <Shuffle text="write another" />
+            write another
           </button>
         </div>
       </div>
@@ -72,6 +74,10 @@ export default function SaySomething() {
         <span className="field__count">
           {text.length} / {LONGEST}
         </span>
+      </label>
+      <label className="tick">
+        <input type="checkbox" checked={mayShow} onChange={(e) => setMayShow(e.target.checked)} />
+        <span>you can show this on the website, with my traveler&apos;s name. (never my email.)</span>
       </label>
       {wrong && (
         <p className="form__wrong" role="alert">

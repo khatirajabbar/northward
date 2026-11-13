@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { clock, day } from "@/lib/format";
 import { type Entry, type Profile, deleteAccount, getMyEntries, getProfile, signOut, useSession } from "@/lib/session";
 import Shuffle from "./Shuffle";
+import Path from "@/components/Path";
 
 export default function Account() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export default function Account() {
   return (
     <section className="page">
       <div className="page__top">
-        <p className="label">your account</p>
+        <Path to="account" />
         <h1 className="line">
           {session ? `${session.username}.` : "one moment."}
         </h1>
@@ -87,7 +88,7 @@ export default function Account() {
         <div className="part__head">
           <span className="label">your journeys on the board</span>
           <button className="label" onClick={leave}>
-            <Shuffle text="log out" />
+            log out
           </button>
         </div>
         {entries && entries.length === 0 && <p className="board__empty">you haven&apos;t reached the end of the road yet.</p>}
@@ -149,7 +150,7 @@ export default function Account() {
             </button>
             <p className="form__other">
               <button type="button" className="plain" onClick={() => { setDeleting(false); setWrong(null); }}>
-                <Shuffle text="no, keep my account" />
+                no, keep my account
               </button>
             </p>
           </form>

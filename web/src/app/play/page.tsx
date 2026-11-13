@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Shuffle from "@/components/Shuffle";
 
 export const metadata: Metadata = { title: "play" };
 
@@ -13,7 +12,7 @@ export default function Play() {
     <div className="play">
       <header className="play__bar">
         <Link href="/" className="label">
-          <Shuffle text="← northward" />
+          ← northward
         </Link>
       </header>
       {GAME ? (

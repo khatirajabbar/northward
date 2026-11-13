@@ -50,6 +50,19 @@ public class LeaderboardRepository : ILeaderboardRepository
             .ToListAsync();
     }
 
+    public async Task<LeaderboardStats> GetStatsAsync()
+    {
+        var entries = _context.LeaderboardEntries;
+        var journeys = await entries.CountAsync();
+        if (journeys == 0) return new LeaderboardStats(0, 0, null, null);
+
+        return new LeaderboardStats(
+            Travelers: await entries.Select(e => e.UserId).Distinct().CountAsync(),
+            Journeys: journeys,
+            Kindest: await entries.MaxAsync(e => e.Score),
+            Quickest: await entries.MinAsync(e => e.CompletionTime));
+    }
+
     public async Task AddAsync(LeaderboardEntry entry)
     {
         await _context.LeaderboardEntries.AddAsync(entry);

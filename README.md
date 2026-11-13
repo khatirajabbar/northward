@@ -58,7 +58,7 @@ cd web && npm install && npm run dev
 
 ### Messages from players
 
-Signed-in players can write to you from the "say something" page. You read what they wrote at `/admin` on the website, which isn't linked from anywhere and asks for its own password. Set it as `ADMIN_PASSWORD` (at least 8 characters) in the `.env` file; while it's empty the admin page stays shut.
+Signed-in players can write to you from the "say something" page. You read what they wrote at `/admin` on the website, which isn't linked from anywhere and asks for its own password. A message appears on the home page ("what travelers said") only if its writer ticked "you can show this on the website" and you then chose it on the admin page; the email is never shown. Set it as `ADMIN_PASSWORD` (at least 8 characters) in the `.env` file; while it's empty the admin page stays shut.
 
 ### Local addresses
 

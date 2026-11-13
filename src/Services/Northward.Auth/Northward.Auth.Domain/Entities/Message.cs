@@ -14,9 +14,22 @@ public class Message
     public string Text { get; private set; } = string.Empty;
     public DateTime CreatedAt { get; private set; }
 
+    // the writer said these words may be shown on the website (with their name)
+    public bool MayShow { get; private set; }
+    // ...and the admin chose to show them. never true unless MayShow is
+    public bool Shown { get; private set; }
+
     private Message() { }
 
-    public static Message Create(Guid userId, string text)
+    public void SetShown(bool shown)
+    {
+        if (shown && !MayShow)
+            throw new DomainException("The writer didn't agree to this message being shown.");
+
+        Shown = shown;
+    }
+
+    public static Message Create(Guid userId, string text, bool mayShow = false)
     {
         if (userId == Guid.Empty)
             throw new DomainException("User ID is required.");
@@ -34,7 +47,9 @@ public class Message
             Id = Guid.NewGuid(),
             UserId = userId,
             Text = trimmed,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            MayShow = mayShow,
+            Shown = false
         };
     }
 }

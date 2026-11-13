@@ -21,7 +21,7 @@ export default async function Board({ by, limit, dates = false }: { by: "scores"
       </thead>
       <tbody>
         {entries.map((entry, i) => (
-          <tr key={entry.id}>
+          <tr key={entry.id} style={{ "--i": i } as React.CSSProperties}>
             <td className="board__rank">{String(entry.rank ?? i + 1).padStart(2, "0")}</td>
             <td>{entry.username}</td>
             <td className="num">{by === "scores" ? `♥ ${entry.score}` : clock(entry.completionTime)}</td>

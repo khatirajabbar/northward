@@ -9,4 +9,5 @@ public interface ILeaderboardService
     Task<List<LeaderboardEntryDto>> GetTopByTimeAsync(int limit, string? season);
     Task<List<LeaderboardEntryDto>> GetMyEntriesAsync(Guid userId);
     Task DeleteMyEntriesAsync(Guid userId);
+    Task<LeaderboardStatsDto> GetStatsAsync();
 }

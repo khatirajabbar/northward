@@ -49,6 +49,15 @@ public class LeaderboardController : ControllerBase
     }
 
     /// <summary>
+    /// The board in a few numbers: how many reached the end, the kindest, the quickest. Public.
+    /// </summary>
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        return Ok(await _leaderboardService.GetStatsAsync());
+    }
+
+    /// <summary>
     /// Get the authenticated user's own leaderboard entries.
     /// </summary>
     [Authorize]

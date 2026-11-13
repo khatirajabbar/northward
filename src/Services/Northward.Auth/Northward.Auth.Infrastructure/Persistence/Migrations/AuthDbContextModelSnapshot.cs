@@ -31,6 +31,12 @@ namespace Northward.Auth.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("MayShow")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Shown")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Text")
                         .IsRequired()
                         .HasMaxLength(2000)

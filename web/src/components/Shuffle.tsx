@@ -1,13 +1,14 @@
 "use client";
 
-// The label of a link or button: when you point at it (or tab to it, or press
-// it), its letters scramble and then settle back, left to right. Taken from
-// the blur site's text-shuffle. Only clickable things use it; plain text never moves.
+// The label of the bigger things you can press (the names in the bar, the
+// boxes): when you point at one (or tab to it, or press it), its letters
+// scramble for a moment and settle back, left to right. Taken from the blur
+// site's text-shuffle, made quicker. Small links and plain text never move.
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // keep the scramble on screen for a beat, then resolve it cleanly
-const HOLD_MS = 160;
-const RESOLVE_MS = 400;
+const HOLD_MS = 50;
+const RESOLVE_MS = 230;
 const UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const LOWERCASE = "abcdefghijklmnopqrstuvwxyz";
 const NUMBERS = "0123456789";

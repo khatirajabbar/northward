@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/session";
 import { Bird, DoorIcon, Pinwheel, Podium, Runner } from "./Icons";
+import Name from "./Name";
 import Shuffle from "./Shuffle";
 
 type Part = {
@@ -54,8 +55,7 @@ export default function Nav() {
   return (
     <header className="nav">
       <Link href="/" className="nav__name" aria-label="northward, home">
-        <span>north</span>
-        <span>ward</span>
+        <Name />
       </Link>
       {parts.map((part) => (
         <div key={part.href} className="nav__part">
@@ -70,11 +70,11 @@ export default function Nav() {
               {part.links.map((link) =>
                 link.href ? (
                   <Link key={link.label} href={link.href} className={`nav__link ${path === link.href ? "is-here" : ""}`}>
-                    <Shuffle text={link.label} />
+                    {link.label}
                   </Link>
                 ) : (
                   <button key={link.label} className="nav__link" onClick={link.press}>
-                    <Shuffle text={link.label} />
+                    {link.label}
                   </button>
                 ),
               )}

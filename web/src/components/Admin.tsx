@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { day } from "@/lib/format";
 import Shuffle from "./Shuffle";
 
-type Letter = { id: string; username: string; email: string; text: string; createdAt: string };
+type Letter = { id: string; username: string; email: string; text: string; createdAt: string; mayShow: boolean; shown: boolean };
 
 const KEPT = "northward.admin";
 const CHANGED = "northward:admin";
@@ -96,6 +96,17 @@ export default function Admin() {
     setAsking(null);
   }
 
+  // put a message on the website's home page, or take it off again
+  async function show(id: string, shown: boolean) {
+    const response = await fetch(`/svc/messages/${id}/shown`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${pass}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ shown }),
+    });
+    if (response.ok) setLetters((all) => (all ?? []).map((letter) => (letter.id === id ? { ...letter, shown } : letter)));
+    else if (response.status === 401) leave();
+  }
+
   if (!looked) return null;
 
   if (!pass) {
@@ -123,7 +134,7 @@ export default function Admin() {
       <div className="part__head">
         <span className="label">{letters === null ? "fetching…" : letters.length === 1 ? "1 message" : `${letters.length} messages`}</span>
         <button className="label" onClick={leave}>
-          <Shuffle text="close the admin page" />
+          close the admin page
         </button>
       </div>
       {letters && letters.length === 0 && <p className="board__empty">nobody has written yet.</p>}
@@ -140,18 +151,34 @@ export default function Admin() {
               </div>
               <p className="letter__text">{letter.text}</p>
               <div className="letter__tools">
+                {!letter.mayShow && <span className="label">private</span>}
+                {letter.mayShow && !letter.shown && (
+                  <button className="plain" onClick={() => show(letter.id, true)}>
+                    show on the website
+                  </button>
+                )}
+                {letter.shown && (
+                  <>
+                    <span className="letter__shown">
+                      on the website <i className="dot" />
+                    </span>
+                    <button className="plain" onClick={() => show(letter.id, false)}>
+                      take it off
+                    </button>
+                  </>
+                )}
                 {asking === letter.id ? (
                   <>
                     <button className="plain" onClick={() => remove(letter.id)}>
-                      <Shuffle text="yes, delete it" />
+                      yes, delete it
                     </button>
                     <button className="plain" onClick={() => setAsking(null)}>
-                      <Shuffle text="keep it" />
+                      keep it
                     </button>
                   </>
                 ) : (
                   <button className="plain" onClick={() => setAsking(letter.id)}>
-                    <Shuffle text="delete" />
+                    delete
                   </button>
                 )}
               </div>

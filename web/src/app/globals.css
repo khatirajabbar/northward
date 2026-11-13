@@ -1,8 +1,11 @@
 /* northward — the whole site's look.
    Black and white, and quiet: one light typeface, a lot of empty space, thin
-   boxes. Nothing from the game is shown. Plain text never moves; the things
-   you can press shuffle their letters when you point at them, and the
-   drawings in the bar across the top each do a little something. */
+   boxes. Nothing from the game is shown. The big things you can press shuffle
+   their letters for a moment when you point at them, the drawings in the bar
+   each do a little something, and a few small parts behave like a machine
+   that's switched on: a line that types itself, a status panel with one green
+   light, things that come into focus as they arrive, a soft glow on what you
+   point at. */
 
 :root {
   --black: #000;
@@ -13,6 +16,10 @@
 
   --gutter: clamp(1.25rem, 3vw, 2.75rem);
   --sans: var(--font-sans), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: var(--font-mono), ui-monospace, Menlo, monospace;   /* the small "machine" lines */
+
+  --glow: 0 0 12px rgba(241, 242, 242, 0.6);                  /* soft light on text you point at */
+  --green: #86f0a3;                                           /* the one colour: the small light that says "online" */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -35,6 +42,7 @@ main { flex: 1; display: flex; flex-direction: column; }
 
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+a, button { transition: color 0.2s, text-shadow 0.5s; }
 ::selection { background: var(--white); color: var(--black); }
 :focus-visible { outline: 1px solid var(--white); outline-offset: 4px; }
 
@@ -55,6 +63,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .label { font-size: 0.875rem; text-transform: lowercase; color: var(--grey); }
 
+/* where you are, as a path: the small line above a page's title */
+.path { font-family: var(--mono); font-size: 0.75rem; color: var(--white); }
+.path span { color: var(--grey); }
+
 .quiet { color: var(--grey); }
 .text { max-width: 34rem; color: var(--grey); }
 
@@ -71,7 +83,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .nav { display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem 1.5rem; padding: var(--gutter); }
 .nav__name { font-weight: 300; font-size: clamp(1.4rem, 2vw, 1.9rem); line-height: 1.12; letter-spacing: -0.01em; }
-.nav__name span { display: block; }
+/* the name changes typeface every few seconds (components/Name.tsx): it goes
+   out of focus, changes, and comes back. its box keeps one size, so the rest
+   of the bar never moves */
+.name { display: block; width: 3em; height: 2.24em; transition: filter 0.22s, opacity 0.22s; }
+.name.is-changing { filter: blur(7px); opacity: 0.25; }
+.name span { display: block; white-space: nowrap; }
+.name[data-face="serif"] span { font-family: var(--font-serif), serif; font-weight: 400; font-size: 1.16em; line-height: 0.97; letter-spacing: 0; }
+.name[data-face="mono"] span { font-family: var(--mono); font-size: 0.86em; line-height: 1.3; letter-spacing: -0.03em; }
+.name[data-face="gothic"] span { font-family: var(--font-gothic), serif; font-weight: 400; font-size: 1.14em; line-height: 0.98; letter-spacing: 0; }
+.name[data-face="pixel"] span { font-family: var(--font-pixel), monospace; font-weight: 400; font-size: 0.92em; line-height: 1.22; letter-spacing: 0; }
 .nav__part { display: flex; gap: 1rem; align-items: flex-start; }
 .nav__title { display: block; font-weight: 300; font-size: clamp(1.4rem, 2vw, 1.9rem); line-height: 1.12; letter-spacing: -0.01em; margin-bottom: 0.7rem; max-width: 6.2em; }
 /* a long name is cut short with … rather than pushing the bar wider */
@@ -79,6 +100,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .nav__links { display: grid; justify-items: start; }
 .nav__link { font-size: 0.9375rem; line-height: 1.3; color: var(--grey); text-align: left; }
 .nav__link:hover, .nav__link.is-here { color: var(--white); }
+.nav__link:hover { text-shadow: var(--glow); }
 .nav__about { font-size: 0.6875rem; line-height: 1.45; color: var(--grey); white-space: nowrap; }
 .nav__mark { line-height: 0; }
 .mark { height: 4.75rem; width: auto; fill: var(--white); overflow: visible; display: block; }
@@ -91,7 +113,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 @media (max-width: 1010px) {
   .nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem 1rem; }
   .nav__name { grid-column: 1 / -1; }
-  .nav__name span { display: inline; }
+  .name { width: auto; height: 1.3em; }
+  .name span { display: inline; }
   .nav__part, .nav__part > div { min-width: 0; }
 }
 @media (max-width: 920px) {
@@ -106,7 +129,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
    solid white, each on a thin line of ground. pointing anywhere at a part of
    the bar sets its drawing going */
 
-.icon { width: 3.75rem; height: 5rem; flex: none; fill: var(--white); overflow: hidden; display: block; }
+.icon { width: 3.75rem; height: 5rem; flex: none; fill: var(--white); overflow: hidden; display: block; transition: filter 0.4s; }
+.nav__part:hover .icon { filter: drop-shadow(0 0 7px rgba(241, 242, 242, 0.55)); }
+.mark { transition: filter 0.4s; }
+.nav__mark:hover .mark { filter: drop-shadow(0 0 9px rgba(241, 242, 242, 0.55)); }
 .icon * { transform-box: fill-box; }
 
 /* play: runs on the spot and hops the block as it comes by */
@@ -142,12 +168,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .home { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2.5rem; padding: 3rem var(--gutter) 5rem; }
 .home__go { display: flex; flex-wrap: wrap; align-items: center; gap: 1.75rem; }
 .plain { font-size: 1rem; color: var(--grey); }
-.plain:hover { color: var(--white); }
+.plain:hover { color: var(--white); text-shadow: var(--glow); }
 
 /* ── a thin box you can press ── */
 
-.box { display: inline-flex; align-items: center; justify-content: space-between; gap: 3rem; min-width: 12rem; padding: 0.8rem 1rem; border: 1px solid var(--line-strong); font-size: 1rem; text-transform: lowercase; transition: background 0.12s, color 0.12s, border-color 0.12s; }
-.box:hover { background: var(--white); border-color: var(--white); color: var(--black); }
+.box { display: inline-flex; align-items: center; justify-content: space-between; gap: 3rem; min-width: 12rem; padding: 0.8rem 1rem; border: 1px solid var(--line-strong); font-size: 1rem; text-transform: lowercase; transition: background 0.12s, color 0.12s, border-color 0.12s, box-shadow 0.5s; }
+.box:hover { background: var(--white); border-color: var(--white); color: var(--black); box-shadow: 0 0 30px rgba(241, 242, 242, 0.32); text-shadow: none; }
 .box--wide { width: 100%; }
 .box[disabled] { opacity: 0.5; cursor: wait; }
 
@@ -206,9 +232,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 /* ── the bottom of every page: one small row ── */
 
-.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 2rem; padding: 1.25rem var(--gutter); border-top: 1px solid var(--line); }
-.foot a:hover { color: var(--white); }
-.foot__links { display: flex; gap: 1.75rem; }
+.foot { border-top: 1px solid var(--line); }
+.foot__row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 2rem; padding: 1.25rem var(--gutter); border-top: 1px solid var(--line); }
+.foot a:hover { color: var(--white); text-shadow: var(--glow); }
+/* the ways around the site on one side, the status panel on the other */
+.foot__main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 34rem); }
+.foot__ways { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 2rem clamp(3rem, 9vw, 9rem); padding: clamp(2rem, 4vw, 3rem) var(--gutter); }
+.foot__way { display: grid; gap: 0.55rem; align-content: start; justify-items: start; }
+.foot__way h2 { font-weight: 300; font-size: 1.25rem; line-height: 1.2; margin-bottom: 0.6rem; }
+.foot__way a { font-size: 0.9375rem; color: var(--grey); }
+@media (max-width: 860px) { .foot__main { grid-template-columns: 1fr; } }
 
 /* writing to us, and reading what was written */
 .field textarea { font: inherit; color: var(--white); background: var(--black); border: 1px solid var(--line-strong); padding: 0.75rem 0.85rem; border-radius: 0; width: 100%; min-height: 11rem; resize: vertical; line-height: 1.5; }
@@ -221,7 +254,13 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .letter__who a { color: var(--grey); border-bottom: 1px solid var(--line-strong); }
 .letter__who a:hover { color: var(--white); }
 .letter__text { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 46rem; }
-.letter__tools { display: flex; gap: 1.5rem; align-items: baseline; }
+.letter__tools { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: baseline; }
+.letter__shown { font-size: 0.875rem; }
+/* "you can show this on the website" */
+.tick { display: flex; gap: 0.7rem; align-items: flex-start; font-size: 0.875rem; color: var(--grey); cursor: pointer; }
+.tick input { appearance: none; -webkit-appearance: none; flex: none; width: 1rem; height: 1rem; margin-top: 0.2rem; border: 1px solid var(--line-strong); border-radius: 0; background: var(--black); cursor: pointer; transition: background 0.15s, box-shadow 0.4s; }
+.tick input:checked { background: var(--white); border-color: var(--white); box-shadow: 0 0 12px rgba(241, 242, 242, 0.5); }
+.tick input:checked + span { color: var(--white); }
 
 /* ── the play page: the game, and nothing else ── */
 
@@ -230,6 +269,55 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .play__bar a:hover { color: var(--white); }
 .play__frame { width: 100%; height: 100%; border: 0; display: block; background: var(--black); }
 .play__missing { display: grid; place-content: center; gap: 0.75rem; padding: 2rem; text-align: center; color: var(--grey); }
+
+/* ── the machine parts ── */
+
+/* frosted glass: what's behind it shows through, out of focus */
+.glass { background: rgba(14, 14, 14, 0.55); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+
+/* a small green light that's on: it blinks, the way a machine's does */
+.dot { display: inline-block; width: 0.5rem; height: 0.5rem; margin-left: 0.4rem; border-radius: 50%; background: var(--green); vertical-align: 0.02em; box-shadow: 0 0 6px 1px rgba(134, 240, 163, 0.85), 0 0 16px 4px rgba(134, 240, 163, 0.3); animation: dot-blink 1.5s ease-in-out infinite; }
+@keyframes dot-blink { 0%, 55% { opacity: 1; } 68%, 88% { opacity: 0.12; box-shadow: none; } 100% { opacity: 1; } }
+
+/* the thin strip under the bar: a line that types itself (Ticker.tsx). it
+   stays at the top as the page scrolls under it */
+.strip { position: sticky; top: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; min-height: 2.1rem; padding: 0.45rem var(--gutter); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 0.75rem; color: var(--grey); }
+.ticker { white-space: nowrap; overflow: hidden; min-width: 0; }
+.ticker__cursor { display: inline-block; width: 0.5em; height: 1.05em; margin-left: 0.2em; vertical-align: -0.18em; background: var(--white); box-shadow: var(--glow); animation: cursor-blink 1.1s steps(1) infinite; }
+@keyframes cursor-blink { 50% { opacity: 0; } }
+
+/* the status panel at the side of the bottom of every page (Status.tsx):
+   a darker block marked with small crosses, everything under each other */
+.status { display: grid; gap: 1.6rem; align-content: start; padding: clamp(2rem, 4vw, 3rem) var(--gutter) clamp(2rem, 4vw, 3rem) clamp(1.5rem, 3vw, 2.75rem); border-left: 1px solid var(--line); font-family: var(--mono); font-size: 0.8125rem; line-height: 1.5; color: var(--grey); background-color: #0b0b0b; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='76' height='76'%3E%3Cpath d='M38 34v8M34 38h8' stroke='%23f1f2f2' stroke-opacity='.17'/%3E%3C/svg%3E"); }
+.status b { font-weight: 300; color: var(--white); font-variant-numeric: tabular-nums; }
+.status__now { display: grid; gap: 0.3rem; }
+.status__now a { font-size: 0.6875rem; }
+.status__facts { display: grid; gap: 0.3rem; }
+.status__facts div { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); }
+.status__facts dd { color: var(--white); }
+.status__desk { display: grid; gap: 0.3rem; }
+.status__desk p { color: var(--white); }
+.status__desk ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.3rem 1.75rem; color: var(--white); }
+@media (max-width: 860px) { .status { border-left: 0; border-top: 1px solid var(--line); padding-left: var(--gutter); } }
+
+/* things come into focus as they arrive: each part of a page, once */
+.home > *, .page > *, .words { animation: focus-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.home > :nth-child(2), .page > :nth-child(2) { animation-delay: 0.08s; }
+.home > :nth-child(3), .page > :nth-child(3) { animation-delay: 0.16s; }
+.home > :nth-child(n + 4), .page > :nth-child(n + 4) { animation-delay: 0.24s; }
+@keyframes focus-in { from { opacity: 0; filter: blur(12px); } }
+
+/* ...and the rows of the board, one after another (Arrivals.tsx counts them) */
+.board tbody td { animation: arrive 0.6s ease-out backwards; animation-delay: calc(var(--i, 0) * 70ms + 250ms); }
+@keyframes arrive { from { opacity: 0; filter: blur(7px); } }
+.arrivals { position: fixed; left: 50%; bottom: 1.25rem; z-index: 25; transform: translateX(-50%); padding: 0.5rem 0.9rem; border: 1px solid rgba(241, 242, 242, 0.16); font-family: var(--mono); font-size: 0.6875rem; color: var(--white); white-space: nowrap; font-variant-numeric: tabular-nums; transition: opacity 0.7s; }
+.arrivals.is-done { opacity: 0; }
+
+/* what travelers said (Words.tsx), under the home page's one sentence */
+.words { display: grid; gap: 1.75rem; padding: 0 var(--gutter) clamp(3rem, 7vw, 6rem); }
+.words__all { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: clamp(1.75rem, 4vw, 3.5rem); }
+.word { display: grid; gap: 0.8rem; align-content: start; max-width: 38rem; }
+.word blockquote { font-weight: 200; font-size: 1.25rem; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 9; line-clamp: 9; overflow: hidden; }
 
 /* for anyone who has asked their device for less motion: nothing flickers */
 @media (prefers-reduced-motion: reduce) {

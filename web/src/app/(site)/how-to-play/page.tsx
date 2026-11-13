@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Shuffle from "@/components/Shuffle";
+import Path from "@/components/Path";
 
 export const metadata: Metadata = { title: "how to play" };
 
@@ -24,7 +25,7 @@ export default function HowToPlay() {
   return (
     <section className="page">
       <div className="page__top">
-        <p className="label">how to play</p>
+        <Path to="how-to-play" />
         <h1 className="line">
           walk. stop. help.
         </h1>
