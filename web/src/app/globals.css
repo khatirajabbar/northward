@@ -243,6 +243,20 @@ a, button { transition: color 0.2s, text-shadow 0.5s; }
 .foot__way a { font-size: 0.9375rem; color: var(--grey); }
 @media (max-width: 860px) { .foot__main { grid-template-columns: 1fr; } }
 
+/* the flip-tile board (Departures.tsx), like the one in a railway station */
+.flap { flex: 1 1 19rem; max-width: 27rem; display: grid; gap: 0.9rem; align-content: start; }
+.flap__head, .flap__foot { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.flap__head h2 { font-weight: 300; font-size: 1.25rem; line-height: 1.2; }
+.flap__head a, .flap__foot { font-family: var(--mono); font-size: 0.75rem; color: var(--grey); }
+.flap__foot span:last-child { color: var(--white); }
+.flap__tiles { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 3px; perspective: 320px; cursor: default; }
+.flap__tile { position: relative; aspect-ratio: 5 / 7; display: grid; place-items: center; overflow: hidden; border-radius: 2px; background: var(--white); color: var(--black); font-family: var(--mono); font-size: 0.8125rem; line-height: 1; text-transform: uppercase; transition: background 0.1s; }
+.flap__tile::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0, 0, 0, 0.4); }
+.flap__tile.is-empty { background: #1b1b1b; }
+.flap__letter { animation: flap 0.09s ease-out; }
+@keyframes flap { from { transform: rotateX(-85deg); opacity: 0.2; } }
+@media (max-width: 480px) { .flap__tile { font-size: 0.6875rem; } }
+
 /* writing to us, and reading what was written */
 .field textarea { font: inherit; color: var(--white); background: var(--black); border: 1px solid var(--line-strong); padding: 0.75rem 0.85rem; border-radius: 0; width: 100%; min-height: 11rem; resize: vertical; line-height: 1.5; }
 .field textarea:focus { outline: none; border-color: var(--white); }

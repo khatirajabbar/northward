@@ -1,11 +1,12 @@
 import Link from "next/link";
+import Departures from "@/components/Departures";
 import Nav from "@/components/Nav";
 import Status from "@/components/Status";
 import Ticker from "@/components/Ticker";
 
 // Every page but the play page: the bar on top with the thin typed line under
-// it; at the bottom, the ways around the site with the status panel beside
-// them, and one small row.
+// it; at the bottom, the flip-tile board and the ways around the site, with
+// the status panel beside them, and one small row.
 
 const WAYS = [
   {
@@ -34,7 +35,8 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <main>{children}</main>
       <footer className="foot">
         <div className="foot__main">
-          <nav className="foot__ways" aria-label="the site">
+          <div className="foot__ways">
+            <Departures />
             {WAYS.map((way) => (
               <div key={way.title} className="foot__way">
                 <h2>{way.title}</h2>
@@ -45,7 +47,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
                 ))}
               </div>
             ))}
-          </nav>
+          </div>
           <Status />
         </div>
         <div className="foot__row label">
