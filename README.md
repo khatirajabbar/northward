@@ -12,12 +12,12 @@ Three microservices, a Phaser game client, and a Next.js website.
 
 | Part | Responsibility |
 |---|---|
-| Northward.Auth | Registration, login, JWT authentication, account deletion |
+| Northward.Auth | Registration, login, JWT authentication, account deletion, messages from players |
 | Northward.Game | Travelers, saved journeys, progress |
 | Northward.Leaderboard | Finished journeys: kindness and completion times |
 | Northward.Gateway | API gateway (a placeholder, not wired up yet) |
 | game-client | The game itself (Phaser 3, built with Vite) |
-| web | The website: home, how to play, leaderboard, sign-in, account, and the play page |
+| web | The website: home, how to play, leaderboard, sign-in, account, say something, and the play page |
 
 Each microservice follows **Onion Architecture**: Domain → Application → Infrastructure → API.
 
@@ -38,7 +38,7 @@ Each microservice follows **Onion Architecture**: Domain → Application → Inf
 
 ### Run
 
-The services and their databases (needs a `.env` file in this folder with the database and JWT settings):
+The services and their databases (needs a `.env` file in this folder with the database and JWT settings; see `.env.example`):
 
 ```bash
 docker compose up -d
@@ -55,6 +55,10 @@ The website (the first time, copy `web/.env.example` to `web/.env.local`):
 ```bash
 cd web && npm install && npm run dev
 ```
+
+### Messages from players
+
+Signed-in players can write to you from the "say something" page. You read what they wrote at `/admin` on the website, which isn't linked from anywhere and asks for its own password. Set it as `ADMIN_PASSWORD` (at least 8 characters) in the `.env` file; while it's empty the admin page stays shut.
 
 ### Local addresses
 

@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       { source: "/svc/auth/:path*", destination: `${auth}/api/auth/:path*` },
+      { source: "/svc/messages/:path*", destination: `${auth}/api/messages/:path*` },
+      { source: "/svc/messages", destination: `${auth}/api/messages` },
       { source: "/svc/leaderboard/:path*", destination: `${board}/api/leaderboard/:path*` },
       { source: "/svc/game/:path*", destination: `${game}/api/:path*` },
     ];

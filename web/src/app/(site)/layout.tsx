@@ -10,7 +10,10 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <footer className="foot label">
         <span>northward © 2026</span>
         <span>a game by khatira jabbarli</span>
-        <Link href="/credits">credits</Link>
+        <span className="foot__links">
+          <Link href="/say-something">say something</Link>
+          <Link href="/credits">credits</Link>
+        </span>
       </footer>
     </>
   );

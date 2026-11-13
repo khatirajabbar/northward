@@ -54,6 +54,9 @@ services:
       - Jwt__Secret=${JWT_SECRET}
       - Jwt__Issuer=${JWT_ISSUER}
       - Jwt__Audience=${JWT_AUDIENCE}
+      # the password for the website's admin page (where players' messages are
+      # read). leave it out and there is no admin page
+      - Admin__Password=${ADMIN_PASSWORD:-}
     ports:
       - "5001:8080"
     depends_on:

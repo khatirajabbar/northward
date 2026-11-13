@@ -151,6 +151,26 @@ export async function deleteAccount(password: string): Promise<string | null> {
   return null;
 }
 
+// Send a message to the people who made the game, as the signed-in player.
+// Returns null when it's sent, or what to tell the person.
+export async function sendMessage(text: string): Promise<string | null> {
+  const session = read();
+  if (!session) return "you're not signed in any more. log in and try again.";
+  const send = (token: string) =>
+    fetch("/svc/messages", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+  try {
+    let response = await send(session.accessToken);
+    if (response.status === 401) {
+      // the 15-minute pass has run out: asking who you are renews it, then once more
+      if (!(await getProfile())) return "you're not signed in any more. log in and try again.";
+      response = await send(read()!.accessToken);
+    }
+    return response.ok ? null : problem(response);
+  } catch {
+    return "can't reach the forest right now. try again in a moment.";
+  }
+}
+
 export async function getProfile(): Promise<Profile | null> {
   const response = await asMe("/svc/auth/me");
   return response ? response.json() : null;

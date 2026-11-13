@@ -9,6 +9,7 @@ public class AuthDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Message> Messages => Set<Message>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,6 +29,16 @@ public class AuthDbContext : DbContext
             entity.Property(rt => rt.Token).IsRequired().HasMaxLength(200);
             entity.Property(rt => rt.UserId).IsRequired();
             entity.HasOne<User>().WithMany().HasForeignKey(rt => rt.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Message>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+            entity.HasIndex(m => m.CreatedAt);
+            entity.Property(m => m.Text).IsRequired().HasMaxLength(Message.MaxLength);
+            entity.Property(m => m.UserId).IsRequired();
+            // a deleted account takes what it wrote with it
+            entity.HasOne<User>().WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

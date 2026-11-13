@@ -125,7 +125,7 @@ export default function Account() {
           <span className="label">delete your account</span>
         </div>
         <p className="text">
-          this removes your account, your travelers and saved journeys, and your name from the leaderboard. it can&apos;t be undone.
+          this removes your account, your travelers and saved journeys, your name from the leaderboard, and any messages you sent us. it can&apos;t be undone.
         </p>
         {!deleting ? (
           <div>

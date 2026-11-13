@@ -14,6 +14,7 @@ public class JwtService : IJwtService
     private const int AccessTokenLifetimeMinutes = 15;
     private const int RefreshTokenLifetimeDays = 7;
     private const int RefreshTokenByteSize = 64;
+    private const int AdminTokenLifetimeHours = 2;
 
     private readonly IConfiguration _configuration;
 
@@ -47,6 +48,26 @@ public class JwtService : IJwtService
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
         return (tokenString, expiresAt);
+    }
+
+    // The admin page's pass: it names no player, only the admin role, and it
+    // can't be renewed. When it runs out, the admin password is asked for again.
+    public (string Token, DateTime ExpiresAt) GenerateAdminToken()
+    {
+        var key = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!));
+
+        var expiresAt = DateTime.UtcNow.AddHours(AdminTokenLifetimeHours);
+
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
+            claims: new[] { new Claim(ClaimTypes.Role, "admin") },
+            expires: expiresAt,
+            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
+        );
+
+        return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
     }
 
     public (string Token, DateTime ExpiresAt) GenerateRefreshToken()
