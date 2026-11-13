@@ -1209,7 +1209,7 @@ export default class ForestScene extends Phaser.Scene {
     let speed = this.movingSlow ? 90 : baseSpeed, jumpSpeed = -480;
     if (wading) speed = 150;   // the horse slows to wade through the deep water
     if (this.fawn.hauling) speed = Math.min(speed, 46);   // and drawing the fawn out of the mud is slow work
-    speed = this.boardwalk.pace(speed);                    // as is wading through the bog
+    speed = this.boardwalk.pace(speed);                    // and stood in the bog, you don't go anywhere
     const left =this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
@@ -1473,7 +1473,6 @@ export default class ForestScene extends Phaser.Scene {
     else if (reminder) this.guide.prompt(reminder.keys || [], reminder.label, ...over);
     else if (this.atBrambleOnFoot) this.guide.prompt(['shift'], 'hold to move gently', ...over);
     else if (this.stair.against() || this.windfall.against()) this.guide.prompt(['up'], 'jump', ...over);
-    else if (this.boardwalk.hint()) this.guide.prompt(this.boardwalk.hint().keys, this.boardwalk.hint().label, ...over);
     else this.guide.hidePrompt();
 
     if (this.riding && action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
