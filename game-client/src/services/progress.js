@@ -18,7 +18,8 @@ export const FLAGS = {
   bridge: 2048,     // the bridge over the brook is mended
   turtle: 4096,     // the turtle is the right way up
   bee: 8192,        // the bumblebee let you pet it
-  fish: 16384       // the trout is back in the river
+  fish: 16384,      // the trout is back in the river
+  owl: 32768        // the owl chick is back in its nest
 };
 
 // play time in seconds — only counts while a story scene is actually running,

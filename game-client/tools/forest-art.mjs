@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
 import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
-import { horse, foal, cat, rabbit, bird, doe, fawn, stag, moose, squirrel, duck, duckling, turtle, fish, bee, BEE_FUR } from './animals.mjs';
+import { horse, foal, cat, rabbit, bird, doe, fawn, stag, moose, squirrel, duck, duckling, turtle, fish, owlet, tawny, bee, BEE_FUR } from './animals.mjs';
 
 const W = 640, H = 360;
 const GROUND = 330;            // art y of the ground line (660 on screen)
@@ -1149,6 +1149,94 @@ function puddle() {
   return img;
 }
 
+// ── the owls' tree, and the handcart (puzzles/owl.js) ──
+//
+// an old dead aspen, broken off high up, with a hollow in it where a pair of
+// tawny owls nest, and a stub of a branch above it where the mother sits.
+// the hollow's middle is OWL_TREE.hole up from its foot (2x on screen)
+export const OWL_TREE = { w: 40, h: 112, hole: 68, holeDx: -1, perch: 84, perchDx: 10 };
+
+function owlTree() {
+  const T = OWL_TREE, bark = [0x3d322a, 0x5e4d3f, 0x80705f, 0xa3957f, 0xbdb19a];
+  const rnd = rng(181), cx = T.w / 2;
+  return piece(T.w, T.h, (g) => {
+    for (let y = 10; y < T.h; y++) {
+      const t = (T.h - y) / (T.h - 10);                         // 0 at the foot → 1 at the top
+      const half = 6.4 - t * 2 + (t < 0.08 ? (0.08 - t) * 60 : 0) + Math.sin(y * 0.3) * 0.3;
+      for (let dx = -Math.round(half); dx <= Math.round(half); dx++) {
+        const k = (dx + half) / (2 * half);
+        let c = k < 0.22 ? bark[0] : k < 0.5 ? bark[1] : k < 0.8 ? bark[2] : bark[3];
+        if ((y * 5 + dx * 7) % 13 === 0 || (dx === -2 && y % 9 < 5)) c = bark[0];      // the grain, and a long crack
+        if (k > 0.6 && k < 0.8 && (y % 17 === 3)) c = bark[4];                          // where the bark has come away
+        g.put(cx + dx, y, c);
+      }
+    }
+    // broken off: jagged at the top
+    g.poly([[cx - 4, 12], [cx - 4, 3], [cx - 2, 8], [cx, 0], [cx + 1, 7], [cx + 4, 4], [cx + 4, 12]], bark[2]);
+    g.poly([[cx - 4, 12], [cx - 4, 3], [cx - 2, 8], [cx - 1, 12]], bark[1]);
+    // the stub the mother sits on, and a broken one lower down
+    const py = T.h - T.perch;
+    g.rect(cx + 4, py, T.perchDx + 1, 3, bark[2]); g.hline(cx + 4, py, T.perchDx + 1, bark[3]); g.hline(cx + 4, py + 2, T.perchDx + 1, bark[1]);
+    g.line(cx - 5, T.h - 40, cx - 12, T.h - 46, bark[1]); g.line(cx - 5, T.h - 39, cx - 12, T.h - 45, bark[0]);
+    // the hollow: a worn lip, and dark inside
+    const hx = cx + T.holeDx, hy = T.h - T.hole;
+    g.ellipse(hx, hy, 4.4, 5.6, bark[3]);
+    g.ellipse(hx - 0.4, hy - 0.2, 3.8, 5, bark[0]);
+    g.ellipse(hx, hy + 0.6, 3, 4, 0x120b07);
+    // roots and moss at the foot
+    for (let i = 0; i < 14; i++) { const x = rnd.int(cx - 12, cx + 12), y = rnd.int(T.h - 6, T.h - 1); if (g.alpha(x, y)) g.put(x, y, rnd.chance(0.5) ? C.grass[2] : C.grass[1]); }
+  });
+}
+
+// an old wooden handcart, left here: a plank box, a pair of handles, a leg to
+// stand it level. its wheel is a picture of its own, so it can turn
+export const CART = { w: 52, h: 26, top: 5, axleX: 30, axleUp: 9 };
+
+function handcart() {
+  const W = C.wood, T = C.timber;
+  return piece(CART.w, CART.h, (g) => {
+    // the box: three planks, a rim along the top, iron at the corners
+    g.rect(14, 5, 32, 12, W[2]);
+    [8, 12].forEach((y) => g.hline(14, y, 32, W[1]));
+    g.hline(14, 5, 32, W[4]); g.hline(14, 6, 32, W[3]);
+    g.hline(14, 16, 32, W[0]);
+    g.vline(14, 5, 12, W[1]); g.vline(45, 5, 12, W[0]);
+    [[15, 6], [43, 6], [15, 14], [43, 14]].forEach(([x, y]) => { g.rect(x, y, 2, 2, C.iron[2]); g.put(x, y, C.iron[3]); });
+    for (let i = 0; i < 14; i++) g.put(16 + ((i * 7) % 28), 7 + ((i * 5) % 9), W[1]);              // the grain
+    // the shafts running back to the handles, and the leg it rests on
+    g.line(0, 9, 14, 12, T[3]); g.line(0, 10, 14, 13, T[2]); g.rect(0, 9, 3, 2, T[4]);
+    g.rect(18, 17, 2, 8, T[2]); g.vline(18, 17, 8, T[3]); g.hline(17, 25, 4, T[1]);
+  });
+}
+
+function cartWheel() {
+  const W = C.wood, r = 8.6;
+  return piece(19, 19, (g) => {
+    // the iron tyre and the wooden rim, as rings
+    for (let x = 0; x < 19; x++) {
+      for (let y = 0; y < 19; y++) {
+        const d = Math.hypot(x - 9, y - 9);
+        if (d <= r && d > r - 1.3) g.put(x, y, C.iron[1]);
+        else if (d <= r - 1.3 && d > r - 2.8) g.put(x, y, d > r - 2 ? W[3] : W[2]);
+      }
+    }
+    for (let a = 0; a < 6; a++) {                             // six spokes
+      const t = (a / 6) * Math.PI * 2;
+      g.line(9, 9, Math.round(9 + Math.cos(t) * (r - 2)), Math.round(9 + Math.sin(t) * (r - 2)), W[1]);
+    }
+    g.ellipse(9, 9, 1.8, 1.8, C.iron[2]); g.put(9, 9, C.iron[4]);   // the hub
+  });
+}
+
+// a flat stone, just right for under a wheel
+function wedgeStone() {
+  const st = C.stone;
+  return piece(9, 6, (g) => {
+    g.poly([[0, 5], [1, 2], [4, 0], [8, 1], [8, 5]], st[2]);
+    g.hline(2, 1, 5, st[4]); g.hline(1, 2, 3, st[3]); g.hline(1, 5, 8, st[1]); g.put(6, 3, st[1]); g.put(3, 3, C.grass[2]);
+  });
+}
+
 // the little flowers up the slope
 function daisy(petal, heart, big) {
   if (!big) {
@@ -1354,6 +1442,8 @@ export function buildAll() {
     duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(), bee: bee(),
     // the trout left behind by the high water, and its puddle
     fish: fish(), puddle: puddle(),
+    // the owls' tree, the handcart you push under it, and the stone for its wheel
+    'owl-tree': owlTree(), owlet: owlet(), tawny: tawny(), handcart: handcart(), 'cart-wheel': cartWheel(), 'wedge-stone': wedgeStone(),
     windfall: windfall(), 'trunk-long': longTrunk(),
     // the boardwalk over the bog
     bog: bog(), 'bog-post': bogPost(), 'plank-rotten': rottenPlank(),

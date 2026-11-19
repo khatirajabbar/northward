@@ -199,9 +199,10 @@ export default class Guide {
     play(scene, 'ui-paper');
     const box = scene.add.container(0, 0).setScrollFactor(0).setDepth(DEPTH + 20).setAlpha(0);
     const dim = scene.add.rectangle(0, 0, W, H, 0x0a0d14, dark).setOrigin(0, 0);
-    // more than seven lines go on a longer page: nine, or eleven
-    const extra = lines.length > 9 ? 2 : lines.length > 7 ? 1 : 0;
-    const paper = scene.add.image(W / 2, H / 2 - 48 + extra * 4, ['ui-note', 'ui-note-tall', 'ui-note-long'][extra]).setScale(3);
+    // more than seven lines go on a longer page: nine, eleven, or thirteen (that one sits a little higher, to leave room under it)
+    const extra = lines.length > 11 ? 3 : lines.length > 9 ? 2 : lines.length > 7 ? 1 : 0;
+    const paper = scene.add.image(W / 2, H / 2 - 48 + extra * 4 - (extra === 3 ? 16 : 0),
+      ['ui-note', 'ui-note-tall', 'ui-note-long', 'ui-note-longer'][extra]).setScale(3);
     const left = paper.x - paper.displayWidth / 2, top = paper.y - paper.displayHeight / 2;
     const on = (ax, ay) => [left + ax * 3, top + ay * 3];        // a spot on the page, in its own pixels
     const write = (ax, ay, str, tint = INK) => this.text(...on(ax, ay), str, { size: 3, tint, edged: false });

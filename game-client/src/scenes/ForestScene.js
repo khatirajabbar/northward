@@ -14,6 +14,7 @@ import TurtlePuzzle from '../puzzles/turtle.js';
 import BeePuzzle from '../puzzles/bee.js';
 import MoosePuzzle from '../puzzles/moose.js';
 import FishPuzzle from '../puzzles/fish.js';
+import OwlPuzzle from '../puzzles/owl.js';
 import CatRope from '../puzzles/catRope.js';
 import Evening from '../world/evening.js';
 import Hills from '../world/hills.js';
@@ -685,6 +686,8 @@ export default class ForestScene extends Phaser.Scene {
     this.moose = new MoosePuzzle(this);
     // ── the trout in a drying puddle, a way on from the stepping stones ──
     this.fish = new FishPuzzle(this);
+    // ── the owl chick fallen out of its nest, and the handcart, after the fawn ──
+    this.owl = new OwlPuzzle(this);
     // ── the fawn in the mud, on the new road past the rest tree ──
     this.fawn = new FawnPuzzle(this, this.fawnX);
     // ── the squirrel and its dropped acorns, on the way to its oak ──
@@ -742,6 +745,7 @@ export default class ForestScene extends Phaser.Scene {
     if (has(FLAGS.turtle)) this.turtle.restore();
     if (has(FLAGS.bee)) this.bumblebee.restore();
     if (has(FLAGS.fish)) this.fish.restore();
+    if (has(FLAGS.owl)) this.owl.restore();
     this.pickedCarrots = saved.field;
 
     // the little tree you could water is gone from the road. a journey saved
@@ -799,6 +803,7 @@ export default class ForestScene extends Phaser.Scene {
     if (this.turtle.done) flags |= FLAGS.turtle;
     if (this.bumblebee.done) flags |= FLAGS.bee;
     if (this.fish.done) flags |= FLAGS.fish;
+    if (this.owl.done) flags |= FLAGS.owl;
     let meadow = 0;
     this.meadowHorses.forEach((m, i) => { if (m.fed) meadow |= 1 << i; });
     return encodeProgress({
@@ -976,6 +981,9 @@ export default class ForestScene extends Phaser.Scene {
         when: () => this.fawn.stage === 'roped' || this.fawn.done,
         done: () => this.fawn.done, until: () => this.fawnX + 460, sight: null,
         where: () => null },
+      { id: 'owl', text: 'put the owl chick back in its nest',
+        done: () => this.owl.done, until: () => (this.owl.holding || Math.abs(this.owl.x - this.owl.from - 90) > 20 ? Infinity : this.owl.treeX + 400),
+        sight: () => this.owl.treeX, where: () => this.owl.where() },
       { id: 'acorns', text: 'pick up the three acorns someone dropped',
         done: () => this.squirrel.count === 3 || this.squirrel.done, until: () => this.squirrelX + 220,
         where: () => this.squirrel.nextSpot() },
@@ -1109,6 +1117,7 @@ export default class ForestScene extends Phaser.Scene {
     this.turtle.update(px);
     this.moose.update(px);
     this.fish.update(px);
+    this.owl.update(px);
     this.evening.update(px);
     this.windowBird.update(px);
     this.stair.update(px);
@@ -1228,6 +1237,7 @@ export default class ForestScene extends Phaser.Scene {
     speed = this.boardwalk.pace(speed);                    // and stood in the bog, you don't go anywhere
     speed = this.moose.pace(speed);                        // running from the moose, or caught by it
     speed = this.fish.pace(speed);                         // or running to the river with the trout
+    speed = this.owl.pace(speed);                          // pushing the handcart is slow going
     const left =this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
@@ -1447,7 +1457,7 @@ export default class ForestScene extends Phaser.Scene {
     if (this.catRope.lowering) { this.guide.prompt(['down'], 'hold to let the rope out', this.player.x, this.player.y - 66); return; }
     const offers = [this.catRope.offer(px), this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround),
       this.squirrel.offer(px, onGround), this.duck.offer(px, onGround), this.bumblebee.offer(px, onGround), this.turtle.offer(px, onGround),
-      this.bridge.offer(px, onGround), this.moose.offer(px), this.fish.offer(px, onGround)].filter(Boolean);
+      this.bridge.offer(px, onGround), this.moose.offer(px), this.fish.offer(px, onGround), this.owl.offer(px, onGround)].filter(Boolean);
     const foxOffer = offers.find((o) => o.action) || null;
     const reminder = offers.find((o) => o.hint) || null;
     const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
@@ -1550,7 +1560,7 @@ export default class ForestScene extends Phaser.Scene {
   doAction(action) {
     if (this.catRope.act(action) || this.fox.act(action) || this.fawn.act(action) || this.stag.act(action) || this.squirrel.act(action) ||
         this.duck.act(action) || this.bumblebee.act(action) || this.turtle.act(action) ||
-        this.bridge.act(action) || this.moose.act(action) || this.fish.act(action)) return;
+        this.bridge.act(action) || this.moose.act(action) || this.fish.act(action) || this.owl.act(action)) return;
     if (action === 'restdown') {
       this.resting = true;
       this.restAtField = true;

@@ -46,7 +46,7 @@ export default class BootScene extends Phaser.Scene {
       'icon-bread', 'icon-carrot', 'icon-water', 'icon-rope',
       'tallgrass-a', 'tallgrass-b', 'tallgrass-c', 'tallgrass-low-a', 'tallgrass-low-b', 'bramble-a', 'bramble-b', 'bramble-c', 'bramble-low',
       'stone-a', 'stone-b', 'stone-c', 'water', 'torch', 'mud', 'dish',
-      'acorn', 'icon-acorn', 'oak-old', 'snag', 'fallen-log', 'windfall', 'trunk-long', 'thicket', 'puddle', 'ledge-1', 'ledge-2', 'ledge-3', 'ledge-4', 'bog', 'bog-post', 'plank-rotten', 'plank', 'trestle', 'daisy-tall', 'daisy-tall-yellow',
+      'acorn', 'icon-acorn', 'oak-old', 'snag', 'fallen-log', 'windfall', 'trunk-long', 'thicket', 'puddle', 'owl-tree', 'handcart', 'cart-wheel', 'wedge-stone', 'ledge-1', 'ledge-2', 'ledge-3', 'ledge-4', 'bog', 'bog-post', 'plank-rotten', 'plank', 'trestle', 'daisy-tall', 'daisy-tall-yellow',
       'hill', 'mushroom', 'boulder', 'daisy-white', 'daisy-yellow', 'daisy-white-small', 'daisy-yellow-small',
       'dusk-cold', 'dusk-warm', 'moon', 'sun', 'dusk-cloud-a', 'dusk-cloud-b', 'oak-b', 'bare-a', 'bare-b',
       'nest-bough', 'nest', 'bird-fallen', 'grave-mound', 'fire-pit', 'fire-logs', 'stick'
@@ -56,7 +56,7 @@ export default class BootScene extends Phaser.Scene {
 
     // The guide — drawn by tools/ui-art.mjs: the note, the task tag, the keys,
     // and the game's own pixel font (plain for paper, edged for over the world)
-    ['title', 'bin', 'sign', 'sign-8', 'rope', 'note', 'note-tall', 'note-long', 'tag', 'marker', 'checkbox', 'tick',
+    ['title', 'bin', 'sign', 'sign-8', 'rope', 'note', 'note-tall', 'note-long', 'note-longer', 'tag', 'marker', 'checkbox', 'tick',
       'key-e', 'key-i', 'key-f', 'key-x', 'key-left', 'key-right', 'key-up', 'key-down', 'key-shift', 'key-esc']
       .forEach((name) => this.load.image(`ui-${name}`, `assets/ui/${name}.png`));
     this.load.bitmapFont('px', 'assets/ui/font.png', 'assets/ui/font.xml');

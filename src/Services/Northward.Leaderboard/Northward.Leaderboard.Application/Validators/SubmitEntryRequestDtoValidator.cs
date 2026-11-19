@@ -14,7 +14,7 @@ public class SubmitEntryRequestDtoValidator : AbstractValidator<SubmitEntryReque
     // duckling, the bee, the turtle and the bridge). The game sends its own
     // count, so anything above this didn't come from playing.
     // Change it whenever a puzzle that gives kindness is added or taken out.
-    public const int MaxKindness = 16;
+    public const int MaxKindness = 17;
 
     // Nobody walks from the cabin to the end of the road this fast.
     public static readonly TimeSpan FastestPossible = TimeSpan.FromMinutes(1);

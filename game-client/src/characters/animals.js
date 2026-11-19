@@ -5,7 +5,7 @@
 
 const SHEETS = [
   ['horse', 62, 42], ['horse-grey', 62, 42], ['horse-dark', 62, 42], ['foal', 42, 32],
-  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['doe', 50, 39], ['fawn', 34, 28], ['stag', 68, 38], ['moose', 86, 60], ['squirrel', 30, 20], ['duck', 26, 18], ['duckling', 14, 12], ['turtle', 26, 16], ['fish', 22, 15], ['bee', 13, 11],
+  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['doe', 50, 39], ['fawn', 34, 28], ['stag', 68, 38], ['moose', 86, 60], ['squirrel', 30, 20], ['duck', 26, 18], ['duckling', 14, 12], ['turtle', 26, 16], ['fish', 22, 15], ['owlet', 14, 15], ['tawny', 24, 24], ['bee', 13, 11],
   ['bee-pet', 120, 80],
   ['flame', 11, 16], ['campfire', 18, 24]
 ];
@@ -88,6 +88,12 @@ export function createAnimalAnims(scene) {
   add('fish-gasp', 'fish', [0, 0, 1, 0, 0, 0], 4);
   add('fish-flap', 'fish', [2, 3, 2, 0], 9);
   add('fish-held', 'fish', [4, 2, 4, 3], 6);
+
+  // the owl chick fallen out of its nest, and its mother watching from above
+  add('owlet-sit', 'owlet', [0, 0, 0, 0, 1, 0, 3, 0, 4, 0], 4);
+  add('owlet-call', 'owlet', [2], 1);
+  add('tawny-watch', 'tawny', [0, 0, 0, 1, 0, 0, 0, 2, 2, 2, 0, 0], 2);
+  add('tawny-fly', 'tawny', [3, 0, 3], 8);
 
   add('bee-feed', 'bee', [0, 0, 1, 1, 0, 0, 0], 3);               // busy on a flower, a step now and then
   add('bee-fly', 'bee', [2, 3], 18);

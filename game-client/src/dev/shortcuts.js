@@ -8,8 +8,8 @@
 import { setTravelerBody } from '../characters/lpc.js';
 import { along } from '../world/road.js';
 
-const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS', 'PLUS', 'OPEN_BRACKET', 'CLOSED_BRACKET', 'G', 'T', 'B', 'N', 'O', 'H'];   // PLUS is the = key
-const HINT = 'test keys: 1-9, 0, -, =, [, ], g, t, b, n, o and h jump along the road';
+const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS', 'PLUS', 'OPEN_BRACKET', 'CLOSED_BRACKET', 'G', 'T', 'B', 'N', 'O', 'H', 'K'];   // PLUS is the = key
+const HINT = 'test keys: 1-9, 0, -, =, [, ], g, t, b, n, o, h and k jump along the road';
 
 // key → [what's there, where to stand] — a little before each thing, so you arrive at it
 function stops(forest) {
@@ -33,7 +33,8 @@ function stops(forest) {
     B: ['the boardwalk', forest.boardwalk.from + 40],
     N: ['the windfall', forest.windfall.from + 20],
     O: ['the moose', forest.moose.from - 40],
-    H: ['the fish', forest.fish.x - 320]
+    H: ['the fish', forest.fish.x - 320],
+    K: ['the owl chick', forest.owl.from + 20]
   };
 }
 

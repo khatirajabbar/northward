@@ -830,6 +830,75 @@ export function fish() {
   ], 22, 15);
 }
 
+// ── the tawny owls: a chick fallen out of the nest, and its mother ──
+
+const OWLET = { down: [0x8f8a80, 0xb7b1a5, 0xd9d4c8, 0xf0ece2], face: 0xe6dccb, eye: 0x161210, beak: 0x6a6258 };
+
+// a ball of grey down with two big dark eyes. `blink`, `call` (beak open,
+// head up a little), `lean` (wobbling over)
+function owletBody({ blink = 0, call = 0, lean = 0 } = {}) {
+  const O = OWLET;
+  return outlined(12, 13, (g) => {
+    const cx = 6 + lean, top = call ? 1 : 2;
+    g.ellipse(cx, 8.5, 5, 4.4, O.down[1]);                                  // the body
+    g.ellipse(cx - 1, 7.6, 3.4, 3, O.down[2]);
+    g.ellipse(cx, top + 2.6, 4.2, 3.2, O.down[2]);                          // the head
+    for (let i = 0; i < 9; i++) g.put(cx - 4 + ((i * 3) % 9), 6 + ((i * 5) % 7), i % 2 ? O.down[0] : O.down[3]);   // fluff
+    g.ellipse(cx, top + 3, 3.2, 2.2, O.face);                               // its face
+    if (blink) { g.hline(cx - 3, top + 3, 2, O.eye); g.hline(cx + 1, top + 3, 2, O.eye); }
+    else {
+      g.rect(cx - 3, top + 2, 2, 2, O.eye); g.rect(cx + 1, top + 2, 2, 2, O.eye);
+      g.put(cx - 3, top + 2, 0xffffff); g.put(cx + 1, top + 2, 0xffffff);
+    }
+    g.put(cx, top + 4, O.beak); if (call) g.put(cx, top + 5, 0x3a2a24);
+    g.put(cx - 4, top, O.down[2]); g.put(cx + 4, top, O.down[2]);          // little tufts
+    g.put(cx - 2, 12, O.beak); g.put(cx + 2, 12, O.beak);                  // its feet
+  }, 0x4a4540);
+}
+
+export function owlet() {
+  return sheet([
+    owletBody(), owletBody({ blink: 1 }),                       // 0-1 sitting, blinking
+    owletBody({ call: 1 }),                                     // 2 calling for its mother
+    owletBody({ lean: -1 }), owletBody({ lean: 1 })             // 3-4 wobbling
+  ], 14, 15);
+}
+
+const TAWNY = { body: [0x4e301c, 0x6d4529, 0x8f6037, 0xb0804c], face: [0x9a7652, 0xc4a175], eye: 0x120c08, spot: 0xe0cfae };
+
+// the mother, sitting up straight on her branch. `blink`, `turn` (her head
+// round to one side), `wings` (spread, flying)
+function tawnyBody({ blink = 0, turn = 0, wings = 0 } = {}) {
+  const B = TAWNY.body;
+  return outlined(22, 22, (g) => {
+    if (wings) {
+      g.poly([[11, 9], [1, 5], [0, 9], [4, 13], [11, 14]], B[1]);
+      g.poly([[11, 9], [21, 5], [22, 9], [18, 13], [11, 14]], B[1]);
+      [[3, 8], [6, 9], [16, 9], [19, 8]].forEach(([x, y]) => g.put(x, y, TAWNY.spot));
+    }
+    g.ellipse(11, 15, 6.6, 6.2, B[2]);                                       // body, round as a loaf
+    g.ellipse(11, 16, 4.4, 4.6, B[3]);                                       // breast
+    for (let y = 12; y < 20; y += 2) g.put(10 + (y % 4 ? 1 : 0), y, B[1]);   // streaks down it
+    if (!wings) { g.ellipse(5.4, 15, 2.4, 5.6, B[1]); g.ellipse(16.6, 15, 2.4, 5.6, B[1]); [[5, 12], [17, 14], [5, 16], [17, 11]].forEach(([x, y]) => g.put(x, y, TAWNY.spot)); }
+    const fx = 11 + turn * 1.5;
+    g.ellipse(11, 6.6, 7, 5.8, B[2]);                                        // the head, big and round, no ear tufts
+    g.hline(8, 1, 7, B[3]);
+    g.ellipse(fx, 7.4, 5.2, 4.2, TAWNY.face[0]);                             // the face: two pale discs with a dark rim
+    g.ellipse(fx - 2, 7.4, 2.6, 3, TAWNY.face[1]); g.ellipse(fx + 2, 7.4, 2.6, 3, TAWNY.face[1]);
+    const eyes = turn ? [fx + 2] : [fx - 2, fx + 2];
+    eyes.forEach((ex) => { if (blink) g.hline(Math.round(ex) - 1, 7, 2, TAWNY.eye); else { g.rect(Math.round(ex) - 1, 6, 2, 2, TAWNY.eye); g.put(Math.round(ex) - 1, 6, 0x6b5a48); } });
+    g.put(Math.round(fx), 9, 0xc9b27a); g.put(Math.round(fx), 10, 0x9a8455); // beak
+    g.hline(9, 21, 1, 0x8a7a5a); g.hline(12, 21, 1, 0x8a7a5a);              // talons
+  }, C.ink);
+}
+
+export function tawny() {
+  return sheet([
+    tawnyBody(), tawnyBody({ blink: 1 }), tawnyBody({ turn: 1 }),   // 0-2 watching, blinking, looking away
+    tawnyBody({ wings: 1 })                                          // 3 wings out
+  ], 24, 24);
+}
+
 // ── the bumblebee that has run out of sugar ──
 
 const BEE = { fur: [0x231a12, 0xd99a24, 0xf5cf55], wing: [0xc9dde6, 0xf4fbff] };
@@ -916,5 +985,7 @@ export const FRAMES = {
   duckling: { size: [14, 12], stand: 0, peep: 1, walk: [2, 3], hop: 4, swim: 5, held: [6, 7] },
   turtle: { size: [26, 16], back: [0, 1], shy: 2, walk: [3, 4] },
   fish: { size: [22, 15], gasping: [0, 1], flap: [2, 3], held: 4 },
+  owlet: { size: [14, 15], sit: [0, 1], call: 2, wobble: [3, 4] },
+  tawny: { size: [24, 24], watch: [0, 2], fly: 3 },
   bee: { size: [13, 11], tired: [0, 1], fly: [2, 3] }
 };
