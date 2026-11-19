@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
 import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
-import { horse, foal, cat, rabbit, bird, doe, fawn, stag, moose, squirrel, duck, duckling, turtle, bee, BEE_FUR } from './animals.mjs';
+import { horse, foal, cat, rabbit, bird, doe, fawn, stag, moose, squirrel, duck, duckling, turtle, fish, bee, BEE_FUR } from './animals.mjs';
 
 const W = 640, H = 360;
 const GROUND = 330;            // art y of the ground line (660 on screen)
@@ -1123,6 +1123,32 @@ function thicket() {
   }, C.pine[0]);
 }
 
+// ── the trout's puddle (puzzles/fish.js) ──
+//
+// all that's left of the high water here: a shallow puddle on the road,
+// going down. a dark ring of wet mud where it was this morning, and a pale
+// cracked one where it was yesterday
+function puddle() {
+  const rnd = rng(171), w = 52, h = 12;
+  const img = new Img(w, h);
+  const dry = [0x6e5d48, 0x86735a, 0x9c8a6e], wet = [0x2f251c, 0x3f3226, 0x514031];
+  const water = [0x2c4a4c, 0x3d6264, 0x587f7c, 0x9cbcb2];
+  img.ellipse(w / 2, 6, 25.5, 5.6, dry[1]);                           // dried and cracked
+  img.ellipse(w / 2 + 1, 6.2, 21, 4.6, wet[2]);                       // still wet
+  img.ellipse(w / 2 + 1, 6.4, 18, 3.7, wet[1]);
+  img.ellipse(w / 2 + 2, 6.4, 14, 2.9, water[0]);                     // and the water, not much of it
+  img.ellipse(w / 2 + 2, 6.1, 12.5, 2.2, water[1]);
+  img.hline(w / 2 - 6, 5, 9, water[2]); img.hline(w / 2 + 6, 6, 4, water[2]);
+  img.hline(w / 2 - 3, 4, 4, water[3]);                               // a bit of sky in it
+  // cracks in the dried rim
+  for (let i = 0; i < 9; i++) {
+    const a = rnd() * Math.PI * 2, x = Math.round(w / 2 + Math.cos(a) * 22), y = Math.round(6 + Math.sin(a) * 4.6);
+    img.put(x, y, dry[0]); img.put(x + (Math.cos(a) > 0 ? 1 : -1), y, dry[0]);
+  }
+  [[4, 6], [w - 5, 6], [9, 9], [w - 10, 9]].forEach(([x, y]) => img.put(x, y, dry[2]));
+  return img;
+}
+
 // the little flowers up the slope
 function daisy(petal, heart, big) {
   if (!big) {
@@ -1326,6 +1352,8 @@ export function buildAll() {
     // the moose, and the young spruce you hide from it in
     moose: moose(), thicket: thicket(),
     duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(), bee: bee(),
+    // the trout left behind by the high water, and its puddle
+    fish: fish(), puddle: puddle(),
     windfall: windfall(), 'trunk-long': longTrunk(),
     // the boardwalk over the bog
     bog: bog(), 'bog-post': bogPost(), 'plank-rotten': rottenPlank(),

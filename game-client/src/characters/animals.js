@@ -5,7 +5,7 @@
 
 const SHEETS = [
   ['horse', 62, 42], ['horse-grey', 62, 42], ['horse-dark', 62, 42], ['foal', 42, 32],
-  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['doe', 50, 39], ['fawn', 34, 28], ['stag', 68, 38], ['moose', 86, 60], ['squirrel', 30, 20], ['duck', 26, 18], ['duckling', 14, 12], ['turtle', 26, 16], ['bee', 13, 11],
+  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['doe', 50, 39], ['fawn', 34, 28], ['stag', 68, 38], ['moose', 86, 60], ['squirrel', 30, 20], ['duck', 26, 18], ['duckling', 14, 12], ['turtle', 26, 16], ['fish', 22, 15], ['bee', 13, 11],
   ['bee-pet', 120, 80],
   ['flame', 11, 16], ['campfire', 18, 24]
 ];
@@ -83,6 +83,11 @@ export function createAnimalAnims(scene) {
   add('turtle-back', 'turtle', [0, 1], 6);                       // feet going and going
   add('turtle-shy', 'turtle', [2], 1);
   add('turtle-walk', 'turtle', [3, 4], 3);
+
+  // the trout left in a puddle: gasping on its side, flapping, wriggling in your hands
+  add('fish-gasp', 'fish', [0, 0, 1, 0, 0, 0], 4);
+  add('fish-flap', 'fish', [2, 3, 2, 0], 9);
+  add('fish-held', 'fish', [4, 2, 4, 3], 6);
 
   add('bee-feed', 'bee', [0, 0, 1, 1, 0, 0, 0], 3);               // busy on a flower, a step now and then
   add('bee-fly', 'bee', [2, 3], 18);

@@ -8,8 +8,8 @@
 import { setTravelerBody } from '../characters/lpc.js';
 import { along } from '../world/road.js';
 
-const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS', 'PLUS', 'OPEN_BRACKET', 'CLOSED_BRACKET', 'G', 'T', 'B', 'N', 'O'];   // PLUS is the = key
-const HINT = 'test keys: 1-9, 0, -, =, [, ], g, t, b, n and o jump along the road';
+const KEYS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'ZERO', 'MINUS', 'PLUS', 'OPEN_BRACKET', 'CLOSED_BRACKET', 'G', 'T', 'B', 'N', 'O', 'H'];   // PLUS is the = key
+const HINT = 'test keys: 1-9, 0, -, =, [, ], g, t, b, n, o and h jump along the road';
 
 // key → [what's there, where to stand] — a little before each thing, so you arrive at it
 function stops(forest) {
@@ -32,7 +32,8 @@ function stops(forest) {
     T: ['the stone stair', forest.stair.from + 60],
     B: ['the boardwalk', forest.boardwalk.from + 40],
     N: ['the windfall', forest.windfall.from + 20],
-    O: ['the moose', forest.moose.from - 40]
+    O: ['the moose', forest.moose.from - 40],
+    H: ['the fish', forest.fish.x - 320]
   };
 }
 

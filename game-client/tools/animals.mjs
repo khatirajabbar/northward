@@ -778,6 +778,58 @@ export function turtle() {
   ], 26, 16);
 }
 
+// ── the brown trout left behind in a puddle ──
+
+const TROUT = { back: 0x4f5232, side: 0x93804a, gold: 0xb89c55, belly: 0xe2d6a4, spot: 0x2e2416, red: 0xb5432c, fin: 0x6d6a43 };
+
+// a trout lying on its side, head to the left. `curl` bends both ends up (it
+// flapping), `flick` lifts just the tail
+function trout({ curl = 0, flick = 0 } = {}) {
+  const W = 20, H = 13, mid = 7, len = 17;
+  return outlined(W, H, (g) => {
+    // where the middle of the body is at a point u (0 snout … 1 tail tip), and how thick it is there
+    const at = (u) => mid - curl * 20 * (u - 0.45) * (u - 0.45) - flick * 6 * Math.max(0, u - 0.6) ** 2 / 0.16;
+    const half = (u) => (u < 0.12 ? 0.6 + u * 14 : u < 0.55 ? 2.3 + Math.sin((u - 0.12) / 0.43 * Math.PI / 2) * 0.6 : u < 0.82 ? 2.9 - (u - 0.55) * 7 : 0);
+    for (let x = 0; x <= len; x++) {
+      const u = x / len, cy = at(u), h = half(u);
+      if (u >= 0.82) {
+        // the tail fin, fanning out
+        const f = 0.8 + (u - 0.82) * 14;
+        for (let y = Math.round(cy - f); y <= Math.round(cy + f); y++) {
+          if (u > 0.93 && Math.abs(y - cy) < 1) continue;            // forked
+          g.put(x + 1, y, Math.abs(y - cy) > f - 0.8 ? TROUT.back : TROUT.fin);
+        }
+        continue;
+      }
+      for (let y = Math.round(cy - h); y <= Math.round(cy + h); y++) {
+        const k = (y - (cy - h)) / (2 * h || 1);                  // 0 along its back … 1 along its belly
+        g.put(x + 1, y, k < 0.28 ? TROUT.back : k < 0.55 ? TROUT.side : k < 0.75 ? TROUT.gold : TROUT.belly);
+      }
+    }
+    // spots, dark along the back and a few red down the side; a fin on the back and one under
+    [[0.3, -1.2], [0.42, -1.6], [0.55, -1.1], [0.64, -1.5], [0.36, 0.2], [0.72, -0.6]].forEach(([u, o]) => g.put(Math.round(u * len) + 1, Math.round(at(u) + o), TROUT.spot));
+    [[0.47, 0.3], [0.6, 0.1]].forEach(([u, o]) => g.put(Math.round(u * len) + 1, Math.round(at(u) + o), TROUT.red));
+    const dorsal = Math.round(0.5 * len) + 1, dy = Math.round(at(0.5) - half(0.5));
+    g.put(dorsal, dy - 1, TROUT.fin); g.put(dorsal + 1, dy - 1, TROUT.fin); g.put(dorsal + 1, dy - 2, TROUT.back);
+    const anal = Math.round(0.66 * len) + 1, ay = Math.round(at(0.66) + half(0.66));
+    g.put(anal, ay + 1, TROUT.fin);
+    // the eye, and the line of the gill behind it
+    const ey = Math.round(at(0.1) - 0.6);
+    g.put(2, ey, 0x111111); g.put(3, ey, TROUT.belly);
+    g.put(4, Math.round(at(0.2)), TROUT.back); g.put(4, Math.round(at(0.2)) + 1, TROUT.back);
+  }, C.ink);
+}
+
+export function fish() {
+  return sheet([
+    trout({ curl: 0.15 }),                                     // 0 lying on its side, gasping
+    trout({ curl: 0.15, flick: 1 }),                           // 1 the tail flicks up
+    trout({ curl: 0.9 }),                                      // 2 both ends up: a flap
+    trout({ curl: -0.5 }),                                     // 3 the other way
+    trout()                                                    // 4 straight: in your hands, going into the water
+  ], 22, 15);
+}
+
 // ── the bumblebee that has run out of sugar ──
 
 const BEE = { fur: [0x231a12, 0xd99a24, 0xf5cf55], wing: [0xc9dde6, 0xf4fbff] };
@@ -863,5 +915,6 @@ export const FRAMES = {
   duck: { size: [26, 18], stand: [0, 1], call: 2, walk: [3, 4], swim: [5, 6] },
   duckling: { size: [14, 12], stand: 0, peep: 1, walk: [2, 3], hop: 4, swim: 5, held: [6, 7] },
   turtle: { size: [26, 16], back: [0, 1], shy: 2, walk: [3, 4] },
+  fish: { size: [22, 15], gasping: [0, 1], flap: [2, 3], held: 4 },
   bee: { size: [13, 11], tired: [0, 1], fly: [2, 3] }
 };
