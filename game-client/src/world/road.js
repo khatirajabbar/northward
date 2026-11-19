@@ -23,7 +23,8 @@ export const STRETCHES = [
   // open, rolling hills you ride over, between the tall grass and the river
   { id: 'gallop', at: 3200, length: 3200 },
   { id: 'over-the-river', at: 4300, length: 1008, walk: { trees: 'open', seed: 3 } },
-  { id: 'on-alone', at: 4880, length: 1296, walk: { trees: 'mixed', seed: 4, bird: true } },
+  // a moose comes up behind you here, and you hide from it (puzzles/moose.js); the bird waits at the start
+  { id: 'on-alone', at: 4880, length: 1296, walk: { trees: 'mixed', seed: 4, bird: true, birdAt: 0.07 } },
   { id: 'past-the-stones', at: 5470, length: 1008, walk: { trees: 'pine', seed: 5 } },
   // rocks to climb up to a lookout, and a long slope down, after the cat
   { id: 'stone-stair', at: 6750, length: 1728 },

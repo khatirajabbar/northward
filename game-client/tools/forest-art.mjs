@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, mix, rng, sheet } from './pixel.mjs';
 import { C } from './palette.mjs';
 import { spruce, birch, scotsPine, oak, bush, leafClump, bareTree } from './trees.mjs';
-import { horse, foal, cat, rabbit, bird, doe, fawn, stag, squirrel, duck, duckling, turtle, bee, BEE_FUR } from './animals.mjs';
+import { horse, foal, cat, rabbit, bird, doe, fawn, stag, moose, squirrel, duck, duckling, turtle, bee, BEE_FUR } from './animals.mjs';
 
 const W = 640, H = 360;
 const GROUND = 330;            // art y of the ground line (660 on screen)
@@ -1100,6 +1100,29 @@ function boulder() {
   }, st[0]);
 }
 
+// ── somewhere to hide from the moose (puzzles/moose.js) ──
+//
+// a thicket of young spruce, packed close the way they come up where an old
+// tree fell: taller than you, dense enough to stand in. it's drawn in front of
+// you, so only a little of you shows between the boughs.
+function thicket() {
+  const rnd = rng(161), w = 68, h = 48;
+  const back = [0x112226, 0x18303a, 0x22444a, 0x2f5a5c, 0x41736f];        // the ones at the back, in their shade
+  return piece(w, h, (g) => {
+    // [middle, height, width, in front?]
+    [[14, 40, 30, false], [36, 48, 36, false], [55, 38, 28, false],
+      [9, 28, 24, true], [26, 38, 32, true], [46, 32, 28, true], [60, 22, 18, true]].forEach(([x, th, tw, front]) => {
+      const tree = spruce(tw, th, rnd, front ? C.pine : back);
+      g.blit(tree, Math.round(x - tw / 2), h - th);
+    });
+    // grass and needles where it stands
+    for (let x = 0; x < w; x++) {
+      if (g.alpha(x, h - 1)) g.put(x, h - 1, x % 3 ? C.grass[1] : C.grass[0]);
+      if (rnd.chance(0.35) && g.alpha(x, h - 2)) g.put(x, h - 2, C.grass[2]);
+    }
+  }, C.pine[0]);
+}
+
 // the little flowers up the slope
 function daisy(petal, heart, big) {
   if (!big) {
@@ -1300,6 +1323,8 @@ export function buildAll() {
     // the animals (sprite sheets — frame sizes are in tools/animals.mjs)
     horse: horse('chestnut'), 'horse-grey': horse('grey'), 'horse-dark': horse('dark'), foal: foal(),
     cat: cat(), rabbit: rabbit(), bird: bird(), doe: doe(), fawn: fawn(), stag: stag(), squirrel: squirrel(),
+    // the moose, and the young spruce you hide from it in
+    moose: moose(), thicket: thicket(),
     duck: duck(), duckling: duckling(), 'fallen-log': fallenLog(), turtle: turtle(), bee: bee(),
     windfall: windfall(), 'trunk-long': longTrunk(),
     // the boardwalk over the bog

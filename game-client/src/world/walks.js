@@ -69,7 +69,8 @@ export default class Walks {
         }
       }
       if (w.bird) {
-        w.perchX = Math.round(w.from + (w.to - w.from) * (0.55 + roll() * 0.15));
+        // (`birdAt`: how far along, for a stretch that has something else in the middle of it)
+        w.perchX = Math.round(w.from + (w.to - w.from) * (w.birdAt ?? 0.55 + roll() * 0.15));
         prop('stump', w.perchX, 4, false, this.scene.groundY + 3);
       }
     });

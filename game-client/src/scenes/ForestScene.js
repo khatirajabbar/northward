@@ -12,6 +12,7 @@ import DucklingPuzzle from '../puzzles/duckling.js';
 import BridgePuzzle from '../puzzles/bridge.js';
 import TurtlePuzzle from '../puzzles/turtle.js';
 import BeePuzzle from '../puzzles/bee.js';
+import MoosePuzzle from '../puzzles/moose.js';
 import CatRope from '../puzzles/catRope.js';
 import Evening from '../world/evening.js';
 import Hills from '../world/hills.js';
@@ -679,6 +680,8 @@ export default class ForestScene extends Phaser.Scene {
     this.player.play(`${this.characterId}-idle`);
     // ── the fox cub in the hollow log, between the carrot field and the lake ──
     this.fox = new FoxCubPuzzle(this, along(1680));
+    // ── the moose that comes up behind you, in the quiet stretch after the meadow ──
+    this.moose = new MoosePuzzle(this);
     // ── the fawn in the mud, on the new road past the rest tree ──
     this.fawn = new FawnPuzzle(this, this.fawnX);
     // ── the squirrel and its dropped acorns, on the way to its oak ──
@@ -884,8 +887,8 @@ export default class ForestScene extends Phaser.Scene {
   // it (`until`) — the tag and the marker follow, but helping is always your
   // choice. `where` is the spot the marker hangs over; `sight` is what has to
   // have been on screen before the task shows at all (see followTasks).
-  // The horse, the tall grass, the river and the bridge have no `until`: the
-  // road doesn't go on without them.
+  // The horse, the tall grass, the river, the moose and the bridge have no
+  // `until`: the road doesn't go on without them.
   buildTasks() {
     const g = this.groundY;
     const px = () => this.player.x;
@@ -928,8 +931,11 @@ export default class ForestScene extends Phaser.Scene {
         where: () => [riverRight + 80, g - 70] },
       { id: 'goodbye', text: 'say goodbye at the meadow',
         when: () => this.horseFed,
-        done: () => this.saidGoodbye, until: () => stonesRight,
+        done: () => this.saidGoodbye, until: () => this.moose.from + 200,
         where: () => [this.meadowX, g - 110] },
+      { id: 'moose', text: 'run from the moose and hide in the young spruce',
+        when: () => this.moose.started, done: () => this.moose.done,
+        where: () => this.moose.hideAt() },
       { id: 'stones', text: 'jump across the stones',
         done: () => px() > stonesRight + 10, sight: () => this.crossX - this.crossWidth / 2,
         where: () => [stonesRight + 60, g - 60] },
@@ -1093,6 +1099,7 @@ export default class ForestScene extends Phaser.Scene {
     this.duck.update(px);
     this.bumblebee.update(px);
     this.turtle.update(px);
+    this.moose.update(px);
     this.evening.update(px);
     this.windowBird.update(px);
     this.stair.update(px);
@@ -1210,6 +1217,7 @@ export default class ForestScene extends Phaser.Scene {
     if (wading) speed = 150;   // the horse slows to wade through the deep water
     if (this.fawn.hauling) speed = Math.min(speed, 46);   // and drawing the fawn out of the mud is slow work
     speed = this.boardwalk.pace(speed);                    // and stood in the bog, you don't go anywhere
+    speed = this.moose.pace(speed);                        // running from the moose, or caught by it
     const left =this.cursors.left.isDown || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
@@ -1429,7 +1437,7 @@ export default class ForestScene extends Phaser.Scene {
     if (this.catRope.lowering) { this.guide.prompt(['down'], 'hold to let the rope out', this.player.x, this.player.y - 66); return; }
     const offers = [this.catRope.offer(px), this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround),
       this.squirrel.offer(px, onGround), this.duck.offer(px, onGround), this.bumblebee.offer(px, onGround), this.turtle.offer(px, onGround),
-      this.bridge.offer(px, onGround)].filter(Boolean);
+      this.bridge.offer(px, onGround), this.moose.offer(px)].filter(Boolean);
     const foxOffer = offers.find((o) => o.action) || null;
     const reminder = offers.find((o) => o.hint) || null;
     const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
@@ -1532,7 +1540,7 @@ export default class ForestScene extends Phaser.Scene {
   doAction(action) {
     if (this.catRope.act(action) || this.fox.act(action) || this.fawn.act(action) || this.stag.act(action) || this.squirrel.act(action) ||
         this.duck.act(action) || this.bumblebee.act(action) || this.turtle.act(action) ||
-        this.bridge.act(action)) return;
+        this.bridge.act(action) || this.moose.act(action)) return;
     if (action === 'restdown') {
       this.resting = true;
       this.restAtField = true;

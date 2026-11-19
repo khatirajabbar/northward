@@ -5,7 +5,7 @@
 
 const SHEETS = [
   ['horse', 62, 42], ['horse-grey', 62, 42], ['horse-dark', 62, 42], ['foal', 42, 32],
-  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['doe', 50, 39], ['fawn', 34, 28], ['stag', 68, 38], ['squirrel', 30, 20], ['duck', 26, 18], ['duckling', 14, 12], ['turtle', 26, 16], ['bee', 13, 11],
+  ['cat', 28, 20], ['rabbit', 22, 17], ['bird', 18, 15], ['doe', 50, 39], ['fawn', 34, 28], ['stag', 68, 38], ['moose', 86, 60], ['squirrel', 30, 20], ['duck', 26, 18], ['duckling', 14, 12], ['turtle', 26, 16], ['bee', 13, 11],
   ['bee-pet', 120, 80],
   ['flame', 11, 16], ['campfire', 18, 24]
 ];
@@ -54,6 +54,14 @@ export function createAnimalAnims(scene) {
   add('stag-drinking', 'stag', [3], 1);
   add('stag-tired', 'stag', [4, 4, 4, 5, 5, 5], 2);
   add('stag-asleep', 'stag', [6, 6, 6, 6, 7, 7, 7, 7], 2);
+
+  // the moose by the road: eating, an ear turning, its head coming up, looking about
+  add('moose-graze', 'moose', [0, 1, 0, 1, 0, 0, 1, 0], 3);
+  add('moose-listen', 'moose', [2], 1);
+  add('moose-rise', 'moose', [3], 1);
+  add('moose-look', 'moose', [4, 4, 5, 4, 6, 4], 3);
+  add('moose-stamp', 'moose', [7, 4, 7, 4], 7);
+  add('moose-walk', 'moose', [8, 9, 10, 11, 12, 13, 14, 15], 12);
 
   add('squirrel-sit', 'squirrel', [0, 0, 0, 1, 0, 0, 1, 0], 4);   // nose down, the tail twitching
   add('squirrel-alert', 'squirrel', [2], 1);

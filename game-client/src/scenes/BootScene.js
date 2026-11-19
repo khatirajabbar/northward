@@ -46,7 +46,7 @@ export default class BootScene extends Phaser.Scene {
       'icon-bread', 'icon-carrot', 'icon-water', 'icon-rope',
       'tallgrass-a', 'tallgrass-b', 'tallgrass-c', 'tallgrass-low-a', 'tallgrass-low-b', 'bramble-a', 'bramble-b', 'bramble-c', 'bramble-low',
       'stone-a', 'stone-b', 'stone-c', 'water', 'torch', 'mud', 'dish',
-      'acorn', 'icon-acorn', 'oak-old', 'snag', 'fallen-log', 'windfall', 'trunk-long', 'ledge-1', 'ledge-2', 'ledge-3', 'ledge-4', 'bog', 'bog-post', 'plank-rotten', 'plank', 'trestle', 'daisy-tall', 'daisy-tall-yellow',
+      'acorn', 'icon-acorn', 'oak-old', 'snag', 'fallen-log', 'windfall', 'trunk-long', 'thicket', 'ledge-1', 'ledge-2', 'ledge-3', 'ledge-4', 'bog', 'bog-post', 'plank-rotten', 'plank', 'trestle', 'daisy-tall', 'daisy-tall-yellow',
       'hill', 'mushroom', 'boulder', 'daisy-white', 'daisy-yellow', 'daisy-white-small', 'daisy-yellow-small',
       'dusk-cold', 'dusk-warm', 'moon', 'sun', 'dusk-cloud-a', 'dusk-cloud-b', 'oak-b', 'bare-a', 'bare-b',
       'nest-bough', 'nest', 'bird-fallen', 'grave-mound', 'fire-pit', 'fire-logs', 'stick'

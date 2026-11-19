@@ -326,6 +326,131 @@ export function stag() {
   ], 68, 38);
 }
 
+// ── the moose by the road ──
+//
+// a bull: taller at the shoulder than you are, a hump over the forelegs, pale
+// stockings, a long face with a nose that hangs over, a bell under the chin,
+// and broad flat antlers. one drawing with a pose, like the horse: how far the
+// head is lowered (0 up and looking … 1 down in the bushes, eating), where
+// each hoof is, an ear, the jaw.
+
+const MOOSE = { body: [0x2c211a, 0x44342a, 0x5c4939], leg: [0x6f6456, 0x9a8d7a], muzzle: 0x7d6a58,
+  antler: [0x8f7d5c, 0xd9cba4], hoof: 0x17110d };
+const MOOSE_BUILD = { w: 84, h: 58, cx: 49, leg: 22, rx: 15, ry: 7.5, foreX: -11, hindX: 11, neck: 12, neckW: 10, head: 17 };
+
+function drawMoose({ headDrop = 0, hooves = [], ear = 0, chew = 0, bob = 0 } = {}) {
+  const B = MOOSE_BUILD, [dk, md, lt] = MOOSE.body, R = Math.round;
+  const ground = B.h - 1;
+  const hipY = ground - B.leg;                    // where the legs leave the body
+  const mid = hipY - B.ry + 2 + bob;              // middle of the barrel
+  const top = mid - B.ry;                         // the line of the back
+  const fore = B.cx + B.foreX, hind = B.cx + B.hindX;
+
+  return outlined(B.w, B.h, (g) => {
+    // a long leg: dark to the knee, a pale stocking below it
+    const leg = (hipX, hoof = [0, 0], isFore, far) => {
+      const [dx, lift] = hoof;
+      const fx = hipX + dx + (isFore ? 0 : 1), fy = ground - lift;
+      const kx = (hipX + fx) / 2 + (isFore ? -lift * 1.1 : 1.6 + lift * 0.7), ky = (hipY + fy) / 2 - 1;
+      limb(g, R(hipX) - 1, hipY - 2, R(kx) - 1, R(ky), 4, far ? dk : md);          // forearm / thigh
+      limb(g, R(kx), R(ky), R(fx), fy - 2, 2, far ? MOOSE.leg[0] : MOOSE.leg[1]);  // the stocking
+      g.rect(R(kx) - 1, R(ky) - 1, 3, 2, far ? dk : md);                           // a knobbly knee
+      g.rect(R(fx) - 1, fy - 1, 3, 2, MOOSE.hoof);
+    };
+
+    // far side first, in shadow
+    leg(fore + 4, hooves[2], true, true);
+    leg(hind + 3, hooves[3], false, true);
+
+    // a stub of a tail
+    g.rect(R(hind + B.rx * 0.5), top + 4, 2, 4, dk);
+
+    // the barrel, the hump over the shoulders, the rump falling away behind
+    g.ellipse(B.cx + 1, mid + 0.5, B.rx - 1, B.ry - 0.5, md);
+    g.ellipse(fore + 3, mid - 3, 8.5, B.ry + 4, md);                              // shoulder and hump
+    g.ellipse(hind - 1, mid + 1.5, 6.5, B.ry - 0.5, md);
+    g.poly([[fore + 6, top - 5], [hind + 4, top + 3], [hind + 4, mid], [fore + 6, mid]], md);   // the back, sloping down to the rump
+    g.ellipse(B.cx + 3, mid + B.ry * 0.72, B.rx * 0.66, B.ry * 0.26, dk);         // belly in shade
+    g.ellipse(fore - 2, mid + 3, 3, 4.5, dk);                                     // and the hollow behind the chest
+    g.line(fore + 1, top - 6, fore + 7, top - 5, lt);                             // light on the hump
+    g.line(fore + 9, top - 3, hind, top + 2, lt);                                 // and down the back
+    for (let x = fore - 2; x <= fore + 8; x += 2) g.put(x, top - 7 + (x % 4 === 0 ? 0 : 1), dk);   // the coarse hair on it
+
+    // near legs over the body
+    leg(fore, hooves[0], true, false);
+    leg(hind, hooves[1], false, false);
+
+    // neck: thick and short, from the hump out to the poll (up) or down to the bushes.
+    // d runs along the neck, n points to its crest
+    const th = (38 - headDrop * 88) * Math.PI / 180;
+    const d = [-Math.cos(th), -Math.sin(th)], n = [-d[1], d[0]];
+    const len = B.neck * (1 + headDrop * 0.45);
+    const withers = [fore + 7, top - 2], chest = [fore - 4, mid + 3];
+    const poll = [fore - 1 + d[0] * len, top + 3 + d[1] * len];
+    const w1 = B.neckW / 2 - 1.5;
+    g.poly([withers, chest, [poll[0] - n[0] * w1, poll[1] - n[1] * w1], [poll[0] + n[0] * w1, poll[1] + n[1] * w1]], md);
+    g.line(withers[0] - 1, withers[1], poll[0] + n[0] * w1, poll[1] + n[1] * w1, dk);                       // the mane down its crest
+
+    // head: h runs along the face from the poll to the nose, m points out of the forehead
+    const ph0 = 52, ph = ph0 + headDrop * 24;
+    const pr = ph * Math.PI / 180;
+    const h = [-Math.cos(pr), Math.sin(pr)], m = [-h[1], h[0]];
+    const at = (along, out) => [poll[0] + h[0] * along + m[0] * out, poll[1] + h[1] * along + m[1] * out + (along > B.head * 0.62 && out < 0 ? chew : 0)];
+
+    // antlers, before the head so it sits in front of where they spring from.
+    // drawn for the head held up, and tipped forward with it as it goes down:
+    // a short beam out of the brow, a broad flat palm, tines along its rim
+    const tip = -headDrop * 62 * Math.PI / 180, ct = Math.cos(tip), sn = Math.sin(tip);
+    const antler = (shift, tone, shade) => {
+      const brow = at(0.8 + shift, 3);
+      const P = ([x, y]) => [brow[0] + x * ct - y * sn, brow[1] + x * sn + y * ct];
+      limb(g, ...P([0, 0]).map(R), ...P([4, -3]).map(R), 2, shade);
+      g.poly([[3, -2], [2, -6], [5, -9], [10, -10], [15, -8], [16, -5], [12, -3], [7, -2]].map(P), tone);
+      g.poly([[3, -2], [7, -2], [12, -3], [16, -5], [12, -4.4], [7, -3.6]].map(P), shade);     // its underside, in shade
+      // tines along the rim, and one forward over the brow
+      [[[2, -6], [0, -9]], [[5, -9], [4, -12]], [[10, -10], [10, -13]], [[15, -8], [17, -11]], [[16, -5], [19, -5]],
+        [[3, -2], [-2, -3]], [[-2, -3], [-3, -6]]].forEach(([a, b]) => g.line(...P(a), ...P(b), tone));
+    };
+    antler(-3.5, MOOSE.antler[0], mix(MOOSE.antler[0], dk, 0.45));
+    antler(0, MOOSE.antler[1], MOOSE.antler[0]);
+
+    // an ear, behind the antler, turned back (or pricked toward a sound)
+    const eb = at(-2, 2.2), ev = ear ? [0.25, -1] : [0.85, -0.6];
+    g.poly([[eb[0] - 1, eb[1] + 1], [eb[0] + 2, eb[1] + 1], [eb[0] + ev[0] * 6 + 1, eb[1] + ev[1] * 6], [eb[0] + ev[0] * 6, eb[1] + ev[1] * 6]], md);
+    g.put(R(eb[0] + ev[0] * 2.5), R(eb[1] + ev[1] * 2.5), dk);
+
+    // the long face, and the nose hanging over the end of it
+    g.poly([at(-2, 3.6), at(-2, -3.4), at(B.head - 3, -2.6), at(B.head - 3, 2.4)], md);
+    g.ellipse(...at(1, 0), 4, 4, md);                                             // the round of the jaw
+    g.ellipse(...at(B.head - 3, -0.4), 3.6, 3.4, MOOSE.muzzle);                   // the bulb of the nose
+    g.ellipse(...at(B.head - 1.2, -1.6), 2.4, 2.3, MOOSE.muzzle);                 //   drooping over the lip
+    g.ellipse(...at(B.head - 4.5, 1.2), 2, 1.2, mix(MOOSE.muzzle, lt, 0.5));      // light on the bridge of it
+    const eye = at(3.4, 1.4), nostril = at(B.head - 1.4, 0.2);
+    g.put(R(eye[0]), R(eye[1]), EYE); g.put(R(eye[0]) - 1, R(eye[1]) - 1, lt);
+    g.put(R(nostril[0]), R(nostril[1]), EYE);
+    // the bell: the flap of hair under its chin, which always hangs straight down
+    const chin = at(5, -3.4);
+    g.rect(R(chin[0]) - 1, R(chin[1]), 3, 3, md); g.rect(R(chin[0]), R(chin[1]) + 3, 2, 3, dk);
+  }, C.ink);
+}
+
+export function moose() {
+  const frames = [
+    drawMoose({ headDrop: 1 }),                                   // 0 head down, eating
+    drawMoose({ headDrop: 1, chew: 1 }),                          // 1   its jaw going
+    drawMoose({ headDrop: 1, ear: 1 }),                           // 2   an ear turns (it's about to look up)
+    drawMoose({ headDrop: 0.5, ear: 1 }),                         // 3 the head coming up
+    drawMoose({}),                                                // 4 head up, looking
+    drawMoose({ ear: 1 }),                                        // 5   an ear turns
+    drawMoose({ bob: 1 }),                                        // 6   a breath
+    drawMoose({ headDrop: 0.15, ear: 1, hooves: [[-2, 5]] })      // 7 a forefoot lifted to stamp: it has seen you
+  ];
+  for (let i = 0; i < 8; i++) {                                   // 8-15 walking, head low, antlers first
+    frames.push(drawMoose({ headDrop: 0.22, ear: 1, hooves: stride(i / 8, 5, 3), bob: i % 4 === 1 ? 1 : 0 }));
+  }
+  return sheet(frames, MOOSE_BUILD.w + 2, MOOSE_BUILD.h + 2);
+}
+
 // ── the cat from the cliff: a grey tabby with a white bib and socks ──
 
 const CAT = { fur: [0x4f545c, 0x767c85, 0x9aa0a8], stripe: 0x3d4148, white: 0xf2f0e8, nose: 0xe59a9a };
@@ -733,6 +858,7 @@ export const FRAMES = {
   doe: { size: [DEER_BUILD.doe.w + 2, DEER_BUILD.doe.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 },
   fawn: { size: [DEER_BUILD.fawn.w + 2, DEER_BUILD.fawn.h + 2], idle: [0, 1], walk: [2, 7], leap: 8, nose: 9, frightened: 10 },
   stag: { size: [68, 38], watching: [0, 2], drinking: 3, tired: [4, 5], asleep: [6, 7] },
+  moose: { size: [MOOSE_BUILD.w + 2, MOOSE_BUILD.h + 2], graze: [0, 2], rising: 3, looking: [4, 6], stamp: 7, walk: [8, 15] },
   squirrel: { size: [30, 20], sit: [0, 1], alert: 2, run: [3, 6], holding: 7, peek: 8 },
   duck: { size: [26, 18], stand: [0, 1], call: 2, walk: [3, 4], swim: [5, 6] },
   duckling: { size: [14, 12], stand: 0, peep: 1, walk: [2, 3], hop: 4, swim: 5, held: [6, 7] },
