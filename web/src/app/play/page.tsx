@@ -1,7 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = { title: "play" };
+
+// a phone mustn't zoom in when the game's sign-in boxes are tapped (iPhone Safari does, and stays zoomed)
+export const viewport: Viewport = { width: "device-width", initialScale: 1, maximumScale: 1, viewportFit: "cover" };
 
 // The game, and nothing else: it fills the window under one thin bar.
 // Where it's loaded from is set in .env.local (NEXT_PUBLIC_GAME_URL).
@@ -11,8 +14,8 @@ export default function Play() {
   return (
     <div className="play">
       <header className="play__bar">
-        <Link href="/" className="label">
-          ← northward
+        <Link href="/" className="label" aria-label="back to northward">
+          ← <span className="play__name">northward</span>
         </Link>
       </header>
       {GAME ? (

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CREAM } from './guide.js';
 import { play } from '../audio/sound.js';
+import { tapKey } from './touch.js';
 
 // A wooden board on two ropes, let down from the top of the screen — the
 // game's menus are written on these, the same board the sign-in form is on
@@ -139,6 +140,7 @@ export default class Board {
     const row = scene.add.container(0, 0);
     let x = 0;
     hints.forEach(([caps, does]) => {
+      const from = x;
       caps.forEach((k) => {
         const cap = scene.add.image(x, 0, `ui-key-${k}`).setOrigin(0, 0.5).setScale(2);
         row.add(cap);
@@ -146,6 +148,13 @@ export default class Board {
       });
       const words = scene.add.bitmapText(x + 4, -9, 'px-edged', does).setScale(2).setTint(CREAM);
       row.add(words);
+      // a tap on it presses its key (the arrows are for moving, which a tap on a plank does)
+      const key = caps.find((k) => !['up', 'down', 'left', 'right'].includes(k));
+      if (key) {
+        const hit = scene.add.zone(from - 6, -22, words.x + words.width - from + 12, 44).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+        hit.on('pointerdown', () => tapKey(key));
+        row.add(hit);
+      }
       x = words.x + words.width + 26;
     });
     const [mid, under] = this.at(BOARD.w / 2, BOARD.plank * this.planks);

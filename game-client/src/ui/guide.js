@@ -83,6 +83,7 @@ export default class Guide {
   // ── the prompt: keys, then what they do — drawn in the world, over the traveler ──
 
   prompt(keys, label, x, y) {
+    this.scene.game.events.emit('asking', keys);         // (the phone buttons: touch.js)
     const sign = `${keys.join('+')}|${label}`;
     if (sign !== this.promptSign) {
       this.promptSign = sign;
@@ -100,6 +101,7 @@ export default class Guide {
 
   tip(keys, label, ms = 5200) {
     const { scene } = this;
+    scene.game.events.emit('asking', keys, ms + 1200);
     const { parts, width } = this.keyRow(keys, label, 2);
     const box = scene.add.container(this.W - 28 - width, 44, parts).setScrollFactor(0).setDepth(DEPTH + 5).setAlpha(0);
     scene.tweens.add({ targets: box, alpha: 1, duration: 300, hold: ms, yoyo: true, onComplete: () => box.destroy() });

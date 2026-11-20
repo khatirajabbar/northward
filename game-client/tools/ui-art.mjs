@@ -71,6 +71,21 @@ function key(label, { wide = false } = {}) {
   }, INK);
 }
 
+// for a phone held upright: the phone, an arrow, and the phone on its side
+function turnPhone() {
+  const cream = 0xf2ecdd, dim = 0x8d8678;
+  return outlined(40, 20, (g) => {
+    const phone = (x, y, w, h) => {
+      g.rect(x, y, w, h, cream); g.rect(x + 1, y + 1, w - 2, h - 2, 0x1b1d22);
+      if (w < h) g.hline(x + Math.floor(w / 2) - 1, y + h - 2, 2, dim); else g.vline(x + w - 2, y + Math.floor(h / 2) - 1, 2, dim);
+    };
+    phone(1, 2, 10, 17);                                       // upright
+    // an arrow across
+    g.hline(15, 10, 8, cream); [[20, 8], [21, 9], [20, 12], [21, 11], [22, 10]].forEach(([x, y]) => g.put(x, y, cream));
+    phone(27, 6, 12, 9);                                       // on its side
+  }, INK);
+}
+
 // the game's name, for the title screen: the font's own letters cut three
 // times as large — so the ink round them stays thin — lit from above, and with
 // a little thickness under them like letters sawn out of board
@@ -212,7 +227,7 @@ export function buildAll() {
     note: note(), 'note-tall': note(158), 'note-long': note(180), 'note-longer': note(202), tag: tag(), marker: marker(), checkbox: checkbox(), tick: tick(),
     title: title(), bin: bin(), sign: sign(), 'sign-8': sign({ planks: 8 }), rope: rope(), fullscreen: fullscreen(), sound: sound(), 'sound-off': sound({ off: true }), button: button(), 'button-down': button({ down: true }),
     'key-e': key('E'), 'key-i': key('I'), 'key-f': key('F'), 'key-x': key('X'), 'key-down': key('↓'), 'key-left': key('←'), 'key-right': key('→'), 'key-up': key('↑'),
-    'key-shift': key('shift', { wide: true }), 'key-esc': key('esc', { wide: true })
+    'key-shift': key('shift', { wide: true }), 'key-esc': key('esc', { wide: true }), 'turn-phone': turnPhone()
   };
 }
 

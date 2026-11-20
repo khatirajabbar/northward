@@ -4,6 +4,7 @@ import { auth, titleScene } from '../services/auth.js';
 import { clock, withCurrentTime } from '../services/progress.js';
 import Board from '../ui/board.js';
 import { isOn, setOn } from '../audio/sound.js';
+import { fullscreenWorks, standalone } from '../ui/touch.js';
 
 const MENU_ITEMS = ['resume', 'restart journey', 'full screen', 'music', 'sounds', 'save & quit', 'quit to title'];
 // walking without an account there's nothing to save to: the same place in the
@@ -27,13 +28,20 @@ export default class PauseScene extends Phaser.Scene {
     this.add.rectangle(0, 0, width, height, 0x0a0e12, 0.6).setOrigin(0, 0);
     this.board = new Board(this, { x: Math.round(width / 2 - 241), y: 64, planks: 8 }).drop();
     this.board.heading('paused');
-    this.items = MENU_ITEMS.map((item) => (item === 'save & quit' && !auth.isAuthenticated() ? KEEP : item));
+    this.items = MENU_ITEMS.map((item) => (item === 'save & quit' && !auth.isAuthenticated() ? KEEP : item))
+      .filter((item) => !(item === 'full screen' && standalone));          // (from a phone's home screen it's full screen already)
     this.board.menu(this.items.map((label) => ({ label: this.labelFor(label), item: label })), (item) => this.confirm(item.item));
     // M works in here too: keep the lines on the board saying which they are
     const relabel = () => ['music', 'sounds'].forEach((item) => this.board.setRow(this.items.indexOf(item), this.labelFor(item)));
     this.game.events.on('sound-toggled', relabel);
     this.events.once('shutdown', () => this.game.events.off('sound-toggled', relabel));
     this.board.keys([[['up', 'down'], 'choose'], [['e'], 'do it'], [['esc'], 'resume']]);
+    // the traveler's line of thought would sit under the keys at the foot of the board: put it away till you're back
+    const line = this.scene.get(this.caller)?.guide?.line;
+    if (line) {
+      line.setVisible(false);
+      this.events.once('shutdown', () => line.setVisible(true));
+    }
 
     this.input.keyboard.on('keydown-UP', () => this.board.move(-1));
     this.input.keyboard.on('keydown-W', () => this.board.move(-1));
@@ -48,7 +56,14 @@ export default class PauseScene extends Phaser.Scene {
   confirm(item) {
     if (item === 'resume') { this.resumeCaller(); return; }
     if (item === 'restart journey') { this.restartJourney(); return; }
-    if (item === 'full screen') { this.scale.toggleFullscreen(); return; }
+    if (item === 'full screen') {
+      if (fullscreenWorks) { this.scale.toggleFullscreen(); return; }
+      // an iPhone can't: say how to have the whole screen instead, for a moment
+      const row = this.items.indexOf('full screen');
+      this.board.setRow(row, 'add to home screen');
+      this.time.delayedCall(4000, () => this.board.setRow(row));
+      return;
+    }
     if (item === 'music' || item === 'sounds') { setOn(this.game, item, !isOn(item)); return; }
     if (item === 'save & quit') { this.saveAndQuit(); return; }
     if (item === KEEP) { this.keepJourney(); return; }

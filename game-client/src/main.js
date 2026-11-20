@@ -9,6 +9,7 @@ import EndingScene from './scenes/EndingScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import { auth } from './services/auth.js';
 import { isOn, toggleAll } from './audio/sound.js';
+import { setupTouch, fullscreenWorks, standalone } from './ui/touch.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -32,6 +33,7 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+setupTouch(game);                // phone controls (only on a phone)
 // development only (stripped from the production build): lets test scripts reach the game
 if (import.meta.env.DEV) window.__northward = game;
 
@@ -93,7 +95,16 @@ document.addEventListener('fullscreenchange', refit);
 // on the title screen full screen is something to click: the F key is busy
 // being a letter while you type your email
 const fullscreenBtn = document.getElementById('fullscreen-toggle');
-fullscreenBtn.addEventListener('click', () => game.scale.toggleFullscreen());
+// (opened from a phone's home screen it has the whole screen already; and on an
+// iPhone in Safari there's no going full screen, so the button says how instead)
+if (standalone) fullscreenBtn.hidden = true;
+fullscreenBtn.addEventListener('click', () => {
+  if (fullscreenWorks) { game.scale.toggleFullscreen(); return; }
+  const words = fullscreenBtn.querySelector('span');
+  words.textContent = 'share → add to home screen';
+  clearTimeout(fullscreenBtn.back);
+  fullscreenBtn.back = setTimeout(() => { words.textContent = 'full screen'; }, 5000);
+});
 document.addEventListener('fullscreenchange', () => {
   fullscreenBtn.querySelector('span').textContent = document.fullscreenElement ? 'leave full screen' : 'full screen';
 });
