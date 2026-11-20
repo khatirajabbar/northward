@@ -94,19 +94,20 @@ export default class ForestScene extends Phaser.Scene {
     this.horseX = along(2400);
     this.grassX = along(2900);   // tall-grass gate (only passable on horseback)
     this.meadowX = along(4700);  // where the other horses graze — the goodbye, a little after the river
+    this.pastMeadowX = this.meadowX + 150;   // where you come back to once you've said goodbye: the river and the horse are behind you
     this.crossX = along(5200);   // stepping-stone water crossing (crossed alone, after the goodbye)
     this.crossWidth = 460;       // gap in the ground (water)
     this.riverX = along(3900);   // the river — the horse carries you across, together, before goodbye
     this.riverWidth = 420;       // a real river — too wide and deep to cross on foot
-    this.riverTorchX = along(3680);   // checkpoint torch on the near bank of the river
+    this.riverTorchX = along(3680) - 160;   // checkpoint torch on the near bank of the river, back a little from the water
     this.stoneXs = [5020, 5110, 5200, 5290, 5380].map(along);  // 5 stones with real gaps to jump across
     this.respawnX = this.riverTorchX;  // default checkpoint — updates to each torch you light
     this.respawnY = this.standY;
-    this.torchX = along(4940);   // torch checkpoint before the crossing
+    this.torchX = along(4940) - 120;   // torch checkpoint before the crossing, back a little from the water (and past the moose's spruce)
     this.brambleTorchX = along(6900);   // torch checkpoint before the bramble (sprite built below)
     // checkpoint torches in world order — stable id -> world x. passing a torch
     // saves it as the active checkpoint (respawn a step past it on resume).
-    this.restTorchX = along(8700);     // torch checkpoint past the rest field, before the mud
+    this.restTorchX = along(8700) + 80;   // torch checkpoint past the boardwalk (a little clear of its last board), before the mud
     this.fawnX = along(9050);          // the boggy hollow where the fawn is stuck
     this.acornTorchX = along(9880);    // torch checkpoint past the mud, where the dropped acorns begin
     this.squirrelX = along(10640);     // the old oak the squirrel lives in (its acorns lie along the road before it)
@@ -341,6 +342,10 @@ export default class ForestScene extends Phaser.Scene {
       spawnX = this.torchCheckpoints[savedCheckpoint] - 10;   // beside the torch — a step past it can be water
       this.respawnX = this.torchCheckpoints[savedCheckpoint];
       this.respawnY = this.standY;
+      // saved after the goodbye but before the next torch: the river torch is
+      // on the far side of water you can only cross on the horse, so come
+      // back just past the meadow instead
+      if (savedCheckpoint === 'torch-1' && (this.saved.flags & FLAGS.goodbye)) spawnX = this.respawnX = this.pastMeadowX;
     }
     this.player = this.physics.add.sprite(spawnX, this.standY, `${this.characterId}-idle-sheet`, 39);
     this.player.setCollideWorldBounds(true);
@@ -1599,6 +1604,8 @@ export default class ForestScene extends Phaser.Scene {
     if (action === 'farewell') {
       play(this, 'horse-neigh');
       this.saidGoodbye = true;
+      // from here on, falling back to the river torch would leave you on the wrong side of the river
+      if (!this.currentCheckpoint || this.currentCheckpoint === 'torch-1') this.respawnX = this.pastMeadowX;
       if (this.riding) {
         this.riding = false;
         setTravelerBody(this.player);

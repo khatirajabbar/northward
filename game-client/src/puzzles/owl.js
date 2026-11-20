@@ -141,6 +141,8 @@ export default class OwlPuzzle {
     if (this.holding === 'chick') {
       if (this.onCart() && Math.abs(px - this.holeX) < REACH) return { label: 'put it back in the nest', action: 'owl-home' };
       if (!this.onCart() && Math.abs(px - this.holeX) < 60) return { label: "too high — i'll need something to stand on", keys: [], hint: true };
+      // one thing in your hands at a time: by the stone, put the chick down first
+      if (onGround && !this.wedged && Math.abs(px - this.stoneX) < NEAR) return { label: 'put the chick down first', action: 'owl-putchick' };
       return null;
     }
     if (!onGround) return null;
@@ -198,6 +200,13 @@ export default class OwlPuzzle {
         this.said.held = true;
         scene.showThought('light as anything. all fluff.', 2600);
       }
+      return true;
+    }
+    if (action === 'owl-putchick') {
+      crouch();
+      this.holding = null;
+      const x = player.x + (player.flipX ? -16 : 16);
+      this.chick.setPosition(x, this.floor(x) + 2).setDepth(6).setFlipX(false).play('owlet-sit');
       return true;
     }
     if (action === 'owl-home') {
