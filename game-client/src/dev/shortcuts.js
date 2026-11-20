@@ -17,7 +17,7 @@ function stops(forest) {
     ONE: ['the start', 120],
     TWO: ['the fox cub', forest.fox.logX - 330],
     THREE: ['the horse', along(2180)],
-    FOUR: ['the stepping stones', forest.torchX - 60],
+    FOUR: ['the stepping stones', forest.torchX + 20],
     FIVE: ['the mushroom hill', along(5640)],
     SIX: ['the bird in the thorns', forest.brambleTorchX - 60],
     SEVEN: ['the resting tree', forest.restTreeX - 280],

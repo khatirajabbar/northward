@@ -191,7 +191,7 @@ export default class MoosePuzzle {
     };
 
     if (this.mood === 'waiting') {
-      if (px > this.hideX + 200) { this.done = true; return; }           // (come back to the road beyond it)
+      if (px > this.hideX + 90) { this.done = true; return; }            // (come back to the road beyond its spruce: by its torch, say)
       if (px > this.startX) this.come();
       return;
     }

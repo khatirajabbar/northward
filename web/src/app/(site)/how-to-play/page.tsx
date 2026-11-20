@@ -10,9 +10,11 @@ const KEYS = [
   { caps: ["↑", "w", "space"], what: "jump." },
   { caps: ["e"], what: "do the thing in front of you. the game shows the key when there is one." },
   { caps: ["shift"], what: "hold it to go slowly and gently." },
+  { caps: ["x"], what: "hold it to run, when something needs you to hurry." },
   { caps: ["i"], what: "open your bag." },
   { caps: ["esc", "p"], what: "pause. save and leave, or begin again." },
   { caps: ["f"], what: "full screen." },
+  { caps: ["m"], what: "sound off, and on again." },
 ];
 
 const NOTES = [
