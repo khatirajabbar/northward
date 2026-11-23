@@ -197,6 +197,10 @@ a, button { transition: color 0.2s, text-shadow 0.5s; }
 .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: clamp(1.5rem, 4vw, 4rem); }
 .note { display: grid; gap: 0.5rem; align-content: start; }
 .note p { color: var(--grey); font-size: 0.875rem; }
+/* numbered steps inside a note (how to play: on an iphone) */
+.steps { list-style: none; counter-reset: step; display: grid; gap: 0.4rem; padding: 0; margin: 0.25rem 0; color: var(--grey); font-size: 0.875rem; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 1.75rem 1fr; }
+.steps li::before { content: counter(step, decimal-leading-zero); font-family: var(--font-mono), monospace; color: var(--white); }
 
 /* the board */
 .board { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
@@ -281,7 +285,12 @@ a, button { transition: color 0.2s, text-shadow 0.5s; }
 /* ── the play page: the game, and nothing else ── */
 
 .play { display: grid; grid-template-rows: auto 1fr; height: 100dvh; background: var(--black); }
-.play__bar { padding: 0.7rem var(--gutter); border-bottom: 1px solid var(--line); }
+.play__bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0.4rem 1.5rem; padding: 0.7rem var(--gutter); border-bottom: 1px solid var(--line); }
+/* for someone on an iPhone in Safari: one quiet line about the home screen (components/PhoneNote.tsx) */
+.play__note { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem; margin: 0; }
+.play__note a { color: var(--white); text-decoration: underline; text-underline-offset: 0.2em; }
+.play__note button { background: none; border: 0; padding: 0 0.25rem; color: var(--grey); font: inherit; cursor: pointer; }
+.play__note button:hover { color: var(--white); }
 .play__bar a:hover { color: var(--white); }
 .play__frame { width: 100%; height: 100%; border: 0; display: block; background: var(--black); }
 .play__missing { display: grid; place-content: center; gap: 0.75rem; padding: 2rem; text-align: center; color: var(--grey); }
@@ -289,7 +298,7 @@ a, button { transition: color 0.2s, text-shadow 0.5s; }
 @media (max-height: 500px) and (orientation: landscape) {
   .play { grid-template-rows: 1fr; position: relative; }
   .play__bar { position: absolute; top: 0; left: 0; z-index: 1; padding: 0.5rem 0.75rem; border: 0; font-size: 0.75rem; }
-  .play__name { display: none; }
+  .play__name, .play__note { display: none; }
 }
 
 /* ── the machine parts ── */

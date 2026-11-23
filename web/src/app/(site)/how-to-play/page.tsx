@@ -68,6 +68,43 @@ export default function HowToPlay() {
         </div>
       </div>
 
+      <div className="part" id="phone">
+        <div className="part__head">
+          <span className="label">03 / on a phone</span>
+          <span className="label">hold it sideways</span>
+        </div>
+        <div className="notes">
+          <div className="note">
+            <h2 className="title">on its side.</h2>
+            <p>
+              the forest is wide, so hold your phone sideways. the keys come with it: your left thumb walks, your right
+              thumb jumps and presses e, and the others come up when they&apos;re needed.
+            </p>
+          </div>
+          <div className="note">
+            <h2 className="title">on an iphone.</h2>
+            <p>
+              safari can&apos;t show a game on the whole screen; its own bars take a strip of it. kept on your home
+              screen, the forest has all of it:
+            </p>
+            <ol className="steps">
+              <li>open the play page in safari.</li>
+              <li>tap share: the square with an arrow pointing up.</li>
+              <li>choose &ldquo;add to home screen&rdquo;, then &ldquo;add&rdquo;.</li>
+              <li>open northward from its new icon.</li>
+            </ol>
+            <p>you&apos;ll sign in once more there. your journeys come with you.</p>
+          </div>
+          <div className="note">
+            <h2 className="title">on android.</h2>
+            <p>
+              it works in the browser as it is: tap full screen on the title. or add it to your home screen from the
+              browser&apos;s menu, and it opens on its side with all of the screen.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div>
         <Link href="/play" className="box">
           <Shuffle text="play" />

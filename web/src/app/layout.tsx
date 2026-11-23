@@ -17,6 +17,8 @@ const pixel = localFont({ src: "./fonts/pixelify-sans.woff2", weight: "400", var
 export const metadata: Metadata = {
   title: { default: "northward", template: "%s — northward" },
   description: "A quiet adventure through a Swedish forest. Plays in your browser.",
+  // kept on a phone's home screen (app/manifest.ts), it opens without the browser's bars
+  appleWebApp: { capable: true, title: "northward", statusBarStyle: "black" },
 };
 
 export const viewport: Viewport = { themeColor: "#000000" };
