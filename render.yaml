@@ -1,0 +1,81 @@
+# Northward's three services on Render (free plan), read by Render as a
+# "Blueprint": New → Blueprint → this repository. Each is built from its own
+# Dockerfile and only rebuilt when its own code changes.
+#
+# Their databases are on Neon. Render asks once for what isn't written here:
+#   ConnectionStrings__DefaultConnection — each service's own Neon database
+#   Admin__Password                      — the website's admin page (auth only)
+#
+# On the free plan a service falls asleep after ~15 quiet minutes and takes
+# 30–60 s to wake; the website asks them all to wake (/health) as soon as
+# someone opens it.
+
+envVarGroups:
+  - name: northward-shared
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # the sign-in passes: made by the auth service, checked by the other two,
+      # so all three must share them. Render makes up the secret once
+      - key: Jwt__Secret
+        generateValue: true
+      - key: Jwt__Issuer
+        value: northward
+      - key: Jwt__Audience
+        value: northward-players
+      - key: PORT
+        value: "8080"
+
+services:
+  - type: web
+    name: northward-auth
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerContext: .
+    dockerfilePath: ./src/Services/Northward.Auth/Northward.Auth.API/Dockerfile
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - src/Services/Northward.Auth/**
+    envVars:
+      - fromGroup: northward-shared
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Admin__Password
+        sync: false
+
+  - type: web
+    name: northward-game
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerContext: .
+    dockerfilePath: ./src/Services/Northward.Game/Northward.Game.API/Dockerfile
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - src/Services/Northward.Game/**
+    envVars:
+      - fromGroup: northward-shared
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+
+  - type: web
+    name: northward-leaderboard
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerContext: .
+    dockerfilePath: ./src/Services/Northward.Leaderboard/Northward.Leaderboard.API/Dockerfile
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - src/Services/Northward.Leaderboard/**
+    envVars:
+      - fromGroup: northward-shared
+      - key: ConnectionStrings__DefaultConnection
+        sync: false

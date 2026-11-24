@@ -25,7 +25,4 @@
     <Project Path="src/Services/Northward.Leaderboard/Northward.Leaderboard.Domain/Northward.Leaderboard.Domain.csproj" />
     <Project Path="src/Services/Northward.Leaderboard/Northward.Leaderboard.Infrastructure/Northward.Leaderboard.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/src/WebApp/">
-    <Project Path="src/WebApp/Northward.WebApp/Northward.WebApp.csproj" />
-  </Folder>
 </Solution>

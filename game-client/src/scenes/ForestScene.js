@@ -1,0 +1,1705 @@
+import Phaser from 'phaser';
+import { game } from '../services/game.js';
+import { makeCat, updateCatFollow } from '../characters/cat.js';
+import { FOREST_SCALE, FEET, setTravelerBody } from '../characters/lpc.js';
+import { HORSE_BACK } from '../characters/animals.js';
+import { FLAGS, tickClock, encodeProgress, decodeProgress } from '../services/progress.js';
+import FoxCubPuzzle from '../puzzles/foxCub.js';
+import FawnPuzzle from '../puzzles/fawn.js';
+import OldStagPuzzle from '../puzzles/oldStag.js';
+import SquirrelPuzzle from '../puzzles/squirrel.js';
+import DucklingPuzzle from '../puzzles/duckling.js';
+import BridgePuzzle from '../puzzles/bridge.js';
+import TurtlePuzzle from '../puzzles/turtle.js';
+import BeePuzzle from '../puzzles/bee.js';
+import MoosePuzzle from '../puzzles/moose.js';
+import FishPuzzle from '../puzzles/fish.js';
+import OwlPuzzle from '../puzzles/owl.js';
+import CatRope from '../puzzles/catRope.js';
+import Evening from '../world/evening.js';
+import Hills from '../world/hills.js';
+import Gallop from '../world/gallop.js';
+import StoneStair from '../world/stoneStair.js';
+import Boardwalk from '../world/boardwalk.js';
+import Windfall from '../world/windfall.js';
+import GuideBird from '../world/guideBird.js';
+import Walks from '../world/walks.js';
+import Leaps from '../world/leaps.js';
+import { along } from '../world/road.js';
+import { play, bed, level, fade, steps, nearness, nowAndThen } from '../audio/sound.js';
+import Guide, { INK, PENCIL } from '../ui/guide.js';
+
+// The forest's art is drawn small by tools/forest-art.mjs (the same palette and
+// trees as the cabin) and shown at 2x.
+const ART = 2;
+// how far the cat reaches out in front of its middle: where it stops short of
+// something to jump it, and lands clear past it
+const CAT_ROOM = 30;
+
+// the same throws of the dice every time — for dressing a stretch of road by rule
+function seeded(seed) {
+  let s = seed;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export default class ForestScene extends Phaser.Scene {
+  constructor() {
+    super('ForestScene');
+  }
+
+  create() {
+    const { width, height } = this.scale;
+    this.W = width;
+    this.H = height;
+    // positions past the tall grass are written as they were on the first,
+    // shorter road; along() moves each one on past the stretches added since
+    // (see world/road.js)
+    const worldWidth = along(16600);
+    this.groundY = height - 60;
+    // the ground is flat but for the hills of the stretches that have them,
+    // and wherever you have to jump, whoever follows you jumps too
+    this.hills = new Hills(this, this.groundY);
+    this.leaps = new Leaps(this);
+    this.gallop = new Gallop(this);
+    this.stair = new StoneStair(this);
+    this.boardwalk = new Boardwalk(this);
+    this.windfall = new Windfall(this);
+    this.walks = new Walks(this);
+    // where the sprite's centre sits when the traveler stands on the ground
+    this.standY = this.groundY - FEET * FOREST_SCALE - 4;
+    // riding: how far the drawing is lifted so the traveler's seat rests on the horse's back
+    this.rideLift = Math.round(HORSE_BACK * ART - 7 - 13 * FOREST_SCALE);
+
+    // ── landmark positions ──
+    this.lakeCenterX = along(1980);
+
+    // ── state ──
+    this.characterId = this.registry.get('playAs') || 'lpc-khatira';
+    this.kindness = this.registry.get('kindness') || 0;
+
+    // ── inventory (generic: holds any item by name) ──
+    // you packed a bag before leaving home — a few things are already in it
+    this.inventory = this.registry.get('inventory') || {};
+    this.bagOpen = false;
+    // a little carrot field — a cluster you can harvest
+    this.carrotXs = [820, 860, 900, 940, 980, 1020, 1060, 1100, 1140];
+    this.carrotSprites = [];
+
+    // ── the horse (a gate: hungry, won't let you pass until fed) ──
+    this.horseX = along(2400);
+    this.grassX = along(2900);   // tall-grass gate (only passable on horseback)
+    this.meadowX = along(4700);  // where the other horses graze — the goodbye, a little after the river
+    this.pastMeadowX = this.meadowX + 150;   // where you come back to once you've said goodbye: the river and the horse are behind you
+    this.crossX = along(5200);   // stepping-stone water crossing (crossed alone, after the goodbye)
+    this.crossWidth = 460;       // gap in the ground (water)
+    this.riverX = along(3900);   // the river — the horse carries you across, together, before goodbye
+    this.riverWidth = 420;       // a real river — too wide and deep to cross on foot
+    this.riverTorchX = along(3680) - 160;   // checkpoint torch on the near bank of the river, back a little from the water
+    this.stoneXs = [5020, 5110, 5200, 5290, 5380].map(along);  // 5 stones with real gaps to jump across
+    this.respawnX = this.riverTorchX;  // default checkpoint — updates to each torch you light
+    this.respawnY = this.standY;
+    this.torchX = along(4940) - 120;   // torch checkpoint before the crossing, back a little from the water (and past the moose's spruce)
+    this.brambleTorchX = along(6900);   // torch checkpoint before the bramble (sprite built below)
+    // checkpoint torches in world order — stable id -> world x. passing a torch
+    // saves it as the active checkpoint (respawn a step past it on resume).
+    this.restTorchX = along(8700) + 80;   // torch checkpoint past the boardwalk (a little clear of its last board), before the mud
+    this.fawnX = along(9050);          // the boggy hollow where the fawn is stuck
+    this.acornTorchX = along(9880);    // torch checkpoint past the mud, where the dropped acorns begin
+    this.squirrelX = along(10640);     // the old oak the squirrel lives in (its acorns lie along the road before it)
+    this.duckLogX = along(11120);      // the fallen log a duckling can't get over…
+    this.duckPondX = along(12030);     // …and the pond where its family is, a good walk further on
+    this.stagX = along(12650);         // the glade where the old stag lies under his oak
+    this.beeX = along(13250);          // the bumblebee busy in the daisies (three clumps of them, from here on)
+    this.turtleX = along(13900);       // the turtle on its back, beside the road
+    this.bridgeTorchX = along(14140);  // torch checkpoint before the last of the road
+    this.brookL = along(14848);        // the brook near the end, bank to bank — its bridge is down
+    this.brookR = along(15184);        //   (three boards' width: see puzzles/bridge.js)
+    this.lastStretchX = this.brookL - 110;   // the scream reaches you at the water's edge; the rest lies beyond the brook
+    this.torchCheckpoints = { 'torch-1': this.riverTorchX, 'torch-2': this.torchX, 'torch-3': this.brambleTorchX,
+      'torch-4': this.restTorchX, 'torch-5': this.acornTorchX, 'torch-6': this.bridgeTorchX };
+    this.currentCheckpoint = null;
+    this.saidGoodbye = false;
+    this.grassWidth = 440;
+    this.horseFed = false;
+    this.riding = false;
+    this.carryingCat = false;
+    this.catFollowing = false;
+    // what the saved run had already done (empty on a fresh forest entry)
+    this.saved = decodeProgress(this.registry.get('checkpoint'));
+    this.pickedCarrots = 0;     // bitmask over carrotXs
+    this.walkSpeed = 220;
+    this.rideSpeed = 380;
+    this.carrotSprites = [];
+
+    // ── sky, and the forest behind the road: three lines of trees sliding by at
+    // their own speeds, the farthest slowest ──
+    this.cameras.main.setBackgroundColor('#6fa3bd');
+    this.add.image(0, 0, 'woods-sky').setOrigin(0, 0).setScale(ART).setScrollFactor(0).setDepth(-30);
+    this.bgLayers = [];
+    const addLayer = (key, factor, depth) => {
+      const ts = this.add.tileSprite(0, 0, width, height, key);
+      ts.setOrigin(0, 0).setScrollFactor(0).setTileScale(ART, ART).setDepth(depth);
+      ts.parallaxFactor = factor;
+      this.bgLayers.push(ts);
+    };
+    addLayer('woods-far', 0.1, -24);
+    addLayer('woods-mid', 0.22, -23);
+    addLayer('woods-near', 0.4, -22);
+
+    // ── ground ──
+    this.platforms = this.physics.add.staticGroup();
+    const gapL = this.crossX - this.crossWidth / 2;
+    const gapR = this.crossX + this.crossWidth / 2;
+    const rivL = this.riverX - this.riverWidth / 2;
+    const rivR = this.riverX + this.riverWidth / 2;
+    // physics tiles are invisible now — the layered earth below draws the look,
+    // in unbroken runs that stop exactly where the tiles stop at the water gaps.
+    // the hills draw and hold up their own ground: there's no tile under them,
+    // and the runs stop right at their edges
+    const groundRuns = [];
+    let runStart = null;
+    for (let x = 0; x < worldWidth; x += 16) {
+      const water = (x > gapL - 16 && x < gapR) ||         // gap over the stepping-stone water
+          (x > rivL - 16 && x < rivR) ||                   // gap over the river
+          (x >= this.brookL && x < this.brookR);           // gap over the brook with the broken bridge
+      if (water) {
+        if (runStart !== null) { groundRuns.push([runStart, x]); runStart = null; }
+        continue;
+      }
+      if (runStart === null) runStart = x;
+      if (this.hills.on(x + 8)) continue;
+      const tile = this.platforms.create(x, this.groundY, 'grass').setOrigin(0, 0);
+      tile.refreshBody();
+      tile.setVisible(false);
+    }
+    if (runStart !== null) groundRuns.push([runStart, worldWidth]);
+    const runs = this.hills.list.reduce((left, hill) => left.flatMap(([x0, x1]) =>
+      (hill.to <= x0 || hill.from >= x1) ? [[x0, x1]] : [[x0, hill.from], [hill.to, x1]].filter(([a, b]) => b > a)), groundRuns);
+    // every run shows the ground art as it falls at its own x on the road, so a
+    // hill (or the next run) picks up exactly where the last one left off
+    runs.forEach(([x0, x1]) => {
+      this.add.tileSprite(x0, this.groundY, x1 - x0, 80, 'woods-ground')
+        .setOrigin(0, 0).setTileScale(ART, ART).setTilePosition(x0 / ART, 0).setDepth(2);
+      this.add.tileSprite(x0, this.groundY + 2, x1 - x0, 12, 'woods-fringe')
+        .setOrigin(0, 1).setTileScale(ART, ART).setTilePosition(x0 / ART, 0).setDepth(5);
+    });
+    this.hills.draw();
+
+    // ── forest dressing — spruce, pine and birch along the whole road, with
+    // bushes, ferns, grass and flowers under them. everything sits at depth 1
+    // (trees) or 4-5 (undergrowth), behind the gameplay objects, and the
+    // placements stay clear of the landmarks so nothing readable is covered.
+    // `y` is given as if the road were flat; on a hill it's lifted to match ──
+    const prop = (key, x, depth, flip = false, y = this.groundY + 4) =>
+      this.add.image(x, y - (this.groundY - this.hills.surfaceAt(x)), `woods-${key}`)
+        .setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(flip);
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+    [[120, 'spruce-b'], [300, 'birch-a'], [470, 'spruce-a'], [700, 'pine-a'], [760, 'spruce-c'],
+     [1230, 'birch-b'], [1400, 'spruce-a'], [1510, 'spruce-b'], [1790, 'birch-a'], [2150, 'spruce-a', true],
+     [2290, 'spruce-c'], [2560, 'birch-b'], [2640, 'spruce-b'], [3180, 'spruce-a'], [3330, 'pine-a'],
+     [3470, 'birch-a', true], [3600, 'spruce-b'], [4180, 'spruce-b', true], [4320, 'birch-a'], [4470, 'spruce-a'],
+     [4860, 'pine-a', true], [5480, 'spruce-a'], [5600, 'birch-b'], [5690, 'spruce-c'], [6760, 'spruce-b'],
+     [6840, 'birch-a'], [6980, 'spruce-a', true], [7420, 'pine-a'], [7540, 'spruce-b'],
+     [8780, 'spruce-b'], [8900, 'birch-a', true], [9240, 'pine-a'], [9330, 'spruce-c'], [9480, 'spruce-a'],
+     [9620, 'birch-a', true], [9760, 'spruce-b'], [9940, 'pine-a'],
+     // the squirrel's stretch — kept open round the bush, the dead tree and its oak
+     [10110, 'spruce-a', true], [10290, 'birch-b'], [10500, 'spruce-c'], [10830, 'spruce-b'], [10960, 'birch-a', true],
+     // the duckling's stretch: the log, and the pond
+     [11160, 'spruce-a'], [11300, 'pine-a'], [11430, 'birch-b'], [11560, 'spruce-c'], [11830, 'spruce-b'],
+     [11960, 'birch-a'], [12110, 'spruce-a', true], [12270, 'pine-a'], [12410, 'spruce-a'], [12480, 'birch-b'],
+    ].forEach(([x, key, flip]) => prop(key, along(x), 1, !!flip));
+    [260, 560, 1300, 1450, 2180, 2500, 3250, 3420, 4380, 4900, 5540, 6820, 7480, 8820, 9420, 9560, 9700,
+     10800, 11240, 11600, 12330].forEach((x, i) => {
+      prop(i % 2 ? 'bush-b' : 'bush-a', along(x) + (Math.random() * 20 - 10), 4, Math.random() < 0.5, this.groundY + 3);
+    });
+    [380, 2230, 4240, 9840].map(along).concat(this.brookR + 150).forEach((x) => prop('stump', x, 4, false, this.groundY + 3));
+    this.gallop.dress(prop, seeded(31));
+    this.stair.dress(prop, seeded(41));
+    this.boardwalk.dress(prop);
+    this.windfall.dress(prop);
+    this.walks.dress(prop);
+    // the last of the road, from the stag's glade on, is dressed by rule rather
+    // than by hand — it keeps growing — with nothing standing in the brook
+    const dice = seeded(12);
+    const dry = (x, a = 40) => x < this.brookL - a || x > this.brookR + a;
+    for (let x = this.stagX + 300; x < worldWidth - 40; x += 120 + Math.floor(dice() * 90)) {
+      if (dry(x)) prop(['spruce-a', 'spruce-b', 'spruce-c', 'pine-a', 'birch-a', 'birch-b'][Math.floor(dice() * 6)], x, 1, dice() < 0.3);
+    }
+    for (let x = this.stagX + 180; x < worldWidth - 60; x += 330 + Math.floor(dice() * 140)) {
+      const near = (at) => Math.abs(x - at) < 120;
+      if (dry(x, 60) && !near(this.turtleX + 150)) prop(dice() < 0.5 ? 'bush-a' : 'bush-b', x, 4, dice() < 0.5, this.groundY + 3);
+    }
+    // scattered undergrowth — skipping the water, the tall-grass gate, the
+    // mushroom slope, the bramble and the rest field, which dress themselves
+    const dressSkip = [
+      [rivL - 40, rivR + 40], [gapL - 40, gapR + 40],
+      [this.grassX - this.grassWidth / 2 - 60, this.grassX + this.grassWidth / 2 + 60],
+      [along(5700), along(6700)], [along(7020), along(7380)], [along(7650), along(8660)],
+      [along(1520), along(1740)],                    // the fox cub's log
+      [this.fawnX - 200, this.fawnX + 200],          // the mud
+      [this.stagX - 130, this.stagX + 90],           // where the old stag lies
+      [this.squirrelX - 490, this.squirrelX - 410],  // the bush with an acorn in it
+      [this.squirrelX - 320, this.squirrelX - 190],  // the big mushroom and the dead tree
+      [this.duckLogX - 110, this.duckLogX + 90],     // the log the duckling is stuck behind
+      [this.duckPondX - 150, this.duckPondX - 30],   // the bank where its family waits
+      [this.brookL - 60, this.brookR + 60],          // the brook
+      [this.beeX - 70, this.beeX + 480],             // the bee's daisies (no other flowers about among them)
+      [this.boardwalk.bogL - 20, this.boardwalk.bogR + 20]   // the bog under the boardwalk
+    ];
+    for (let x = 140; x < worldWidth - 80; x += 90) {
+      if (dressSkip.some(([a, b]) => x > a && x < b)) continue;
+      if (Math.random() < 0.75) {
+        prop(pick(['tuft-a', 'tuft-b', 'tuft-b', 'tuft-c']), x + (Math.random() * 30 - 15), 5, Math.random() < 0.5, this.groundY + 3);
+      }
+      if (Math.random() < 0.4) {
+        prop(pick(['flower-white', 'flower-yellow', 'flower-pink']), x + (Math.random() * 50 - 25), 5, false, this.groundY + 2);
+      }
+      if (Math.random() < 0.14) prop('fern', x + 40, 4, Math.random() < 0.5, this.groundY + 3);
+      if (Math.random() < 0.08) prop('pebble', x + 20, 4, false, this.groundY + 3);
+    }
+    // ── water — one tiled painting of a river: a lit edge, a bright surface,
+    // then down into the dark. it drifts slowly (see update) ──
+    this.waters = [];
+    const addWater = (cx, w, top, h, depth, flow, alpha = 1) => {
+      const water = this.add.tileSprite(cx - w / 2, this.groundY + top, w, h, 'woods-water')
+        .setOrigin(0, 0).setTileScale(ART, ART).setDepth(depth).setAlpha(alpha);
+      water.flow = flow;
+      water.drift = Math.random() * 64;
+      this.waters.push(water);
+    };
+    // the river filling its pit
+    addWater(this.riverX, this.riverWidth + 20, 14, 88, 3, 5);
+    // the near surface, drawn ABOVE the horse — its legs sink behind this, so it reads as in the water
+    addWater(this.riverX, this.riverWidth + 20, 18, 30, 11, 8, 0.94);
+
+    // the stepping-stone crossing — same water
+    addWater(this.crossX, this.crossWidth + 20, 14, 88, 3, 5);
+    // stepping stones — tops level with the ground, so you must JUMP between them.
+    // the physics ellipse is invisible; a drawn stone sits at the same spot
+    // (its top edge exactly on the ellipse's top)
+    this.stones = this.physics.add.staticGroup();
+    this.stoneXs.forEach((sx, i) => {
+      const stone = this.add.ellipse(sx, this.groundY + 6, 44, 20, 0x6b7278).setDepth(6).setVisible(false);
+      this.physics.add.existing(stone, true);
+      stone.body.setSize(40, 12).setOffset(2, 0);
+      this.stones.add(stone);
+      this.add.image(sx, this.groundY - 6, `woods-stone-${'abc'[i % 3]}`)
+        .setOrigin(0.5, 0).setScale(ART).setDepth(6).setFlipX(i % 2 === 1);
+    });
+    // the near surface over the stones — their feet sit IN the water instead of on top of it
+    addWater(this.crossX, this.crossWidth + 20, 18, 12, 7, 8, 0.88);
+    // the brook near the end of the road — the same water, under a bridge that has lost its boards
+    addWater((this.brookL + this.brookR) / 2, this.brookR - this.brookL + 20, 14, 88, 3, 6);
+    addWater((this.brookL + this.brookR) / 2, this.brookR - this.brookL + 20, 18, 12, 7, 9, 0.88);
+
+    // ── checkpoint torches — each starts unlit and lights as you pass it:
+    // on the near bank of the river, before the crossing, and before the bramble ──
+    this.torches = {
+      'torch-1': this.makeTorch(this.riverTorchX),
+      'torch-2': this.makeTorch(this.torchX),
+      'torch-3': this.makeTorch(this.brambleTorchX),
+      'torch-4': this.makeTorch(this.restTorchX),
+      'torch-5': this.makeTorch(this.acornTorchX),
+      'torch-6': this.makeTorch(this.bridgeTorchX)
+    };
+
+
+    // ── the pond — a small woodland pool in front of the path, light sliding on it ──
+    this.add.image(this.lakeCenterX, this.groundY + 4, 'woods-pond').setOrigin(0.5, 0).setScale(ART).setDepth(8);
+    const shimmer = this.add.rectangle(this.lakeCenterX - 30, this.groundY + 26, 26, 2, 0xdff3f2, 0.7).setDepth(8);
+    this.tweens.add({ targets: shimmer, x: this.lakeCenterX + 40, alpha: 0.15,
+      duration: 2800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+
+    // ── carrots on the path — planted: the root tip sits below the ground
+    // line and a little mound of turned earth covers it, so only the greens
+    // and the orange shoulder show. each one sits its own way — a slightly
+    // different size, depth in the soil, and mound — a patch, not a row ──
+    // on resume, the carrots picked in the saved run stay picked
+    this.carrotXs.forEach((cx, index) => {
+      if (this.saved.field & (1 << index)) return;
+      const carrot = this.add.image(cx, this.groundY + 5 + Math.round(Math.random() * 2), 'woods-carrot')
+        .setOrigin(0.5, 1).setScale(ART).setDepth(4);
+      carrot.itemX = cx;
+      carrot.fieldIndex = index;
+      this.tweens.add({ targets: carrot, angle: { from: -4, to: 4 }, duration: 1200 + Math.random() * 400,
+        yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      prop(Math.random() < 0.5 ? 'mound-a' : 'mound-b', cx, 4, Math.random() < 0.5, this.groundY + 8);
+      this.carrotSprites.push(carrot);
+    });
+
+    // ── player ──
+    // resume: if a saved checkpoint matches a known torch, spawn beside it
+    // on the ground; otherwise (null/unknown) start at the forest entrance
+    const savedCheckpoint = this.saved.place;
+    let spawnX = 120;
+    if (savedCheckpoint && this.torchCheckpoints[savedCheckpoint] !== undefined) {
+      this.currentCheckpoint = savedCheckpoint;
+      spawnX = this.torchCheckpoints[savedCheckpoint] - 10;   // beside the torch — a step past it can be water
+      this.respawnX = this.torchCheckpoints[savedCheckpoint];
+      this.respawnY = this.standY;
+      // saved after the goodbye but before the next torch: the river torch is
+      // on the far side of water you can only cross on the horse, so come
+      // back just past the meadow instead
+      if (savedCheckpoint === 'torch-1' && (this.saved.flags & FLAGS.goodbye)) spawnX = this.respawnX = this.pastMeadowX;
+    }
+    this.player = this.physics.add.sprite(spawnX, this.standY, `${this.characterId}-idle-sheet`, 39);
+    this.player.setCollideWorldBounds(true);
+    this.player.setDragX(800);
+    this.player.setMaxVelocity(220, 700);
+    this.player.setScale(FOREST_SCALE);
+    setTravelerBody(this.player);
+    this.player.setDepth(10);
+    this.physics.add.collider(this.player, this.platforms);
+    this.hills.hold(this.player.body);
+
+    this.physics.add.collider(this.player, this.stones);
+
+    // ── the stone stair's rock faces, and the bird from the window: waiting
+    // on a stump in the gallop and in some of the quiet stretches, and on top
+    // of the stair ──
+    this.stair.place();
+    this.windowBird = new GuideBird(this, [...this.gallop.perches(), ...this.stair.perches(), ...this.boardwalk.place(), ...this.windfall.place(), ...this.walks.perches()]);
+
+    // ── river crossing: an invisible floor across the gap, solid ONLY while riding ──
+    // ride over it and the horse carries you across the surface; on foot it passes and you fall in
+    this.riverBridge = this.add.rectangle(this.riverX, this.groundY + 50, this.riverWidth + 8, 12).setVisible(false);
+    this.physics.add.existing(this.riverBridge, true);
+    this.physics.add.collider(this.player, this.riverBridge, null, () => this.riding, this);
+
+    // ── the horse goes no further than the far edge of the meadow: the stones
+    // are yours to cross alone. an invisible stop, solid only while riding ──
+    this.horseStopX = this.meadowX + 150;
+    const horseStop = this.add.rectangle(this.horseStopX + 16, this.groundY - 300, 12, 640).setVisible(false);
+    this.physics.add.existing(horseStop, true);
+    this.physics.add.collider(this.player, horseStop, () => {
+      if (this.horseStopShown) return;
+      this.horseStopShown = true;
+      this.showThought("it won't go any further. this is where it belongs.", 3600);
+    }, () => this.riding, this);
+
+    // ── cat-on-cliff: the final cliff top (reached by climbing mushrooms) ──
+    this.ledges = this.physics.add.staticGroup();
+    const makeLedge = (x, topY, w, h = 320) => {
+      // invisible collision strip only — the green polygon slope draws the visuals.
+      // (a visible rectangle here used to stick out past the slope and make a lip.)
+      const ledge = this.add.rectangle(x, topY + h / 2, w, h, 0x3f6d4e).setVisible(false);
+      this.physics.add.existing(ledge, true);
+      ledge.body.checkCollision.down = false;   // one-way: only land on top
+      ledge.body.checkCollision.left = false;   // walk past/under it on the ground
+      ledge.body.checkCollision.right = false;
+      this.ledges.add(ledge);
+    };
+    this.cliffTopX = along(6460);
+    this.cliffTopY = this.groundY - 300;
+    makeLedge(this.cliffTopX + 10, this.cliffTopY, 240, 16);   // collision strip — only under the visible flat green
+
+    // (no torch on the cliff top — there's nothing to fall into here, so no
+    // checkpoint is needed; the mushroom hill is a gentle, no-death section.)
+
+    this.physics.add.collider(this.player, this.ledges);
+
+    // ── the big rock on the cliff top, behind the cat. you walk past it to
+    // the lip of the cliff, loop your rope round it and let yourselves down
+    // the rock face together (puzzles/catRope.js) ──
+    this.rockWall = this.add.image(this.cliffTopX + 100, this.cliffTopY + 6, 'woods-boulder')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(8);
+    // seat the rock into the grass — tufts against its base in front
+    [-26, -4, 18, 34].forEach((dx, i) => {
+      this.add.image(this.cliffTopX + 100 + dx, this.cliffTopY + 4, i % 2 ? 'woods-tuft-b' : 'woods-tuft-a')
+        .setOrigin(0.5, 1).setScale(ART).setDepth(9);
+    });
+    // the flat top runs on past the rock to the lip, where you can't just walk off
+    const lipX = this.cliffTopX + 230;
+    makeLedge(this.cliffTopX + 180, this.cliffTopY, 100, 16);
+    const lip = this.add.rectangle(lipX + 3, this.cliffTopY - 60, 6, 120).setVisible(false);
+    this.physics.add.existing(lip, true);
+    this.physics.add.collider(this.player, lip);
+    this.catRope = new CatRope(this, { rockX: this.cliffTopX + 100, waistY: this.cliffTopY - 34, edgeX: lipX, topY: this.cliffTopY });
+    // with the cat in your arms, the mushrooms are no way down: you stop at the top of them
+    const mushroomTop = this.add.rectangle(this.cliffTopX - 113, this.cliffTopY - 60, 6, 120).setVisible(false);
+    this.physics.add.existing(mushroomTop, true);
+    this.physics.add.collider(this.player, mushroomTop, () => {
+      if (this.mushroomsSaid) return;
+      this.mushroomsSaid = true;
+      this.showThought("not down the mushrooms, not with the cat. one bad bounce and we'd both fall.", 4200);
+    }, () => this.carryingCat, this);
+    // and you don't go on without your rope: at the foot of the stone stair you remember it
+    const ropeStop = this.add.rectangle(this.stair.from + 180, this.groundY - 300, 12, 640).setVisible(false);
+    this.physics.add.existing(ropeStop, true);
+    this.physics.add.collider(this.player, ropeStop, () => {
+      if (this.ropeStopSaid) return;
+      this.ropeStopSaid = true;
+      this.showThought("wait. my rope's still up on the cliff, round that rock. i'll need it.", 4200);
+    }, () => this.catRope.left, this);
+
+    // ── bounce mushrooms: one on the ground, then one on each step, climbing to the cliff ──
+    this.mushrooms = this.physics.add.staticGroup();
+    const makeBounce = (x, groundTopY, scale, power, solid = true) => {
+      const capY = groundTopY - 12;
+      // the drawing is shown at the art's own size (`scale` still sizes the bounce
+      // pad). it's planted deep and drawn BEHIND the hill, so the slope's own turf
+      // closes over the foot of the stem and it grows out of the ground
+      const m = this.add.image(x, capY + 10, 'woods-mushroom').setOrigin(0.5, 1).setScale(ART).setDepth(2.5);
+      this.tweens.add({ targets: m, scaleX: { from: ART, to: ART + 0.1 }, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      const pad = this.add.rectangle(x, capY - scale * 18, 34 * scale, 10, 0xff0000, 0).setDepth(7);
+      this.physics.add.existing(pad, true);
+      pad.bounceMush = m;
+      pad.bouncePower = power;
+      if (solid) {
+        this.mushrooms.add(pad);
+      } else {
+        // ground spring: walk straight past it; hop and drop onto it to start the climb
+        this.physics.add.overlap(this.player, pad, () => {
+          if (this.player.body.velocity.y > 40) {
+            this.player.setVelocityY(power);
+            play(this, 'bounce');
+            this.tweens.add({ targets: m, scaleY: { from: m.scaleY, to: m.scaleY * 0.65 }, duration: 90, yoyo: true });
+          }
+        });
+      }
+    };
+
+    // ── a green mountain SLOPE rising to the cliff, with bounce mushrooms and
+    // little flowers growing on it. the slope is the look; the mushrooms on top
+    // are what you bounce up. ──
+    const mtnLeft = along(5760), peakX = along(6440);
+    const peakTop = this.cliffTopY;                 // slope meets the cliff height
+
+    // the green surface height at a given x — a smooth diagonal rising left->right
+    const surfaceTopY = (x) => {
+      const t = Phaser.Math.Clamp((x - mtnLeft) / (peakX - mtnLeft), 0, 1);
+      const eased = t * t * (3 - 2 * t);            // smoothstep, a soft curve
+      return this.groundY - (this.groundY - peakTop) * eased;
+    };
+
+    // the hill itself is one painting (tools/forest-art.mjs draws it to these
+    // same measurements): a ramp rising left->right that levels into a flat top
+    // at the peak and runs on under the whole rock to a sheer drop
+    const platRight = this.cliffTopX + 230;
+    this.add.image(mtnLeft, this.groundY + 6, 'woods-hill').setOrigin(0, 1).setScale(ART).setDepth(3);
+
+    // scatter little flowers ALONG the whole green — up the slope, across the cliff
+    // top by the cat, and behind the rock — so it's lush but never looks like a
+    // bounce mushroom (only the real bounce mushrooms are mushrooms now).
+    // (the mushrooms keep a little clear ground around their stems)
+    const mushroomXs = [];
+    for (let x = mtnLeft + 90; x <= peakX - 230; x += 90) mushroomXs.push(x);
+    const plantFlower = (x) => {
+      if (mushroomXs.some((mx) => Math.abs(x - mx) < 30)) return;
+      const top = surfaceTopY(x) + 2;   // returns the flat cliff height past the peak
+      const key = `woods-daisy-${Math.random() < 0.5 ? 'white' : 'yellow'}${Math.random() < 0.4 ? '-small' : ''}`;
+      this.add.image(x + (Math.random() - 0.5) * 14, top, key)
+        .setOrigin(0.5, 1).setScale(ART).setDepth(4);
+    };
+    // denser flowers up the slope
+    for (let x = mtnLeft + 20; x < peakX - 60; x += 22) {
+      if (Math.random() < 0.7) plantFlower(x);
+    }
+    // flowers across the cliff top (by the cat) and behind the rock
+    for (let x = peakX - 40; x <= platRight - 10; x += 24) {
+      if (Math.random() < 0.7) plantFlower(x);
+    }
+
+    // the green slope is decoration — you climb by bouncing up the mushrooms,
+    // which sit flush on the slope surface as the path up to the cat.
+    this.makeBounce = makeBounce;          // the squirrel's stretch has a mushroom of its own
+    mushroomXs.forEach((x) => {
+      const top = surfaceTopY(x);
+      const power = -440 - (this.groundY - top) * 0.30;
+      makeBounce(x, top + 10, 1.3, power, true);   // +10 sinks the base into the grass
+    });
+
+    this.physics.add.collider(this.player, this.mushrooms, (player, pad) => {
+      // only bounce when coming DOWN onto the cap (player above it, falling).
+      // hitting from below or the side just passes — no flatten, no fall-through.
+      const fromAbove = player.body.velocity.y >= 0 && player.body.bottom <= pad.body.top + 24;
+      if (fromAbove) {
+        player.setVelocityY(pad.bouncePower);
+        play(this, 'bounce');
+        this.tweens.add({ targets: pad.bounceMush, scaleY: { from: pad.bounceMush.scaleY, to: pad.bounceMush.scaleY * 0.65 }, duration: 90, yoyo: true });
+      }
+    }, (player, pad) => {
+      // process callback: only treat as a collision when landing on top
+      return player.body.velocity.y >= 0 && player.body.bottom <= pad.body.top + 24;
+    });
+
+    // ── the scared cat, stranded on the cliff top — too afraid to climb down ──
+    this.catSprite = makeCat(this, this.cliffTopX, this.cliffTopY).setDepth(9);
+    this.catSprite.play('cat-scared');
+    this.catRescued = false;
+    this.catBreathe = this.tweens.add({ targets: this.catSprite, scaleY: ART * 1.06,
+      duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });   // quick, anxious little breaths
+
+    // ── the meadow: other horses grazing (your horse's future friends) ──
+    this.meadowHorses = [];
+    const meadowData = [
+      { x: this.meadowX - 130, key: 'horse-grey' },
+      { x: this.meadowX + 140, key: 'horse-dark', flip: true },
+      { x: this.meadowX + 40, key: 'foal' }
+    ];
+    meadowData.forEach((h, i) => {
+      const m = this.add.sprite(h.x, this.groundY + 2, `woods-${h.key}`)
+        .setOrigin(0.5, 1).setScale(ART).setDepth(4).setFlipX(!!h.flip);
+      m.animKey = h.key;
+      m.baseX = h.x;
+      m.play({ key: `${h.key}-graze`, startFrame: i * 2 });
+      // heads down in the grass, and up now and then to look around
+      this.time.addEvent({ delay: 5200 + i * 1700, loop: true, callback: () => {
+        if (m.anims.currentAnim?.key === `${h.key}-eat`) return;
+        m.play(m.anims.currentAnim?.key === `${h.key}-graze` ? `${h.key}-idle` : `${h.key}-graze`);
+      } });
+      this.meadowHorses.push(m);
+    });
+
+    // ── tall-grass gate (only passable on horseback) — the tallest of it stands
+    // behind you and a lower row in front, so you wade through it rather than
+    // walk past it ──
+    this.grassBlades = [];
+    const grassRows = [
+      [3, 0, ['tallgrass-a', 'tallgrass-b', 'tallgrass-c']],
+      [11, 11, ['tallgrass-low-a', 'tallgrass-low-b']]
+    ];
+    for (let gx = this.grassX - this.grassWidth / 2; gx <= this.grassX + this.grassWidth / 2; gx += 22) {
+      grassRows.forEach(([depth, shift, kinds]) => {
+        const blade = this.add.image(gx + shift, this.groundY + 4, `woods-${pick(kinds)}`)
+          .setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(Math.random() < 0.5);
+        blade.baseX = gx + shift;
+        // gentle idle sway
+        this.tweens.add({ targets: blade, angle: { from: -2, to: 2 },
+          duration: 1600 + Math.random() * 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        this.grassBlades.push(blade);
+      });
+    }
+    // wall at the grass — a real physics wall (can't be pushed through),
+    // removed once you've learned the grass is safe by riding through it
+    this.grassWall = this.add.rectangle(this.grassX - this.grassWidth / 2, this.groundY - 300, 12, 640).setVisible(false);
+    this.physics.add.existing(this.grassWall, true);
+    this.grassWallCollider = this.physics.add.collider(this.player, this.grassWall);
+    this.grassNoticed = false;
+    this.grassLearned = false;
+    this.grassLearnedShown = false;
+
+
+    // ── bramble thicket past the cliff — a frightened bird is tangled inside.
+    // tall canes behind you and low runners in front, so you're IN the thorns ──
+    this.brambleX = along(7200);
+    this.brambleWidth = 280;
+    this.brambleBlades = [];
+    const brambleKinds = ['bramble-a', 'bramble-b', 'bramble-c'];
+    const thicket = (key, bx, depth) => {
+      const thorn = this.add.image(bx, this.groundY + 4, `woods-${key}`)
+        .setOrigin(0.5, 1).setScale(ART).setDepth(depth).setFlipX(Math.random() < 0.5);
+      thorn.baseX = bx;
+      this.brambleBlades.push(thorn);
+    };
+    for (let bx = this.brambleX - this.brambleWidth / 2 + 10; bx <= this.brambleX + this.brambleWidth / 2; bx += 52) {
+      thicket(brambleKinds[this.brambleBlades.length % 3], bx, 7);
+    }
+    for (let bx = this.brambleX - this.brambleWidth / 2 + 30; bx <= this.brambleX + this.brambleWidth / 2; bx += 84) {
+      thicket('bramble-low', bx, 11);
+    }
+    // the trapped bird, low in the thorns near the far side
+    this.birdX = along(7280);
+    this.birdFreed = false;
+    this.birdHintShown = false;
+    this.birdPanicking = false;
+    this.birdSprite = this.add.sprite(this.birdX, this.groundY - 28, 'woods-bird')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(8);
+    this.birdSprite.play('bird-struggle');   // beating its wings — it's struggling to get free
+
+    // ── resting field — trees, bushes, grass, and flowers, a wide quiet place after the bird ──
+    this.restTreeX = along(8000);
+    // a smaller tree close beside the big one, slightly behind — a natural pair, not a row
+    prop('birch-a', this.restTreeX - 120, 4, true);
+    prop('oak-a', this.restTreeX, 6);
+    // bushes scattered at a few points, mid-height texture between flowers and trees
+    const restBushXs = [-300, -210, -50, 90, 190, 300, 480];
+    restBushXs.forEach((dx) => {
+      prop(pick(['bush-a', 'bush-b']), this.restTreeX + dx + (Math.random() * 20 - 10), 5, Math.random() < 0.5, this.groundY + 3);
+    });
+    // tufts of grass scattered through the field, uneven and low
+    const restGrassXs = [-320, -270, -220, -170, -120, -70, -20, 30, 80, 130, 180, 230, 280, 320,
+                          360, 400, 440, 490, 540, 590];
+    restGrassXs.forEach((dx) => {
+      prop(pick(['tuft-b', 'tuft-c', 'tuft-c']), this.restTreeX + dx + (Math.random() * 14 - 7), 5, Math.random() < 0.5, this.groundY + 3);
+    });
+    // flowers scattered unevenly through the field — not a neat row
+    const restFlowerXs = [-330, -300, -260, -230, -195, -160, -130, -95, -65, -30, 5, 40,
+                           75, 110, 145, 180, 215, 250, 285, 315,
+                           380, 460, 550];
+    restFlowerXs.forEach((dx) => {
+      prop(pick(['flower-white', 'flower-yellow', 'flower-pink']), this.restTreeX + dx + (Math.random() * 16 - 8), 5, false, this.groundY + 2);
+    });
+    this.restEntryShown = false;
+    this.resting = false;
+    this.restAtField = false;   // resting under the big tree (vs. sitting to wait somewhere else)
+    this.restTimer = 0;
+    this.restBirdVisited = false;
+    this.restRabbitsVisited = false;
+
+    // ── the horse + its gate ──
+    this.horseSprite = this.add.sprite(this.horseX, this.groundY + 2, 'woods-horse')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(4);
+    this.horseSprite.play('horse-idle');
+    // invisible gate just past the horse — blocks you until it's fed
+    this.horseGate = this.add.rectangle(this.horseX + 70, this.groundY - 300, 12, 640).setVisible(false);
+    this.physics.add.existing(this.horseGate, true);
+    this.horseGateCollider = this.physics.add.collider(this.player, this.horseGate);
+
+    // invisible wall at the water's edge — you stop at the shore, can't walk on the lake
+    // (lake is now a foreground pool beside the path — no full wall)
+
+
+    this.physics.world.setBounds(0, 0, worldWidth, height + 400);
+    this.cameras.main.setBounds(0, 0, worldWidth, height);
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    // the lerped follow lands on fractional scroll positions; snap rendering to the pixel grid
+    this.cameras.main.setRoundPixels(true);
+
+    // ── input ──
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.wasd = this.input.keyboard.addKeys('W,A,S,D');
+    this.keyE = this.input.keyboard.addKey('E');
+    this.keyI = this.input.keyboard.addKey('I');
+    // hold to walk slowly and gently — matters most in the bramble
+    this.keyShift = this.input.keyboard.addKey('SHIFT');
+    const openPause = () => { this.scene.pause(); this.scene.launch('PauseScene', { caller: this.scene.key }); };
+    this.input.keyboard.on('keydown-P', openPause);
+    this.input.keyboard.on('keydown-ESC', openPause);
+
+    // ── the guide: the task in hand, its marker, the key prompts, the thoughts ──
+    this.guide = new Guide(this);
+    bed(this, { 'amb-forest': 1, 'amb-wind': 1, 'music-forest': 1 });
+    // and the small sounds of things going on off the road: by day a woodpecker,
+    // a twig, a bird calling; an owl once it's dark
+    nowAndThen(this, () => {
+      const t = this.evening ? this.evening.t : 0;
+      if (t < 0.5) return { id: Phaser.Utils.Array.GetRandom(['woodpecker', 'twig', 'birdcall']) };
+      if (t > 0.75 && Math.random() < 0.6) return { id: 'owl', volume: 0.7 };
+      return null;
+    }, [9000, 20000]);
+
+    this.player.play(`${this.characterId}-idle`);
+    // ── the fox cub in the hollow log, between the carrot field and the lake ──
+    this.fox = new FoxCubPuzzle(this, along(1680));
+    // ── the moose that comes up behind you, in the quiet stretch after the meadow ──
+    this.moose = new MoosePuzzle(this);
+    // ── the trout in a drying puddle, a way on from the stepping stones ──
+    this.fish = new FishPuzzle(this);
+    // ── the owl chick fallen out of its nest, and the handcart, after the fawn ──
+    this.owl = new OwlPuzzle(this);
+    // ── the fawn in the mud, on the new road past the rest tree ──
+    this.fawn = new FawnPuzzle(this, this.fawnX);
+    // ── the squirrel and its dropped acorns, on the way to its oak ──
+    this.squirrel = new SquirrelPuzzle(this, this.squirrelX);
+    // ── the duckling on the wrong side of a log, and its family at the pond ──
+    this.duck = new DucklingPuzzle(this, this.duckLogX, this.duckPondX);
+    // ── the old stag under the oak, further up the same road ──
+    this.add.image(this.stagX + 84, this.groundY + 4, 'woods-oak-b').setOrigin(0.5, 1).setScale(ART).setDepth(3);
+    this.stag = new OldStagPuzzle(this, this.stagX);
+    // ── the bumblebee, worn out, a little way past the stag ──
+    this.bumblebee = new BeePuzzle(this, this.beeX);
+    // ── the turtle on its back, on the way down to the brook ──
+    this.turtle = new TurtlePuzzle(this, this.turtleX);
+    // ── the brook, and the bridge to mend before you can cross it ──
+    this.bridge = new BridgePuzzle(this, this.brookL, this.brookR);
+    // ── and over all of that last stretch, evening falls ──
+    this.evening = new Evening(this, this.stagX, this.brookR + 620);
+
+    this.restoreProgress();
+    this.windowBird.start(this.player.x);
+    this.buildTasks();
+    if (this.saved.place === 'start') {
+      this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
+      this.time.delayedCall(4200, () => this.guide.tip(['i'], 'open your bag'));
+    }
+    // development only: number keys that jump along the road (dev/shortcuts.js)
+    if (import.meta.env.DEV) import('../dev/shortcuts.js').then((dev) => { if (this.scene.isActive()) dev.forestShortcuts(this); });
+  }
+
+  // put the world back the way the saved run left it
+  restoreProgress() {
+    const saved = this.saved;
+    if (!saved.saved) {
+      // nothing saved yet (or a journey continued from before the forest was
+      // ever saved): you still left home with your bag packed
+      if (!Object.keys(this.inventory).length) this.inventory = { bread: 1, water: 1, rope: 1 };
+      return;
+    }
+    const has = (flag) => (saved.flags & flag) !== 0;
+
+    // every torch up to the one you're starting at was lit on the way here
+    if (this.currentCheckpoint) {
+      const reached = this.torchCheckpoints[this.currentCheckpoint];
+      Object.values(this.torches).forEach((torch) => { if (torch.x <= reached) this.lightTorch(torch, true); });
+    }
+
+    // the bag you packed at home, minus whatever the saved run already gave away
+    this.inventory = { bread: has(FLAGS.fox) ? 0 : 1, water: has(FLAGS.stag) ? 0 : 1, rope: 1, carrots: saved.carrots };
+    if (has(FLAGS.fox)) this.fox.restore();
+    if (has(FLAGS.fawn)) this.fawn.restore();
+    if (has(FLAGS.stag)) this.stag.restore();
+    if (has(FLAGS.squirrel)) this.squirrel.restore();
+    if (has(FLAGS.duckling)) this.duck.restore();
+    if (has(FLAGS.bridge)) this.bridge.restore();
+    if (has(FLAGS.turtle)) this.turtle.restore();
+    if (has(FLAGS.bee)) this.bumblebee.restore();
+    if (has(FLAGS.fish)) this.fish.restore();
+    if (has(FLAGS.owl)) this.owl.restore();
+    this.pickedCarrots = saved.field;
+
+    // the little tree you could water is gone from the road. a journey saved
+    // before then still counts its point, so take it back off; the next save
+    // drops the old flag, so this only ever happens once
+    if (has(FLAGS.tree)) {
+      this.kindness = Math.max(0, this.kindness - 1);
+      this.registry.set('kindness', this.kindness);
+    }
+    if (has(FLAGS.horseFed)) {
+      this.horseFed = true;
+      this.physics.world.removeCollider(this.horseGateCollider);
+    }
+    if (has(FLAGS.grassLearned)) {
+      this.grassLearned = true;
+      this.grassLearnedShown = true;
+      this.physics.world.removeCollider(this.grassWallCollider);
+      this.grassWallCollider = null;
+    }
+    if (has(FLAGS.goodbye)) {
+      this.saidGoodbye = true;
+      this.horseSprite.x = this.meadowX - 30;
+      this.horseSprite.play('horse-graze');
+    } else if (this.horseFed) {
+      this.horseSprite.x = Math.min(this.player.x - 70, this.horseStopX);   // waiting beside you, or at the meadow's edge
+    }
+    this.meadowHorses.forEach((m, i) => { if (saved.meadow & (1 << i)) m.fed = true; });
+    if (has(FLAGS.cat)) {
+      this.catRescued = true;
+      this.catFollowing = true;
+      this.calmCat();
+      this.catSprite.setPosition(this.player.x - 50, this.hills.surfaceAt(this.player.x - 50) + 2);
+      this.catSprite.play('cat-stand');
+    }
+    if (has(FLAGS.bird)) {
+      this.birdFreed = true;
+      this.birdSprite.stop().setVisible(false);
+    }
+  }
+
+  // everything worth keeping about this run, packed for the game service
+  snapshot() {
+    let flags = 0;
+    if (this.horseFed) flags |= FLAGS.horseFed;
+    if (this.grassLearned) flags |= FLAGS.grassLearned;
+    if (this.saidGoodbye) flags |= FLAGS.goodbye;
+    if (this.catRescued) flags |= FLAGS.cat;
+    if (this.birdFreed) flags |= FLAGS.bird;
+    if (this.fox.done) flags |= FLAGS.fox;
+    if (this.fawn.done) flags |= FLAGS.fawn;
+    if (this.stag.done) flags |= FLAGS.stag;
+    if (this.squirrel.done) flags |= FLAGS.squirrel;
+    if (this.duck.done) flags |= FLAGS.duckling;
+    if (this.bridge.done) flags |= FLAGS.bridge;
+    if (this.turtle.done) flags |= FLAGS.turtle;
+    if (this.bumblebee.done) flags |= FLAGS.bee;
+    if (this.fish.done) flags |= FLAGS.fish;
+    if (this.owl.done) flags |= FLAGS.owl;
+    let meadow = 0;
+    this.meadowHorses.forEach((m, i) => { if (m.fed) meadow |= 1 << i; });
+    return encodeProgress({
+      place: this.currentCheckpoint || 'start',
+      carrots: this.inventory.carrots || 0,
+      field: this.pickedCarrots,
+      meadow,
+      flags
+    });
+  }
+
+  // keep the registry copy current (PauseScene and EndingScene read it) and
+  // save to the backend when a session exists (game.saveProgress sends saves
+  // one at a time, in order, so the newest is always the one that's kept)
+  saveProgress(sceneKey = 'ForestScene') {
+    const state = this.snapshot();
+    this.registry.set('checkpoint', state);
+    game.saveProgress(this.registry.get('sessionId'), sceneKey, this.kindness, state);
+  }
+
+  // a checkpoint torch — unlit until you walk past it
+  makeTorch(x) {
+    const post = this.add.image(x, this.groundY + 2, 'woods-torch').setOrigin(0.5, 1).setScale(ART).setDepth(6);
+    const flame = this.add.sprite(x, this.groundY - 58, 'woods-flame')
+      .setOrigin(0.5, 1).setScale(ART).setDepth(7).setVisible(false);
+    const glow = this.add.circle(x, this.groundY - 70, 34, 0xffb347, 0).setDepth(5);
+    return { x, post, flame, glow, lit: false };
+  }
+
+  // `already`: one you lit before this journey was saved — it's simply burning
+  // when you come back, with no whoosh of sparks
+  lightTorch(torch, already = false) {
+    torch.lit = true;
+    if (!already) play(this, 'torch');
+    torch.flame.setVisible(true).play('flame-burn');
+    this.tweens.add({ targets: torch.glow, alpha: 0.18, duration: already ? 1 : 600, ease: 'Sine.out',
+      onComplete: () => {
+        this.tweens.add({ targets: torch.glow, alpha: { from: 0.10, to: 0.22 }, scale: { from: 0.92, to: 1.08 },
+          duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      } });
+    if (already) return;
+    // a little whoosh of sparks
+    for (let i = 0; i < 10; i++) {
+      const sp = this.add.rectangle(torch.x, this.groundY - 68, 2, 2, 0xffd27a, 0.9).setDepth(7);
+      const a = Math.random() * Math.PI * 2;
+      this.tweens.add({ targets: sp, x: torch.x + Math.cos(a) * 26, y: this.groundY - 68 + Math.sin(a) * 26 - 14,
+        alpha: 0, duration: 700 + Math.random() * 400, onComplete: () => sp.destroy() });
+    }
+  }
+
+  // the cat stops trembling once it's safe with you
+  calmCat() {
+    if (this.catBreathe) { this.catBreathe.stop(); this.catBreathe = null; }
+    this.catSprite.setScale(ART);
+  }
+
+  // a rabbit crosses the resting field in hops: in from behind you, a pause
+  // where you can see it — and it looks back at you — then on its way
+  sendRabbit(index) {
+    const floor = this.groundY + 2;
+    const dir = this.player.flipX ? -1 : 1;
+    const rabbit = this.add.sprite(this.player.x - dir * (300 + index * 30), floor, 'woods-rabbit', 0)
+      .setOrigin(0.5, 1).setScale(ART).setDepth(9);
+    const pauseX = this.player.x + dir * (74 + index * 40), exitX = this.player.x + dir * 720;
+    const hopTo = (targetX, then) => {
+      const left = targetX - rabbit.x;
+      if (Math.abs(left) < 6) { then(); return; }
+      const step = Math.sign(left) * Math.min(Math.abs(left), 42);
+      rabbit.setFlipX(step > 0);                                      // the art faces left
+      rabbit.play('rabbit-hop');
+      this.tweens.add({ targets: rabbit, x: rabbit.x + step, duration: 320 });
+      this.tweens.add({ targets: rabbit, y: floor - 14, duration: 160, yoyo: true, ease: 'Quad.out',
+        onComplete: () => {
+          rabbit.setFrame(0);
+          this.time.delayedCall(110, () => hopTo(targetX, then));     // a breath between hops
+        } });
+    };
+    hopTo(pauseX, () => {
+      rabbit.setFlipX(rabbit.x < this.player.x);
+      rabbit.play('rabbit-sit');
+      this.time.delayedCall(1700 + index * 350, () => hopTo(exitX, () => rabbit.destroy()));
+    });
+  }
+
+  // `now`: say it straight away, even over a line that's still being said (a moose!)
+  showThought(text, ms = 2800, now = false) {
+    this.guide.say(text, ms + 1200, { now });
+  }
+
+  // What needs you along the road, in the order you come to it. A task is in
+  // hand while it applies (`when`) and isn't done, until you've walked on past
+  // it (`until`) — the tag and the marker follow, but helping is always your
+  // choice. `where` is the spot the marker hangs over; `sight` is what has to
+  // have been on screen before the task shows at all (see followTasks).
+  // The horse, the tall grass, the river, the moose and the bridge have no
+  // `until`: the road doesn't go on without them.
+  buildTasks() {
+    const g = this.groundY;
+    const px = () => this.player.x;
+    const carrots = () => this.inventory.carrots || 0;
+    const firstCarrot = () => this.carrotSprites.find((c) => c.active);
+    const grassRight = this.grassX + this.grassWidth / 2;
+    const riverRight = this.riverX + this.riverWidth / 2;
+    const stonesRight = this.crossX + this.crossWidth / 2;
+    const withHorse = () => this.horseFed && !this.saidGoodbye;
+    this.tasks = [
+      { id: 'carrots', text: 'pick a carrot or two',
+        done: () => carrots() > 0 || this.horseFed || !firstCarrot(), until: () => 1300,
+        where: () => { const c = firstCarrot(); return c ? [c.itemX, g - 44] : null; } },
+      { id: 'fox-bread', text: 'leave some bread by the hollow log',
+        when: () => (this.inventory.bread || 0) > 0 || this.fox.stage !== 'hiding',
+        done: () => this.fox.stage !== 'hiding', until: () => this.fox.logX + 240,
+        where: () => [this.fox.logX, g - 76] },
+      { id: 'fox-wait', text: 'step well back, sit down and wait',
+        when: () => this.fox.stage !== 'hiding', sight: null,
+        done: () => this.fox.done, until: () => this.fox.logX + 420,
+        where: () => (this.resting ? null : [this.fox.breadX - 190, g - 46]) },
+      { id: 'horse-carrot', text: 'the horse is hungry — go back for a carrot',
+        when: () => !this.horseFed && this.metHorse && !!firstCarrot(),
+        done: () => carrots() > 0, sight: null,
+        where: () => { const c = firstCarrot(); return c ? [c.itemX, g - 44] : null; } },
+      { id: 'horse', text: 'give the hungry horse a carrot',
+        done: () => this.horseFed,
+        where: () => [this.horseSprite.x, g - 96] },
+      { id: 'mount', text: 'climb onto the horse',
+        when: withHorse, sight: null,
+        done: () => this.riding || px() > riverRight + 30,
+        where: () => [this.horseSprite.x, g - 96] },
+      { id: 'grass', text: 'ride through the tall grass',
+        when: withHorse, sight: () => this.grassX - this.grassWidth / 2,
+        done: () => px() > grassRight + 30,
+        where: () => [grassRight + 80, g - 70] },
+      { id: 'river', text: 'ride across the river',
+        when: withHorse, sight: () => this.riverX - this.riverWidth / 2,
+        done: () => px() > riverRight + 30,
+        where: () => [riverRight + 80, g - 70] },
+      { id: 'goodbye', text: 'say goodbye at the meadow',
+        when: () => this.horseFed,
+        done: () => this.saidGoodbye, until: () => this.moose.from + 200,
+        where: () => [this.meadowX, g - 110] },
+      { id: 'moose', text: 'run from the moose and hide in the young spruce',
+        when: () => this.moose.started, done: () => this.moose.done,
+        where: () => this.moose.hideAt() },
+      { id: 'stones', text: 'jump across the stones',
+        done: () => px() > stonesRight + 10, sight: () => this.crossX - this.crossWidth / 2,
+        where: () => [stonesRight + 60, g - 60] },
+      { id: 'fish', text: 'take the fish back to the river — hold X to run',
+        done: () => this.fish.done, until: () => (this.fish.state === 'puddle' ? this.fish.x + 300 : Infinity),
+        sight: () => this.fish.x, where: () => this.fish.where() },
+      { id: 'cat', text: 'climb the mushrooms up to the cat',
+        done: () => this.catRescued, until: () => along(6790),
+        where: () => [this.catSprite.x, this.catSprite.y - 50] },
+      { id: 'cat-rope', text: 'loop your rope round the rock, and let yourselves down',
+        when: () => this.carryingCat || this.catRope.done,
+        done: () => this.catRope.lowering || this.catRope.done || this.catFollowing || this.player.body.bottom > this.cliffTopY + 60,
+        until: () => this.cliffTopX + 700, sight: null,
+        where: () => [this.cliffTopX + 200, this.cliffTopY - 56] },
+      { id: 'cat-down', text: 'carry the cat down and set it on the ground',
+        when: () => this.carryingCat || this.catFollowing,
+        done: () => this.catFollowing, until: () => this.cliffTopX + 700, sight: null,
+        where: () => null },
+      { id: 'rope-back', text: 'go back up the mushrooms for your rope',
+        when: () => this.catRope.left || this.catRope.taken, sight: null,
+        done: () => this.catRope.taken,
+        where: () => [this.cliffTopX + 100, this.cliffTopY - 118] },
+      { id: 'bird', text: 'free the bird — gently, through the thorns',
+        done: () => this.birdFreed, until: () => this.brambleX + this.brambleWidth / 2 + 220,
+        where: () => [this.birdX, g - 84] },
+      { id: 'rest', text: 'rest a while under the big tree',
+        done: () => !!this.hasRested, until: () => this.restTreeX + 320,
+        where: () => [this.restTreeX, g - 76] },
+      { id: 'fawn-rope', text: 'throw your rope to the fawn in the mud',
+        done: () => this.fawn.stage !== 'stuck', until: () => this.fawnX + 460,
+        where: () => [this.fawnX, g - 50] },
+      { id: 'fawn-pull', text: 'draw it out gently: hold shift, walk away',
+        when: () => this.fawn.stage === 'roped' || this.fawn.done,
+        done: () => this.fawn.done, until: () => this.fawnX + 460, sight: null,
+        where: () => null },
+      { id: 'owl', text: 'put the owl chick back in its nest',
+        done: () => this.owl.done, until: () => (this.owl.holding || Math.abs(this.owl.x - this.owl.from - 90) > 20 ? Infinity : this.owl.treeX + 400),
+        sight: () => this.owl.treeX, where: () => this.owl.where() },
+      { id: 'acorns', text: 'pick up the three acorns someone dropped',
+        done: () => this.squirrel.count === 3 || this.squirrel.done, until: () => this.squirrelX + 220,
+        where: () => this.squirrel.nextSpot() },
+      { id: 'squirrel', text: 'give the squirrel its acorns',
+        when: () => this.squirrel.count === 3 || this.squirrel.done,
+        done: () => this.squirrel.done, until: () => this.squirrelX + 220,
+        where: () => [this.squirrel.squirrel.x, g - 56] },
+      { id: 'duck-carry', text: 'pick up the duckling and carry it over the log',
+        done: () => !this.duck.onNearSide(), until: () => this.duckLogX + 260,
+        where: () => (this.duck.stage === 'held' ? [this.duckLogX + 130, g - 40] : [this.duck.duckling.x, g - 44]) },
+      { id: 'duck-lead', text: 'lead it to the pond — slowly, so it keeps up',
+        when: () => !this.duck.onNearSide(), sight: null,
+        done: () => this.duck.done, until: () => this.duckPondX + 420,
+        where: () => (this.duck.waiting ? [this.duck.duckling.x, g - 44] : [this.duck.bankX, g - 64]) },
+      { id: 'stag-water', text: 'offer the old stag some water',
+        done: () => this.stag.stage !== 'lying', until: () => this.stagX + 300,
+        where: () => [this.stagX - 30, g - 70] },
+      { id: 'stag-sit', text: "there's nothing to fix. sit with him a while",
+        when: () => this.stag.stage !== 'lying', sight: null,
+        done: () => this.stag.done, until: () => this.stagX + 300,
+        where: () => (this.resting ? null : [this.stagX - 30, g - 70]) },
+      { id: 'bee-watch', text: 'keep still, and watch the bee',
+        when: () => this.bumblebee.stage === 'watch',
+        done: () => this.bumblebee.stage !== 'watch', until: () => this.beeX + 520,
+        where: () => this.bumblebee.spot() },
+      { id: 'bee-pet', text: 'go up to the bee gently — hold shift',
+        when: () => this.bumblebee.stage !== 'watch',
+        done: () => this.bumblebee.done, until: () => this.beeX + 520,
+        where: () => this.bumblebee.spot() },
+      { id: 'turtle', text: 'turn the turtle the right way up',
+        done: () => this.turtle.done, until: () => this.turtleX + 300,
+        where: () => [this.turtleX, g - 40] },
+      { id: 'bridge-find', text: 'the bridge is out — find a board for it',
+        when: () => this.bridge.inReach(px()) && !this.bridge.done,
+        done: () => this.bridge.carrying, until: () => this.brookR + 40,
+        where: () => this.bridge.nextSpot(px()) },
+      { id: 'bridge-lay', text: 'lay the board across the brook',
+        when: () => this.bridge.carrying, sight: null,
+        done: () => !this.bridge.carrying,
+        where: () => this.bridge.nextSpot(px()) },
+      { id: 'north', text: 'keep walking north', done: () => false, where: () => null }
+    ];
+    this.seenTasks = new Set();
+    this.guide.setTasks(this.tasks, { counted: false, waitForFocus: true });
+    this.taskInHand = null;                  // the first update picks it (see followTasks)
+  }
+
+  // which task is in hand right now: the first in the list that has come up
+  // (`when`), isn't done, and hasn't been walked past (`until`) — and whose
+  // thing you've already had on screen, so the list never gives away what's
+  // up the road. `sight` is where that thing is (by default, where the
+  // marker hangs); a task that follows on from one you've started — draw out
+  // the fawn you just roped — has `sight: null`: there's no surprise left
+  followTasks() {
+    const x = this.player.x;
+    // what's on screen, from where the camera is (its worldView is only worked
+    // out when it draws, so on the very first frame it would say "nothing")
+    const cam = this.cameras.main;
+    const viewLeft = cam.scrollX, viewRight = cam.scrollX + cam.width / cam.zoom;
+    this.tasks.forEach((t) => {
+      if (this.seenTasks.has(t.id)) return;
+      const at = t.sight === null ? null : t.sight ? t.sight() : (t.where() || [])[0];
+      if (at == null || (at > viewLeft + 30 && at < viewRight - 30)) this.seenTasks.add(t.id);
+    });
+    const next = this.tasks.find((t) => this.seenTasks.has(t.id) && (!t.when || t.when()) && !t.done() && !(t.until && x > t.until()));
+    const id = next ? next.id : null;
+    if (id === this.taskInHand) return;
+    const before = this.tasks.find((t) => t.id === this.taskInHand);
+    this.guide.focus(id, !!before && before.done());       // a tick if the last one got done, none if you walked on
+    this.taskInHand = id;
+  }
+
+  sparkle(x, y) {
+    for (let i = 0; i < 9; i++) {
+      const s = this.add.circle(x, y, 3, 0xffe9a8).setDepth(70);
+      const a = Math.random() * Math.PI * 2;
+      this.tweens.add({
+        targets: s, x: x + Math.cos(a) * 42, y: y + Math.sin(a) * 42 - 22,
+        alpha: 0, duration: 900 + Math.random() * 500,
+        onComplete: () => s.destroy()
+      });
+    }
+  }
+
+  addKindness(x, y) {
+    play(this, 'kindness');
+    this.kindness++;
+    this.registry.set('kindness', this.kindness);
+    this.sparkle(x, y);
+    this.saveProgress();
+  }
+
+  // back to the last torch you lit — on your own feet, whatever you were doing
+  respawn() {
+    if (this.riding) {
+      this.riding = false;
+      setTravelerBody(this.player);
+    }
+    this.player.setVelocity(0, 0);
+    this.player.setPosition(this.respawnX, this.standY);
+  }
+
+  // record the torch you just passed as the active checkpoint and save,
+  // only when it actually changes
+  setCheckpoint(id) {
+    if (id === this.currentCheckpoint) return;
+    this.currentCheckpoint = id;
+    this.saveProgress();
+  }
+
+  update() {
+    tickClock(this);
+
+    // ── bag toggle (I) ──
+    if (Phaser.Input.Keyboard.JustDown(this.keyI)) this.toggleBag();
+    this.followTasks();
+    if (this.player.x < this.horseStopX - 200) this.horseStopShown = false;   // it will say so again next time
+    if (this.player.x > this.cliffTopX - 40) this.mushroomsSaid = false;        // …and these too
+    if (this.player.x < this.stair.from + 60) this.ropeStopSaid = false;
+    // a net under everything: nobody should ever be left falling out of sight
+    if (this.player.y > this.H + 240) this.respawn();
+
+    const px = this.player.x;
+    this.fox.update(px);
+    this.fox.face(px);
+    this.fawn.update(px);
+    this.stag.update(px);
+    this.squirrel.update(px);
+    this.duck.update(px);
+    this.bumblebee.update(px);
+    this.turtle.update(px);
+    this.moose.update(px);
+    this.fish.update(px);
+    this.owl.update(px);
+    this.evening.update(px);
+    this.windowBird.update(px);
+    this.stair.update(px);
+    this.boardwalk.update(px);
+    this.windfall.update(px);
+    this.bridge.update(px);
+
+    // ── arriving at the resting field ──
+    if (!this.restEntryShown && Math.abs(px - this.restTreeX) < 220) {
+      this.restEntryShown = true;
+      this.showThought('what a lovely place to rest.', 3200);
+    }
+
+    // ── a scream, far off. something has happened ──
+    this.screamX = this.lastStretchX;
+    if (!this.screamHeard && px > this.screamX) {
+      this.screamHeard = true;
+      // a beat of stillness before the thought lands — the character pausing to listen
+      this.time.delayedCall(400, () => {
+        this.showThought(this.bridge.done ? 'someone is screaming.' : 'someone is screaming — over there, across the water.', 3600);
+      });
+    }
+
+    // ── the crying settles in once you're over the brook ──
+    this.cryingCueX = this.brookR + 260;
+    if (!this.cryingHeard && this.screamHeard && px > this.cryingCueX) {
+      this.cryingHeard = true;
+      fade(this, 'crying', 0.5, 4000);              // faint, somewhere ahead
+      this.showThought('someone is crying out there. maybe they need help.', 3800);
+    }
+
+    // ── arriving — fade to black and hand off to the ending ──
+    this.endingTransitionX = this.brookR + 620;
+    if (!this.endingTriggered && this.cryingHeard && px > this.endingTransitionX) {
+      this.endingTriggered = true;
+      this.player.setVelocity(0, 0);
+      this.cameras.main.fadeOut(1400, 0, 0, 0);
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        // MorningScene can still be running invisibly underneath us (main.js
+        // starts it from the login handler without stopping other scenes).
+        // EndingScene spends its preload frames drawing nothing, which let
+        // the cabin show through for a moment — stop it before handing off.
+        // (a no-op when MorningScene isn't running.)
+        this.scene.stop('MorningScene');
+        this.registry.set('kindness', this.kindness);
+        this.saveProgress('EndingScene');
+        this.scene.start('EndingScene');
+      });
+    }
+
+    // ── light a torch as you pass it (a warm point in the forest) — it's your checkpoint now ──
+    Object.entries(this.torches).forEach(([id, torch]) => {
+      if (torch.lit || Math.abs(px - torch.x) >= 50) return;
+      if (id === 'torch-3' && this.player.y <= this.groundY - 60) return;   // not from up on the hill
+      this.respawnX = torch.x;
+      this.respawnY = this.standY;
+      this.setCheckpoint(id);
+      this.lightTorch(torch);
+    });
+
+    // the cliff is a mushroom hill now — bounce up to the cat, bounce back down,
+    // steer with left/right. there's no pit to fall into, so no respawn needed.
+
+    // ── stepping-stone water: fall in -> gentle splash, hop back to the bank ──
+    const inCrossGap = px > this.crossX - this.crossWidth / 2 && px < this.crossX + this.crossWidth / 2;
+    const inRiverGap = px > this.riverX - this.riverWidth / 2 && px < this.riverX + this.riverWidth / 2;
+    const inBrook = px > this.brookL && px < this.brookR;
+    if (this.player.y > this.groundY + 24 && this.player.body.velocity.y >= 0 && (inCrossGap || inRiverGap || inBrook)) {
+      // little splash
+      play(this, 'splash');
+      for (let i = 0; i < 8; i++) {
+        const drop = this.add.circle(this.player.x, this.groundY + 30, 3, 0x9fd4e0, 0.8).setDepth(60);
+        const a = Math.random() * Math.PI - Math.PI / 2;
+        this.tweens.add({ targets: drop, x: drop.x + Math.cos(a) * 30, y: drop.y - Math.abs(Math.sin(a)) * 30,
+          alpha: 0, duration: 600, onComplete: () => drop.destroy() });
+      }
+      if (inBrook) {
+        // out on the near bank, still holding whatever you were holding
+        this.player.setVelocity(0, 0);
+        this.player.setPosition(this.brookL - 60, this.standY);
+        this.showThought('cold! the boards have to go all the way across.', 2600);
+      } else {
+        this.respawn();
+        this.showThought('cold! ... try again.', 1600);
+      }
+    }
+    const onGround = this.player.body.blocked.down;
+    const vx = Math.abs(this.player.body.velocity.x);
+
+    // ── what you hear: water when you're near water, your feet, the horse under you ──
+    const waters = [this.lakeCenterX, this.riverX, this.crossX, this.duckPondX, (this.brookL + this.brookR) / 2];
+    level(this, 'amb-water', nearness(Math.min(...waters.map((w) => Math.abs(px - w))), 520));
+    const onBoards = px > this.brookL && px < this.brookR;
+    steps(this, onGround && !this.riding && !this.resting && vx > 20, { surface: onBoards ? 'wood' : 'grass', slow: this.movingSlow });
+    level(this, 'hooves', this.riding && onGround && vx > 20 ? 1 : 0);
+    if (onGround && this.wasAirborne && !this.resting) play(this, 'land', { volume: 0.7 });
+    this.wasAirborne = !onGround;
+
+    // ── parallax ──
+    const camX = this.cameras.main.scrollX;
+    this.bgLayers.forEach((l) => { l.tilePositionX = camX * l.parallaxFactor / l.tileScaleX; });
+    // the rivers drift, a whole pixel at a time
+    this.waters.forEach((w) => {
+      w.drift += w.flow * this.game.loop.delta / 1000;
+      w.tilePositionX = Math.round(w.drift);
+    });
+
+    // ── movement ──
+    // hold Shift to move slowly and gently (only on foot, not riding)
+    this.movingSlow = this.keyShift.isDown && !this.riding;
+    const baseSpeed = this.riding ? this.rideSpeed : this.walkSpeed;
+    const inRiver = px > this.riverX - this.riverWidth / 2 && px < this.riverX + this.riverWidth / 2;
+    const wading = this.riding && inRiver;
+    let speed = this.movingSlow ? 90 : baseSpeed, jumpSpeed = -480;
+    if (wading) speed = 150;   // the horse slows to wade through the deep water
+    if (this.fawn.hauling) speed = Math.min(speed, 46);   // and drawing the fawn out of the mud is slow work
+    speed = this.boardwalk.pace(speed);                    // and stood in the bog, you don't go anywhere
+    speed = this.moose.pace(speed);                        // running from the moose, or caught by it
+    speed = this.fish.pace(speed);                         // or running to the river with the trout
+    speed = this.owl.pace(speed);                          // pushing the handcart is slow going
+    const left =this.cursors.left.isDown || this.wasd.A.isDown;
+    const right = this.cursors.right.isDown || this.wasd.D.isDown;
+    const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+                 Phaser.Input.Keyboard.JustDown(this.wasd.W) ||
+                 Phaser.Input.Keyboard.JustDown(this.cursors.space);
+
+    // one-shot pose beats (watering, carrot crouch) hold off idle until they finish playing
+    const poseHold = this.player.anims.isPlaying &&
+      [`${this.characterId}-crouch`, `${this.characterId}-toss`].includes(this.player.anims.currentAnim?.key);
+
+    if (this.catRope.lowering) {
+      this.catRope.hang();
+    } else if (this.resting) {
+      this.player.setVelocity(0, 0);
+      this.restTimer += this.game.loop.delta;
+
+      // ── the bird you freed comes to visit, quickly enough not to be missed ──
+      if (this.restAtField && this.birdFreed && !this.restBirdVisited && this.restTimer > 1200) {
+        this.restBirdVisited = true;
+        const side = this.player.flipX ? -1 : 1;
+        const bx = this.player.x + side * 60, floor = this.groundY + 2;
+        const bird = this.birdSprite;
+        this.tweens.killTweensOf(bird);                                // in case it's still on its way out of the thorns
+        bird.setPosition(bx + side * 60, this.groundY - 240).setAlpha(1).setVisible(true).setAngle(0)
+          .setFlipX(side < 0).play('bird-fly');                        // flying in toward you
+        this.tweens.add({ targets: bird, x: bx, y: floor, duration: 1100, ease: 'Sine.out',
+          onComplete: () => {
+            bird.play('bird-perch').setFlipX(side > 0);                // landed, looking at you
+            this.showThought('you again.', 2600);
+            play(this, 'chirp');
+            // a few glad little hops, then off into the trees
+            this.tweens.add({ targets: bird, y: floor - 12, duration: 150, yoyo: true, repeat: 2,
+              repeatDelay: 420, ease: 'Quad.out',
+              onComplete: () => {
+                this.time.delayedCall(500, () => {
+                  bird.play('bird-fly').setFlipX(true);
+                  this.tweens.add({ targets: bird, x: bx + 700, y: this.groundY - 480,
+                    duration: 2000, ease: 'Sine.in', onComplete: () => bird.setVisible(false) });
+                });
+              } });
+          } });
+      }
+
+      // ── two rabbits pass through, unhurried, because the forest trusts stillness ──
+      if (this.restAtField && !this.restRabbitsVisited && this.restTimer > 3400) {
+        this.restRabbitsVisited = true;
+        [0, 1].forEach((index) => this.time.delayedCall(index * 700, () => this.sendRabbit(index)));
+      }
+    } else if (left) {
+      this.player.setVelocityX(-speed); this.player.setFlipX(true);
+      if (onGround && !this.riding && this.player.anims.currentAnim?.key !== `${this.characterId}-walk`) this.player.play(`${this.characterId}-walk`);
+    } else if (right) {
+      this.player.setVelocityX(speed); this.player.setFlipX(false);
+      if (onGround && !this.riding && this.player.anims.currentAnim?.key !== `${this.characterId}-walk`) this.player.play(`${this.characterId}-walk`);
+    } else if (onGround && !this.riding && !poseHold && this.player.anims.currentAnim?.key !== `${this.characterId}-idle`) {
+      this.player.play(`${this.characterId}-idle`);
+    }
+    // riding and airborne poses override the on-foot walk/idle above
+    if (this.riding) {
+      if (this.player.anims.currentAnim?.key !== `${this.characterId}-sit`) this.player.play(`${this.characterId}-sit`);
+    } else if (!onGround && !this.resting && !this.catRope.lowering) {
+      if (this.player.anims.currentAnim?.key !== `${this.characterId}-jump`) this.player.play(`${this.characterId}-jump`);
+    }
+    // you jump; the horse doesn't (on its back, up does nothing)
+    if (jump && onGround && !this.resting && !this.riding) this.player.setVelocityY(this.boardwalk.jump(-340));
+    // the river bed sits lower than the banks — the horse steps up and out by itself
+    if (wading && onGround && (this.player.body.blocked.left || this.player.body.blocked.right)) this.player.setVelocityY(-300);
+
+    // ── riding: horse moves under the player ──
+    // ── tall-grass gate ──
+    const grassL = this.grassX - this.grassWidth / 2;
+    const grassR = this.grassX + this.grassWidth / 2;
+    const inGrass = px > grassL - 18 && px < grassR + 18;
+    // riding through the grass teaches you it's safe — then the wall comes down
+    // on horseback and reaching the grass — the horse parts it, the wall comes down
+    if (this.riding && !this.grassLearned && px > grassL - 60) {
+      this.grassLearned = true;
+      if (this.grassWallCollider) {
+        this.physics.world.removeCollider(this.grassWallCollider);
+        this.grassWallCollider = null;
+      }
+    }
+    // on foot before learning: the wall blocks you, just show the hint once when near
+    if (!this.riding && !this.grassLearned) {
+      if (inGrass || Math.abs(px - grassL) < 40) {
+        if (!this.grassNoticed) {
+          this.grassNoticed = true;
+          this.showThought('the grass is too tall — it could be dangerous on foot.');
+        }
+      } else {
+        this.grassNoticed = false;
+      }
+    }
+    // first gentle walk-through after learning — the grass is safe now
+    if (this.grassLearned && !this.riding && inGrass && !this.grassLearnedShown) {
+      this.grassLearnedShown = true;
+      this.showThought('now i know the grass is safe, thanks to my friend.', 4000);
+    }
+    // grass parts as you pass through it
+    this.grassBlades.forEach((b) => {
+      const dx = this.player.x - b.baseX;
+      const target = Math.abs(dx) < 60 ? b.baseX + (dx > 0 ? -10 : 10) : b.baseX;
+      b.x += (target - b.x) * 0.15;
+    });
+
+    // ── bramble: thorns part as you pass, and the bird reacts to how you move ──
+    const brambleL = this.brambleX - this.brambleWidth / 2;
+    const brambleR = this.brambleX + this.brambleWidth / 2;
+    this.brambleBlades.forEach((b) => {
+      const dx = this.player.x - b.baseX;
+      const target = Math.abs(dx) < 50 ? b.baseX + (dx > 0 ? -8 : 8) : b.baseX;
+      b.x += (target - b.x) * 0.15;
+    });
+    // teaching hint as you near the thorns — re-arms when you walk away, so a
+    // player who missed it the first time gets it again on their next approach.
+    if (!this.birdFreed && !this.birdHintShown && px > brambleL - 120 && px < brambleL) {
+      this.birdHintShown = true;
+      this.showThought('thorns — and something trapped inside. move gently. (hold shift)', 7000);
+    }
+    if (px < brambleL - 140) this.birdHintShown = false;   // re-arm as soon as you step out — shows on every approach
+    // a steady reminder while you're at the thorns on foot and haven't freed the
+    // bird yet — so even if you missed the message, you always see what to do.
+    this.atBrambleOnFoot = !this.birdFreed && !this.birdPanicking && !this.riding &&
+                           !this.movingSlow && px > brambleL - 60 && px < brambleR;
+    // panic: moving fast through the bramble (not slow) startles the bird
+    if (!this.birdFreed && !this.birdPanicking &&
+        px > brambleL && px < brambleR &&
+        onGround && Math.abs(this.player.body.velocity.x) > 130) {
+      this.birdPanicking = true;
+      this.showThought('too fast — it panicked.', 2200);
+      // the bird beats its way up and out of sight
+      this.birdSprite.play('bird-fly');
+      this.tweens.add({ targets: this.birdSprite, y: this.birdSprite.y - 180, alpha: 0,
+        duration: 900, ease: 'Quad.in' });
+      // send you back to the checkpoint, then the bird returns to try again
+      this.time.delayedCall(700, () => this.respawn());
+      this.time.delayedCall(1600, () => {
+        this.birdSprite.setPosition(this.birdX, this.groundY - 28).setAlpha(1).play('bird-struggle');
+        this.birdPanicking = false;
+      });
+    }
+
+    if (this.carryingCat && this.catRope.lowering) {
+      this.catRope.lap(this.catSprite);
+    } else if (this.carryingCat) {
+      // held in your arms — the only way it's coming down from the cliff
+      this.catSprite.x = this.player.x + (this.player.flipX ? -7 : 7) * FOREST_SCALE;
+      this.catSprite.y = this.player.y + 21 * FOREST_SCALE;
+      this.catSprite.setFlipX(!this.player.flipX);
+    } else if (this.catFollowing && !this.catSprite.leaping) {
+      // it follows you on the ground, and where you had to jump, it jumps
+      const cat = this.catSprite;
+      // the ground under its feet: the boards over the bog, the tops of fallen trunks, or the road and its hills
+      const floor = (x) => this.boardwalk.floorAt(x) ?? this.windfall.floorAt(x) ?? this.hills.surfaceAt(x);
+      let leap = null;
+      updateCatFollow(this, cat, this.player, floor(cat.x), 0, (want) => {
+        const plan = this.leaps.plan(cat.x, want, CAT_ROOM);
+        leap = plan.leap;
+        return plan.want;
+      });
+      if (leap) {
+        cat.play('cat-walk');
+        this.leaps.jump(cat, leap, CAT_ROOM, (x) => floor(x) + 2,
+          { height: 14, speed: 240, pose: (t, dir) => cat.setFlipX(dir > 0) });
+      }
+    }
+
+    const horse = this.horseSprite;
+    // on your feet you stand up straight, whatever the ground does
+    if (!this.riding && this.player.angle !== 0) this.player.setAngle(0);
+    if (this.riding) {
+      // the horse under you: hooves on whatever you're standing on, its back
+      // under your seat — on the road and in the river alike
+      const facing = this.player.flipX ? -1 : 1;
+      let bob = 0;
+      if (wading) {
+        // the river comes up to its belly; you rise and fall with it as it wades
+        bob = Math.round(Math.sin(this.time.now / 220) * 2);
+        // ripples trailing at the waterline as the horse moves
+        if (Math.abs(this.player.body.velocity.x) > 20 && this.time.now % 6 < 1) {
+          const rip = this.add.rectangle(horse.x, this.groundY + 20, 18, 2, 0xc9ecec, 0.7).setDepth(12);
+          this.tweens.add({ targets: rip, scaleX: 2.6, alpha: 0,
+            duration: 900, ease: 'Sine.out', onComplete: () => rip.destroy() });
+        }
+        if (!this.riverThoughtShown) {
+          this.riverThoughtShown = true;
+          this.showThought("steady. i've got you.", 3000);
+        }
+      }
+      setTravelerBody(this.player, this.rideLift - bob);
+      // it leans with a hill under it; you lean with it, and it shifts under
+      // you so its back stays under your seat
+      horse.setAngle(horse.angle + (this.hills.slantAt(this.player.x) - horse.angle) * 0.2);
+      this.player.setAngle(horse.angle);
+      horse.x = this.player.x + facing * 8 - Math.sin(Phaser.Math.DegToRad(horse.angle)) * HORSE_BACK * ART;
+      horse.y = this.player.body.bottom + 2 + bob;
+      horse.setFlipX(!this.player.flipX);
+      horse.play(Math.abs(this.player.body.velocity.x) > 20 ? 'horse-walk' : 'horse-idle', true);
+      horse.anims.timeScale = wading ? 0.7 : 1.3;                  // a slow wade, a quick trot
+    } else if (this.horseFed && !this.saidGoodbye) {
+      // dismounted companion — the horse gently trails behind you, over the hills too
+      const behind = Math.min(this.player.x - (this.player.flipX ? -70 : 70), this.horseStopX);
+      const gap = behind - horse.x;
+      horse.x += gap * 0.04;
+      horse.y = this.hills.surfaceAt(horse.x) + 2;
+      horse.setAngle(horse.angle + (this.hills.slantAt(horse.x) - horse.angle) * 0.2);
+      horse.anims.timeScale = 1;
+      if (horse.anims.currentAnim?.key !== 'horse-eat' || !horse.anims.isPlaying) {
+        horse.setFlipX(horse.x < this.player.x);
+        horse.play(Math.abs(gap) > 10 ? 'horse-walk' : 'horse-idle', true);
+      }
+    }
+
+    // ── interaction prompt + action ──
+    let label = null, action = null;
+    const near = (x, r = 75) => Math.abs(px - x) < r;
+    if (this.catRope.lowering) { this.guide.prompt(['down'], 'hold to let the rope out', this.player.x, this.player.y - 66); return; }
+    const offers = [this.catRope.offer(px), this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround),
+      this.squirrel.offer(px, onGround), this.duck.offer(px, onGround), this.bumblebee.offer(px, onGround), this.turtle.offer(px, onGround),
+      this.bridge.offer(px, onGround), this.moose.offer(px), this.fish.offer(px, onGround), this.owl.offer(px, onGround)].filter(Boolean);
+    const foxOffer = offers.find((o) => o.action) || null;
+    const reminder = offers.find((o) => o.hint) || null;
+    const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
+    if (nearCarrot) { label = 'pick up the carrot'; action = 'carrot'; this._nearCarrot = nearCarrot; }
+    else if (foxOffer && foxOffer.action) { label = foxOffer.label; action = foxOffer.action; }
+    else if (!this.horseFed && near(this.horseX, 95) && (this.inventory.carrots || 0) > 0) { label = 'give the horse a carrot'; action = 'feedhorse'; }
+    else if (!this.catRescued && Math.abs(px - this.catSprite.x) < 70 && Math.abs(this.player.y - this.catSprite.y) < 80) { label = 'pick up the cat'; action = 'pickupcat'; }
+    else if (!this.birdFreed && !this.birdPanicking && this.movingSlow && Math.abs(px - this.birdX) < 60) { label = 'free the bird'; action = 'freebird'; }
+    else if (this.horseFed && !this.saidGoodbye && Math.abs(px - this.meadowX) < 160) { label = 'say goodbye'; action = 'farewell'; }
+    else if (this.horseFed && !this.riding && !this.saidGoodbye && Math.abs(px - this.horseSprite.x) < 120) { label = 'ride the horse'; action = 'mount'; }
+    else if (!this.resting && !this.riding && onGround && Math.abs(px - this.restTreeX) < 90) { label = 'lay down to rest'; action = 'restdown'; }
+    else if (this.resting) { label = 'get up'; action = 'restup'; }
+    else if (!this.horseFed && near(this.horseX, 95)) {
+      label = null;
+      if (!this.horseHungryHintShown) {
+        this.horseHungryHintShown = true;
+        this.metHorse = true;
+        this.showThought('the horse looks hungry. maybe a carrot from the field would help.', 3600);
+      }
+    }
+    else {
+      const mh = this.meadowHorses && this.meadowHorses.find((m) => !m.fed && Math.abs(px - m.baseX) < 70);
+      if (mh && (this.inventory.carrots || 0) > 0) { label = 'give a carrot'; action = 'feedmeadow'; this._nearMeadow = mh; }
+    }
+    if (this.horseHungryHintShown && !near(this.horseX, 95)) this.horseHungryHintShown = false;
+
+    // nothing else to do here? then E sets down the cat you're carrying —
+    // whenever you like, walking or standing. the words only come up once
+    // you've stopped, so they aren't over your head the whole walk. (on the
+    // horse E means getting off, so nothing is put down from up there)
+    this.stillMs = onGround && vx < 5 ? (this.stillMs || 0) + this.game.loop.delta : 0;
+    let unsaid = false;
+    if (!label && !this.riding && !this.resting && this.carryingCat) {
+      label = 'put down the cat'; action = 'putdowncat';
+      unsaid = this.stillMs < 350;
+    }
+
+    // the key and what it does, just over the traveler's head
+    const over = [this.player.x, this.player.y - 66];
+    if (label && !unsaid) this.guide.prompt(['e'], label, ...over);
+    else if (reminder) this.guide.prompt(reminder.keys || [], reminder.label, ...over);
+    else if (this.atBrambleOnFoot) this.guide.prompt(['shift'], 'hold to move gently', ...over);
+    else if (this.stair.against() || this.windfall.against()) this.guide.prompt(['up'], 'jump', ...over);
+    else this.guide.hidePrompt();
+
+    if (this.riding && action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      // a mounted action takes priority over dismounting, so E does the action instead of getting off
+      this.doAction(action);
+    } else if (this.riding && Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      const inGrassNow = this.player.x > (this.grassX - this.grassWidth / 2) - 18 &&
+                         this.player.x < (this.grassX + this.grassWidth / 2) + 18;
+      if (inGrassNow) {
+        this.showThought("the grass is too tall — i shouldn't get down here.");
+      } else {
+        this.riding = false;
+        setTravelerBody(this.player);
+        this.player.y += this.rideLift;
+        this.showThought('back on your feet.');
+      }
+    } else if (action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
+      this.doAction(action);
+    }
+  }
+
+  toggleBag() {
+    this.bagOpen = !this.bagOpen;
+    play(this, 'ui-paper', { volume: 0.6 });
+    if (this.bagOpen) this.drawBag();
+    else if (this.bagPanel) { this.bagPanel.destroy(); this.bagPanel = null; }
+  }
+
+  drawBag() {
+    if (this.bagPanel) this.bagPanel.destroy();
+    const u = 3;                                           // the paper's pixels, on screen
+    const items = Object.keys(this.inventory).filter((k) => this.inventory[k] > 0);
+    const w = 84, h = 40 + Math.max(1, items.length) * 14;
+    const panel = this.add.container(Math.round(this.W / 2 - (w * u) / 2), Math.round(this.H / 2 - (h * u) / 2))
+      .setScrollFactor(0).setDepth(300);
+    const write = (x, y, str, tint = INK) => this.guide.text(x * u, y * u, str, { size: u, tint, edged: false });
+    panel.add(this.add.nineslice(0, 0, 'ui-tag', undefined, w, h, 5, 5, 5, 6).setOrigin(0, 0).setScale(u));
+    panel.add(write(9, 7, 'bag'));
+    if (items.length === 0) panel.add(write(9, 22, 'empty for now.', PENCIL));
+    items.forEach((name, i) => {
+      const y = 22 + i * 14;
+      const iconKey = 'woods-icon-' + name.replace(/s$/, '');
+      if (this.textures.exists(iconKey)) panel.add(this.add.image(15 * u, (y + 4) * u, iconKey).setScale(u));
+      panel.add(write(26, y, name));
+      panel.add(write(26, y, `×${this.inventory[name]}`, PENCIL).setX((w - 22) * u));
+    });
+    const cap = this.add.image(9 * u, (h - 11) * u, 'ui-key-i').setOrigin(0, 0.5).setScale(2);
+    panel.add(cap);
+    panel.add(this.guide.text(9 * u + cap.displayWidth + 8, (h - 11) * u - 9, 'close', { tint: PENCIL, edged: false }));
+    this.bagPanel = panel;
+  }
+
+  addItem(name) {
+    this.inventory[name] = (this.inventory[name] || 0) + 1;
+  }
+
+  doAction(action) {
+    if (this.catRope.act(action) || this.fox.act(action) || this.fawn.act(action) || this.stag.act(action) || this.squirrel.act(action) ||
+        this.duck.act(action) || this.bumblebee.act(action) || this.turtle.act(action) ||
+        this.bridge.act(action) || this.moose.act(action) || this.fish.act(action) || this.owl.act(action)) return;
+    if (action === 'restdown') {
+      this.resting = true;
+      this.restAtField = true;
+      this.hasRested = true;
+      this.restTimer = 0;
+      this.player.setVelocity(0, 0);
+      this.player.body.setAllowGravity(false);   // stay put on the ground while resting
+      this.player.play(`${this.characterId}-rest`);
+      return;
+    }
+    if (action === 'restup') {
+      this.resting = false;
+      this.player.body.setAllowGravity(true);
+      return;
+    }
+    if (action === 'freebird') {
+      play(this, 'wings');
+      this.birdFreed = true;
+      this.addKindness(this.birdX, this.groundY - 60);
+      this.showThought('there you go. carefully now.', 3200);
+      // a gentle lift — it hangs in the air a beat, finding its wings, then flies off into the canopy
+      const bird = this.birdSprite;
+      bird.play('bird-fly');
+      this.tweens.add({ targets: bird, y: this.groundY - 76, duration: 600, ease: 'Quad.out',
+        onComplete: () => {
+          this.tweens.add({ targets: bird, y: this.groundY - 92, duration: 500, yoyo: true, ease: 'Sine.inOut',
+            onComplete: () => {
+              bird.setFlipX(true);                                    // away, to the right
+              this.tweens.add({ targets: bird, x: this.birdX + 900, y: this.groundY - 520,
+                duration: 3200, ease: 'Sine.in',
+                onComplete: () => bird.setVisible(false) });
+            } });
+        } });
+      return;
+    }
+    if (action === 'farewell') {
+      play(this, 'horse-neigh');
+      this.saidGoodbye = true;
+      // from here on, falling back to the river torch would leave you on the wrong side of the river
+      if (!this.currentCheckpoint || this.currentCheckpoint === 'torch-1') this.respawnX = this.pastMeadowX;
+      if (this.riding) {
+        this.riding = false;
+        setTravelerBody(this.player);
+        this.player.y += this.rideLift;
+      }
+      // a heart floats up between you and the horse
+      const hx = (this.player.x + this.horseSprite.x) / 2;
+      const heart = this.guide.text(hx, this.groundY - 70, '♥', { size: 5 }).setTint(0xe58a9a).setOrigin(0.5).setDepth(80);
+      this.tweens.add({ targets: heart, y: this.groundY - 140, alpha: 0,
+        duration: 2200, ease: 'Sine.out', onComplete: () => heart.destroy() });
+      this.showThought("go on. i'll be alright. you found them.", 4000);
+      this.addKindness(this.horseSprite.x, this.groundY - 60);
+      // the horse trots off to join the meadow, and puts its head down with the others
+      const horse = this.horseSprite;
+      horse.y = this.groundY + 2;
+      horse.setAngle(0);
+      horse.anims.timeScale = 1;
+      horse.setFlipX(this.meadowX - 30 > horse.x).play('horse-walk');
+      this.tweens.add({ targets: horse, x: this.meadowX - 30, duration: 2600,
+        ease: 'Sine.inOut', onComplete: () => horse.play('horse-graze') });
+      return;
+    }
+    if (action === 'mount') {
+      play(this, 'horse-snort');
+      this.riding = true;
+      // lift the sprite (offset + y cancel out, so the body stays put) to seat it on the horse's back
+      setTravelerBody(this.player, this.rideLift);
+      this.player.y -= this.rideLift;
+      this.horseX = this.player.x;   // track from here
+      this.showThought('up you go.');
+      return;
+    }
+    if (action === 'feedhorse') {
+      play(this, 'crunch');
+      if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
+      this.inventory.carrots -= 1;
+      this.horseFed = true;
+      this.physics.world.removeCollider(this.horseGateCollider);
+      this.addKindness(this.horseX, this.groundY - 60);
+      // it takes the carrot from your hand
+      this.horseSprite.setFlipX(this.player.x > this.horseSprite.x).play('horse-eat');
+      this.showThought('the horse eats happily. the way is clear.');
+      return;
+    }
+    if (action === 'feedmeadow' && this._nearMeadow) {
+      play(this, 'crunch');
+      if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
+      this.inventory.carrots -= 1;
+      this._nearMeadow.fed = true;
+      this.sparkle(this._nearMeadow.x, this.groundY - 30);
+      this._nearMeadow.setFlipX(this.player.x > this._nearMeadow.x)
+        .play(`${this._nearMeadow.animKey}-eat`).chain(`${this._nearMeadow.animKey}-graze`);
+      this.addKindness(this._nearMeadow.x, this.groundY - 40);
+      this._nearMeadow = null;
+      return;
+    }
+    if (action === 'pickupcat') {
+      play(this, 'meow');
+      // too scared to climb down by itself — you carry it
+      this.carryingCat = true;
+      this.catRescued = true;
+      this.calmCat();
+      this.catSprite.play('cat-held').setDepth(10.5);              // in your arms, in front of you
+      this.addKindness(this.catSprite.x, this.catSprite.y - 20);
+      this.showThought("there you are. i've got you.", 3200);
+      return;
+    }
+    if (action === 'putdowncat') {
+      if (!this.player.body.blocked.down) return;                          // mid-jump: once you land
+      if (this.player.body.bottom < this.hills.surfaceAt(this.player.x) - 10) {   // still up on the mushrooms
+        this.showThought("not up here. i'll set it down on the ground.", 2600);
+        return;
+      }
+      play(this, 'meow', { volume: 0.6 });
+      // safe on the ground — from here it follows you, all the way to the end
+      this.carryingCat = false;
+      this.catFollowing = true;
+      this.catSprite.stillMs = 0;
+      this.catSprite.play('cat-stand').setDepth(9);
+      const setX = Math.round(this.player.x) + (this.player.flipX ? -30 : 30);
+      this.catSprite.setPosition(setX, this.hills.surfaceAt(setX) + 2);
+      this.showThought('there. safe on the ground.', 2400);
+      return;
+    }
+    if (action === 'carrot' && this._nearCarrot) {
+      play(this, 'carrot');
+      if (!this.riding) this.player.play(`${this.characterId}-crouch`);   // a quick bend-down beat
+      this.addItem('carrots');
+      this.sparkle(this._nearCarrot.x, this._nearCarrot.y - 10);
+      this.pickedCarrots |= 1 << this._nearCarrot.fieldIndex;
+      this._nearCarrot.destroy();
+      this._nearCarrot = null;
+      if (!this.saidCarrot) { this.saidCarrot = true; this.showThought('a carrot. into the bag.'); }   // the first one only
+    }
+  }
+}

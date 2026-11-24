@@ -1,0 +1,51 @@
+using Microsoft.EntityFrameworkCore;
+using Northward.Game.Domain.Entities;
+using Northward.Game.Domain.Repositories;
+using Northward.Game.Infrastructure.Persistence;
+
+namespace Northward.Game.Infrastructure.Repositories;
+
+public class GameSessionRepository : IGameSessionRepository
+{
+    private readonly GameDbContext _context;
+
+    public GameSessionRepository(GameDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<GameSession?> GetByIdAsync(Guid id)
+    {
+        return await _context.GameSessions.FindAsync(id);
+    }
+
+    public async Task<List<GameSession>> GetByUserIdAsync(Guid userId)
+    {
+        return await _context.GameSessions
+            .Where(gs => gs.UserId == userId)
+            .ToListAsync();
+    }
+
+    public async Task AddAsync(GameSession gameSession)
+    {
+        await _context.GameSessions.AddAsync(gameSession);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(GameSession gameSession)
+    {
+        _context.GameSessions.Update(gameSession);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task DeleteAsync(GameSession gameSession)
+    {
+        _context.GameSessions.Remove(gameSession);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task DeleteByUserIdAsync(Guid userId)
+    {
+        await _context.GameSessions.Where(gs => gs.UserId == userId).ExecuteDeleteAsync();
+    }
+}
