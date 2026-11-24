@@ -160,7 +160,7 @@ export function setupTouch(game) {
   // held upright: ask for it sideways, and stop the game till it is
   const turn = document.createElement('div');
   turn.id = 'turn-phone';
-  turn.innerHTML = '<img src="/assets/ui/turn-phone.png" alt="" /><p>turn your phone sideways</p>';
+  turn.innerHTML = `<img src="${import.meta.env.BASE_URL}assets/ui/turn-phone.png" alt="" /><p>turn your phone sideways</p>`;
   document.body.appendChild(turn);
   const upright = window.matchMedia('(orientation: portrait)');
   const fit = () => {

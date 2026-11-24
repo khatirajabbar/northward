@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import Wake from "@/components/Wake";
 
 // one typeface for everything: light, round and open. the file is kept in the
 // project (fonts/), so the site never waits on someone else's server for it
@@ -26,7 +27,10 @@ export const viewport: Viewport = { themeColor: "#000000" };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} ${serif.variable} ${gothic.variable} ${pixel.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Wake />
+      </body>
     </html>
   );
 }

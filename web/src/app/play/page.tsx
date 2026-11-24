@@ -8,8 +8,9 @@ export const metadata: Metadata = { title: "play" };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, maximumScale: 1, viewportFit: "cover", themeColor: "#000000" };
 
 // The game, and nothing else: it fills the window under one thin bar.
-// Where it's loaded from is set in .env.local (NEXT_PUBLIC_GAME_URL).
-const GAME = process.env.NEXT_PUBLIC_GAME_URL;
+// On your machine it's loaded from the game's dev server (NEXT_PUBLIC_GAME_URL
+// in .env.local); published, it's built into this site (scripts/build-game.mjs)
+const GAME = process.env.NEXT_PUBLIC_GAME_URL ?? (process.env.NODE_ENV === "production" ? "/game/index.html" : undefined);
 
 export default function Play() {
   return (

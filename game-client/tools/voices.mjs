@@ -268,7 +268,7 @@ if (missing.length) {
 if (!jobs.length) { console.log('nothing to record — every line is here.'); process.exit(0); }
 
 async function record({ traveler, line }) {
-  const response = await fetch(`${API}/text-to-speech/${VOICES[traveler]}?output_format=mp3_44100_128`, {
+  const response = await fetch(`${API}/text-to-speech/${VOICES[traveler]}?output_format=mp3_44100_64`, {
     method: 'POST',
     headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
     body: JSON.stringify({ text: line.spoken, model_id: MODEL })

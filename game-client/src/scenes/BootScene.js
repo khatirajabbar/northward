@@ -21,6 +21,13 @@ export default class BootScene extends Phaser.Scene {
     // if the font file arrives after the words were first drawn, draw them again
     if (document.fonts) document.fonts.load('20px northward').then(() => waiting.forEach((text) => { if (text.active) text.updateText(); }));
 
+    // how far along it is: a thin line that fills under the words (the first
+    // visit on a slow phone has a few megabytes to fetch: pictures, music)
+    const barW = 240, barY = height / 2 + 70;
+    this.add.rectangle(width / 2, barY, barW, 2, 0xf7efd9, 0.15);
+    const bar = this.add.rectangle(width / 2 - barW / 2, barY, barW, 2, 0xf7efd9, 0.8).setOrigin(0, 0.5).setScale(0, 1);
+    this.load.on('progress', (done) => bar.setScale(done, 1));
+
     loadLpcCharacter(this, 'lpc-khatira');
     loadLpcCharacter(this, 'lpc-oliver');
 

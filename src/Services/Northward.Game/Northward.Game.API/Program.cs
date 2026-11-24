@@ -84,4 +84,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+// "are you awake?" — asked by the host to see the service is up, and by the
+// website as soon as someone opens it, so a service that fell asleep wakes in time
+app.MapGet("/health", () => Results.Ok("ok"));
+
 app.Run();

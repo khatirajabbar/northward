@@ -8,6 +8,7 @@ import ForestScene from './scenes/ForestScene.js';
 import EndingScene from './scenes/EndingScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import { auth } from './services/auth.js';
+import { wakeServices } from './services/wake.js';
 import { isOn, toggleAll } from './audio/sound.js';
 import { setupTouch, fullscreenWorks, standalone } from './ui/touch.js';
 
@@ -33,6 +34,7 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+wakeServices();
 setupTouch(game);                // phone controls (only on a phone)
 // development only (stripped from the production build): lets test scripts reach the game
 if (import.meta.env.DEV) window.__northward = game;
@@ -51,7 +53,7 @@ window.addEventListener('keydown', (e) => {
 const soundBtn = document.getElementById('sound-toggle');
 function showSound() {
   const off = !isOn('music') && !isOn('sounds');
-  soundBtn.querySelector('img').src = off ? '/assets/ui/sound-off.png' : '/assets/ui/sound.png';
+  soundBtn.querySelector('img').src = `${import.meta.env.BASE_URL}assets/ui/${off ? 'sound-off' : 'sound'}.png`;   // (BASE_URL: the game is at /game on the site)
   soundBtn.querySelector('span').textContent = off ? 'sound off' : 'sound on';
 }
 game.events.on('sound-toggled', showSound);
@@ -186,6 +188,8 @@ async function attempt() {
   const label = submitBtn.textContent;
   submitBtn.disabled = true;
   submitBtn.textContent = door.register ? 'one moment...' : 'signing in...';
+  // still waiting after a few seconds: the services were asleep (services/wake.js)
+  const slow = setTimeout(() => { submitBtn.textContent = 'waking the forest — up to a minute...'; }, 4000);
   hideError();
 
   try {
@@ -214,6 +218,8 @@ async function attempt() {
     showError(err.message.toLowerCase());
     submitBtn.disabled = false;
     submitBtn.textContent = label;
+  } finally {
+    clearTimeout(slow);
   }
 }
 

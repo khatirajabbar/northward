@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
       { source: "/svc/messages", destination: `${auth}/api/messages` },
       { source: "/svc/leaderboard/:path*", destination: `${board}/api/leaderboard/:path*` },
       { source: "/svc/game/:path*", destination: `${game}/api/:path*` },
+      // the game, played from this site (/game, scripts/build-game.mjs), reaches
+      // each service through here — so it's all one address and one sign-in
+      { source: "/svc/a/:path*", destination: `${auth}/:path*` },
+      { source: "/svc/g/:path*", destination: `${game}/:path*` },
+      { source: "/svc/l/:path*", destination: `${board}/:path*` },
     ];
   },
 };

@@ -42,3 +42,6 @@ next-env.d.ts
 
 # the example settings file is safe to share
 !.env.example
+
+# the game, built into the site when it's published (scripts/build-game.mjs)
+/public/game/
