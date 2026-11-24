@@ -13,6 +13,7 @@
 // from tools/ui-art.mjs.
 
 import { play } from '../audio/sound.js';
+import { speak, stopSpeaking } from '../audio/voice.js';
 
 export const INK = 0x2b1b14;        // writing on paper
 export const PENCIL = 0x8a7a64;     // lighter writing on paper
@@ -28,6 +29,7 @@ export default class Guide {
     this.tasks = [];
     this.at = 0;
     this.blocking = false;     // true while a note is open: the scene should wait
+    scene.events.once('shutdown', stopSpeaking);        // a voice doesn't carry on into the next scene
 
     // the traveler's line of thought — along the bottom, where subtitles go,
     // close to the traveler and clear of the task tag
@@ -77,7 +79,15 @@ export default class Guide {
     if (this.lineTimer) this.lineTimer.remove();
     line.setText(str).setAlpha(0);
     scene.tweens.add({ targets: line, alpha: 1, duration: 300 });
-    this.lineTimer = scene.time.delayedCall(ms, () => scene.tweens.add({ targets: line, alpha: 0, duration: 700 }));
+    const fadeOut = (after) => {
+      if (this.lineTimer) this.lineTimer.remove();
+      this.lineTimer = scene.time.delayedCall(after, () => scene.tweens.add({ targets: line, alpha: 0, duration: 700 }));
+    };
+    fadeOut(ms);
+    // said aloud in the traveler's own voice, if it's been recorded — and the words
+    // stay up at least as long as it takes to say them
+    const traveler = scene.characterId || scene.registry.get('playAs') || 'lpc-khatira';
+    speak(traveler, str, (said) => { if (line.text === str && said + 800 > ms) fadeOut(said + 800); });
   }
 
   // ── the prompt: keys, then what they do — drawn in the world, over the traveler ──

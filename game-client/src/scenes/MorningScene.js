@@ -495,11 +495,11 @@ export default class MorningScene extends Phaser.Scene {
   doLeave() {
     const ready = this.done.teeth && this.done.coffee && this.done.cereal && this.done.milk;
     if (!ready) {
-      const left = [];
-      if (!this.done.teeth) left.push('brush my teeth');
-      if (!this.done.coffee) left.push('have my coffee');
-      if (!this.done.cereal || !this.done.milk) left.push('finish breakfast');
-      this.guide.say('not yet — i should ' + left.join(', ') + ' first.');
+      // the first thing still to do (whole sentences, so each can be said aloud: src/audio/voice.js)
+      const first = !this.done.teeth ? 'not yet — i should brush my teeth first.'
+        : !this.done.coffee ? 'not yet — i should have my coffee first.'
+          : 'not yet — i should finish breakfast first.';
+      this.guide.say(first);
       return;
     }
     this.canMove = false; this.busy = true;

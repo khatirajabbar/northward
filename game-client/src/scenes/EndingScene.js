@@ -8,6 +8,7 @@ import { FLAGS, clock, tickClock, decodeProgress } from '../services/progress.js
 import { CREDITS } from '../credits.js';
 import Guide, { INK, CREAM } from '../ui/guide.js';
 import { play, bed, level, fade, steps, nearness } from '../audio/sound.js';
+import { speak } from '../audio/voice.js';
 
 // The last field is drawn by tools/forest-art.mjs like the rest of the forest
 // and shown at 2x; this scene tints it from cold night to warm dusk.
@@ -672,6 +673,7 @@ export default class EndingScene extends Phaser.Scene {
     this.dialogueBox.boxW = boxW;
     this.dialogueBox.boxH = boxH;
     this.dialogueSpeaker = fromPlayer ? this.player : this.figure;
+    speak(fromPlayer ? this.characterId : this.companionId, line.text);       // each in their own voice
     this.positionDialogueBox();
     this.tweens.add({ targets: this.dialogueBox, alpha: 1, duration: 250 });
   }

@@ -31,3 +31,6 @@ dist-ssr
 # backup files
 *.bak
 *.bak[0-9]
+
+# voices being chosen (tools/voices.mjs --design): listened to, not kept
+voice-previews/

@@ -4,6 +4,7 @@ import { auth, titleScene } from '../services/auth.js';
 import { clock, withCurrentTime } from '../services/progress.js';
 import Board from '../ui/board.js';
 import { isOn, setOn } from '../audio/sound.js';
+import { stopSpeaking } from '../audio/voice.js';
 import { fullscreenWorks, standalone } from '../ui/touch.js';
 
 const MENU_ITEMS = ['resume', 'restart journey', 'full screen', 'music', 'sounds', 'save & quit', 'quit to title'];
@@ -26,6 +27,7 @@ export default class PauseScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.add.rectangle(0, 0, width, height, 0x0a0e12, 0.6).setOrigin(0, 0);
+    stopSpeaking();                                                     // the voice stops with everything else
     this.board = new Board(this, { x: Math.round(width / 2 - 241), y: 64, planks: 8 }).drop();
     this.board.heading('paused');
     this.items = MENU_ITEMS.map((item) => (item === 'save & quit' && !auth.isAuthenticated() ? KEEP : item))
