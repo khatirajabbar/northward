@@ -2,9 +2,12 @@
 # "Blueprint": New → Blueprint → this repository. Each is built from its own
 # Dockerfile and only rebuilt when its own code changes.
 #
-# Their databases are on Neon. Render asks once for what isn't written here:
-#   ConnectionStrings__DefaultConnection — each service's own Neon database
-#   Admin__Password                      — the website's admin page (auth only)
+# Their databases are on Neon: one project ("northward", Frankfurt) with a
+# database for each service. Render asks, once, for the two things that aren't
+# written here:
+#   Database__Password — the Neon password (the auth service keeps it; the
+#                        other two take it from there)
+#   Admin__Password    — the website's admin page
 #
 # On the free plan a service falls asleep after ~15 quiet minutes and takes
 # 30–60 s to wake; the website asks them all to wake (/health) as soon as
@@ -25,6 +28,9 @@ envVarGroups:
         value: northward-players
       - key: PORT
         value: "8080"
+      # where the Neon databases are (each service names its own database below)
+      - key: Database__Host
+        value: ep-patient-morning-ag9ks4ad.c-2.eu-central-1.aws.neon.tech
 
 services:
   - type: web
@@ -42,6 +48,8 @@ services:
     envVars:
       - fromGroup: northward-shared
       - key: ConnectionStrings__DefaultConnection
+        value: Database=auth;Username=neondb_owner;SSL Mode=VerifyFull;Channel Binding=Require
+      - key: Database__Password
         sync: false
       - key: Admin__Password
         sync: false
@@ -61,7 +69,12 @@ services:
     envVars:
       - fromGroup: northward-shared
       - key: ConnectionStrings__DefaultConnection
-        sync: false
+        value: Database=game;Username=neondb_owner;SSL Mode=VerifyFull;Channel Binding=Require
+      - key: Database__Password
+        fromService:
+          type: web
+          name: northward-auth
+          envVarKey: Database__Password
 
   - type: web
     name: northward-leaderboard
@@ -78,4 +91,9 @@ services:
     envVars:
       - fromGroup: northward-shared
       - key: ConnectionStrings__DefaultConnection
-        sync: false
+        value: Database=leaderboard;Username=neondb_owner;SSL Mode=VerifyFull;Channel Binding=Require
+      - key: Database__Password
+        fromService:
+          type: web
+          name: northward-auth
+          envVarKey: Database__Password
