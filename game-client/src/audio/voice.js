@@ -3,7 +3,9 @@
 // by whoever is thinking or saying it — if it's been recorded (tools/voices.mjs).
 // A line with no recording yet is simply read, as before.
 //
-// One voice at a time: a new line takes over from the last. They follow the
+// One voice at a time. A new thought waits for the last to be finished (ui/guide.js),
+// and carries on into the next scene; a line in the talk at the end takes over
+// straight away (you asked for it, with E). They follow the
 // "sounds" switch (the pause menu, the title chip, M).
 //
 // The recordings are only fetched when a line is first said, so they cost
@@ -24,12 +26,26 @@ let current = null;
 export function speak(who, text, onLength) {
   stopSpeaking();
   const url = URL_OF[`${who}/${lineKey(text)}`];
-  if (!url || !isOn('sounds')) return;
+  if (!url) { unrecorded(who, text); return; }
+  if (!isOn('sounds')) return;
   const audio = new Audio(url);
   audio.volume = LOUD;
   if (onLength) audio.addEventListener('loadedmetadata', () => { if (isFinite(audio.duration)) onLength(audio.duration * 1000); }, { once: true });
   audio.play().catch(() => { /* not allowed to play yet (no tap or key so far): just read */ });
   current = audio;
+}
+
+// how much longer the voice has to go on the line it's saying (0 when it's quiet,
+// or when it couldn't play). Not loaded far enough to know yet: a guess.
+export function stillSaying() {
+  if (!current || current.paused || current.ended) return 0;
+  const left = (current.duration - current.currentTime) * 1000;
+  return isFinite(left) ? Math.max(0, left) : 1500;
+}
+
+// in development: a line said with no recording for it (tools/voices.mjs missed it)
+function unrecorded(who, text) {
+  if (import.meta.env.DEV) console.warn(`[voice] no recording for ${who}: "${text}"`);
 }
 
 export function stopSpeaking() {

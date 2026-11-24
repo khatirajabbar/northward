@@ -113,7 +113,7 @@ export default class MoosePuzzle {
     play(scene, 'rustle', { volume: 1, vary: 0 });
     play(scene, 'twig', { volume: 0.9 });
     scene.time.delayedCall(350, () => play(scene, 'horse-snort', { volume: 1, vary: 0 }));
-    scene.showThought(this.said.came ? 'here it comes again — run!' : 'something big, crashing through the trees behind me — a moose! run, and hide!', 4200);
+    scene.showThought(this.said.came ? 'here it comes again — run!' : 'something big, crashing through the trees behind me — a moose! run, and hide!', 4200, true);
     this.said.came = true;
   }
 
@@ -124,7 +124,7 @@ export default class MoosePuzzle {
     this.turn(scene.player.x >= this.moose.x ? 1 : -1);
     this.show('moose-stamp');
     play(scene, 'horse-snort', { volume: 1, vary: 0 });
-    scene.showThought("it's seen me move!", 1500);
+    scene.showThought("it's seen me move!", 1500, true);
     this.said.found = true;
     this.until = scene.time.now + 450;
   }
@@ -164,7 +164,7 @@ export default class MoosePuzzle {
           : past ? "i ran right past the young spruce. i have to get in among them, and keep still."
           : this.said.winded ? "i ran out of breath before i got there. i'll keep running till the spruce."
             : "it had me. walking's no good — i have to run (hold X) to the young spruce, and hide.";
-        scene.showThought(why, 5200);
+        scene.showThought(why, 5200, true);
         this.said.caught = true;
         this.said.found = false;
         this.said.winded = false;
@@ -203,7 +203,7 @@ export default class MoosePuzzle {
       // running uses up your breath
       if (this.keyX.isDown && Math.abs(scene.player.body.velocity.x) > 230) {
         this.breath -= dt;
-        if (this.breath <= 0 && !this.said.puffed) { this.said.puffed = true; this.said.winded = true; scene.showThought("i can't run any more —", 1600); }
+        if (this.breath <= 0 && !this.said.puffed) { this.said.puffed = true; this.said.winded = true; scene.showThought("i can't run any more —", 1600, true); }
       }
       if (this.mood === 'closing') {
         this.turn(px >= moose.x ? 1 : -1);
@@ -258,7 +258,7 @@ export default class MoosePuzzle {
         this.turn(1);
         this.show('moose-look');
         play(scene, 'horse-snort', { volume: 0.8 });
-        if (!this.said.turned) { this.said.turned = true; scene.showThought('it heard me — still!', 1600); }
+        if (!this.said.turned) { this.said.turned = true; scene.showThought('it heard me — still!', 1600, true); }
         return;
       }
       // far enough off down the road: you can go

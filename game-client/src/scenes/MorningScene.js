@@ -377,7 +377,7 @@ export default class MorningScene extends Phaser.Scene {
   }
 
   doTeeth() {
-    this.guide.say('brushing… (a fresh start).');
+    this.guide.say('brushing my teeth. a fresh start.');
     // at the mirror, elbow going, a little foam
     this.turnTo(STATION.teeth);
     this.player.play(`${this.characterId}-brush`);

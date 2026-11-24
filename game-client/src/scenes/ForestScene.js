@@ -893,8 +893,9 @@ export default class ForestScene extends Phaser.Scene {
     });
   }
 
-  showThought(text, ms = 2800) {
-    this.guide.say(text, ms + 1200);
+  // `now`: say it straight away, even over a line that's still being said (a moose!)
+  showThought(text, ms = 2800, now = false) {
+    this.guide.say(text, ms + 1200, { now });
   }
 
   // What needs you along the road, in the order you come to it. A task is in
@@ -1698,7 +1699,7 @@ export default class ForestScene extends Phaser.Scene {
       this.pickedCarrots |= 1 << this._nearCarrot.fieldIndex;
       this._nearCarrot.destroy();
       this._nearCarrot = null;
-      this.showThought('a carrot. into the bag.');
+      if (!this.saidCarrot) { this.saidCarrot = true; this.showThought('a carrot. into the bag.'); }   // the first one only
     }
   }
 }

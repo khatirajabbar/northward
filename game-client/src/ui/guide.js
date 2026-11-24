@@ -13,13 +13,14 @@
 // from tools/ui-art.mjs.
 
 import { play } from '../audio/sound.js';
-import { speak, stopSpeaking } from '../audio/voice.js';
+import { speak, stillSaying } from '../audio/voice.js';
 
 export const INK = 0x2b1b14;        // writing on paper
 export const PENCIL = 0x8a7a64;     // lighter writing on paper
 export const CREAM = 0xf7efd9;      // words over the world
 const DEPTH = 100;           // above every scene's own layers
 const BIG = 3;               // how large the tag and the prompt are drawn — they have to be noticed
+const WAIT_AT_MOST = 6500;    // ms a thought will wait for the last one to be said; longer, and it cuts in
 
 export default class Guide {
   constructor(scene) {
@@ -29,7 +30,6 @@ export default class Guide {
     this.tasks = [];
     this.at = 0;
     this.blocking = false;     // true while a note is open: the scene should wait
-    scene.events.once('shutdown', stopSpeaking);        // a voice doesn't carry on into the next scene
 
     // the traveler's line of thought — along the bottom, where subtitles go,
     // close to the traveler and clear of the task tag
@@ -73,7 +73,20 @@ export default class Guide {
 
   // ── the line of thought ──
 
-  say(str, ms = 4200) {
+  // a new thought waits for the one still being said to finish — up to a few
+  // seconds — so no one is cut off mid-word (`now`: it can't wait, a moose!).
+  // A thought that comes while another is waiting takes its place.
+  say(str, ms = 4200, { now = false } = {}) {
+    if (this.waiting) { this.waiting.remove(); this.waiting = null; }
+    const left = now ? 0 : stillSaying();
+    if (left > 0 && left < WAIT_AT_MOST) {
+      this.waiting = this.scene.time.delayedCall(left + 250, () => { this.waiting = null; this.sayNow(str, ms); });
+      return;
+    }
+    this.sayNow(str, ms);
+  }
+
+  sayNow(str, ms) {
     const { scene, line } = this;
     scene.tweens.killTweensOf(line);
     if (this.lineTimer) this.lineTimer.remove();

@@ -14,7 +14,7 @@ const NEAR_RIDING = 320;      // further on a horse: it hears the hooves
 // what goes through your head at its stops, in the order you come to them
 // (not every stop: most of the time you just watch it go)
 const THOUGHTS = [
-  { seen: "that's the bird from my window! it came this way too.", gone: "north again. i'm coming, i'm coming." },
+  { seen: "that's the bird from my window! it came this way too." },
   null,
   { seen: 'there it is again. waiting for me.' },
   null,

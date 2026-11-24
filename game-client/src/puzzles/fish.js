@@ -100,7 +100,7 @@ export default class FishPuzzle {
       this.place();
       if (!this.said.took) {
         this.said.took = true;
-        scene.showThought("it can't last long out of water. back to the river with it — run!", 4200);
+        scene.showThought("it can't last long out of water. back to the river with it — run!", 4200, true);
       }
       return true;
     }
@@ -133,7 +133,7 @@ export default class FishPuzzle {
     player.setMaxVelocity(WALK, 700);
     player.setVelocityX(0);
     this.fish.play('fish-flap');
-    scene.showThought("it can't breathe —", 1200);
+    scene.showThought("it can't breathe —", 1200, true);
     scene.time.delayedCall(500, () => {
       cam.fadeOut(220, 10, 13, 20);
       cam.once('camerafadeoutcomplete', () => {
@@ -213,7 +213,7 @@ export default class FishPuzzle {
     if (this.breath <= 0) this.tooLong();
     else if (this.breath < 1100 && !this.said.hurry) {
       this.said.hurry = true;
-      scene.showThought('hurry —', 1200);
+      scene.showThought('hurry —', 1200, true);
     }
   }
 

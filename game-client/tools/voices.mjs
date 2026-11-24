@@ -85,6 +85,22 @@ function argumentsOf(src, open) {
   return out;
 }
 
+// what's handed in as `name`, when it's a method's parameter: setDown(thought) {…}
+// → the words at that place in every setDown(…) in the same file
+function passedIn(src, name) {
+  const found = [];
+  for (const d of src.matchAll(new RegExp(`^\\s*([A-Za-z_$][\\w$]*)\\(([^)]*)\\)\\s*\\{`, 'gm'))) {
+    const at = d[2].split(',').map((p) => p.trim().split('=')[0].trim()).indexOf(name);
+    if (at < 0) continue;
+    for (const c of src.matchAll(new RegExp(`(?<![\\w$])${d[1]}\\(`, 'g'))) {
+      if (c.index > d.index - 1 && c.index < d.index + d[0].length) continue;          // the definition itself
+      const a = argumentsOf(src, c.index + c[0].length - 1)[at];
+      if (a) found.push(a);
+    }
+  }
+  return found.join(',');
+}
+
 // what `name` was set to, in the same file
 function definition(src, name) {
   const m = src.match(new RegExp(`(?:const|let|var)\\s+${name}\\s*=([\\s\\S]*?);\\n`));
@@ -106,7 +122,7 @@ export function collectLines() {
       const before = src.slice(Math.max(0, m.index - 30), m.index);
       if (/^\s*$/.test(before.split('\n').pop()) && /\)\s*\{/.test(src.slice(m.index, m.index + 80).split('\n')[0])) continue;   // a definition
       let arg = firstArgument(src, m.index + m[0].length - 1).trim();
-      if (/^[A-Za-z_$][\w$]*$/.test(arg)) arg = definition(src, arg);            // said from a variable: what it was set to
+      if (/^[A-Za-z_$][\w$]*$/.test(arg)) arg = definition(src, arg) || passedIn(src, arg);   // said from a variable: what it was set to, or what was handed in
       literals(arg).forEach((l) => (l.dynamic ? dynamic.push(`${where}: ${l.text}`) : add(l.text, where)));
     }
     // a puzzle's own small helper, say(id, text) → showThought(text): the words are its second argument
@@ -115,6 +131,10 @@ export function collectLines() {
         const all = argumentsOf(src, m.index + m[0].length - 1).slice(1).join(',');
         literals(all).forEach((l) => (l.dynamic ? dynamic.push(`${where}: ${l.text}`) : add(l.text, where)));
       }
+    }
+    // the bird's stops: { seen: '…', gone: '…' } (src/world/guideBird.js)
+    for (const m of src.matchAll(/\b(?:seen|gone):\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+      add(m[2].replace(/\\(['"`\\])/g, '$1'), where);
     }
     // a talk: { who: '…', text: '…' }
     for (const m of src.matchAll(/who:\s*['"][a-z]+['"]\s*,\s*text:\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
