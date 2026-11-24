@@ -1,3 +1,4 @@
+using Npgsql;
 using System.Text;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -13,9 +14,14 @@ using Northward.Game.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database
+// Database. Published (render.yaml), the database's address and password are
+// set apart from the rest of the connection string: once for all three
+// services, and the password never written into the repository
+var database = new NpgsqlConnectionStringBuilder(builder.Configuration.GetConnectionString("DefaultConnection"));
+if (builder.Configuration["Database:Host"] is { Length: > 0 } databaseHost) database.Host = databaseHost;
+if (builder.Configuration["Database:Password"] is { Length: > 0 } databasePassword) database.Password = databasePassword;
 builder.Services.AddDbContext<GameDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(database.ConnectionString));
 
 // Application services
 builder.Services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();

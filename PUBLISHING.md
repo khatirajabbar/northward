@@ -22,27 +22,19 @@ GitHub.
 
 ## 1. Neon: the databases
 
-1. Sign up at neon.tech with GitHub.
-2. Make a project called `northward`, in the region **AWS Europe Central (Frankfurt)**.
-3. Under **Databases**, add three: `auth`, `game`, `leaderboard`.
-4. Open **Connect** and set it up like this:
-   - choose a database;
-   - turn **Connection pooling** off;
-   - pick **.NET** from the list.
-5. Copy its connection string. It looks like
-   `Host=ep-….eu-central-1.aws.neon.tech;Database=auth;Username=…;Password=…;SSL Mode=Require`.
-   Do this for all three databases, and keep the strings somewhere private
-   (they hold the password).
+The project `northward` (Frankfurt) has a database for each service: `auth`,
+`game` and `leaderboard`. Their address and user are written in `render.yaml`.
+The only thing kept out of the repository is the password. To find it, open
+**Connect**, turn **Connection pooling** off, and click **Show password**.
 
 ## 2. Render: the services
 
 1. Sign up at render.com with GitHub.
 2. Go to **New → Blueprint**, pick the `northward` repository, and Render reads
    `render.yaml`.
-3. It asks for:
-   - **ConnectionStrings__DefaultConnection**, once for each service: the
-     Neon string for *its own* database (auth → `auth`, game → `game`,
-     leaderboard → `leaderboard`);
+3. It asks for two things, both on the `northward-auth` service:
+   - **Database__Password**: the Neon password. The other two services take
+     it from there.
    - **Admin__Password**: a new password for the website's `/admin` page.
 4. Click **Apply**. The first builds take several minutes.
 5. When all three are "Live", open `https://<service>.onrender.com/health` for
