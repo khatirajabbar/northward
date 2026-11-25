@@ -13,14 +13,15 @@
 // from tools/ui-art.mjs.
 
 import { play } from '../audio/sound.js';
-import { speak, stillSaying } from '../audio/voice.js';
+import { speak, stillSaying, warmVoice } from '../audio/voice.js';
 
 export const INK = 0x2b1b14;        // writing on paper
 export const PENCIL = 0x8a7a64;     // lighter writing on paper
 export const CREAM = 0xf7efd9;      // words over the world
 const DEPTH = 100;           // above every scene's own layers
 const BIG = 3;               // how large the tag and the prompt are drawn — they have to be noticed
-const WAIT_AT_MOST = 6500;    // ms a thought will wait for the last one to be said; longer, and it cuts in
+const WAIT_AT_MOST = 1200;    // ms a thought will wait for the last one to finish; longer, and it takes over (the last fades out)
+const PATIENT_FOR = 8000;     // …unless it's one that should always wait its turn (`patient`)
 
 export default class Guide {
   constructor(scene) {
@@ -30,6 +31,9 @@ export default class Guide {
     this.tasks = [];
     this.at = 0;
     this.blocking = false;     // true while a note is open: the scene should wait
+    // whoever's walking: their voice, fetched in the background (audio/voice.js)
+    const traveler = scene.characterId || scene.registry.get('playAs');
+    if (traveler) warmVoice(traveler);
 
     // the traveler's line of thought — along the bottom, where subtitles go,
     // close to the traveler and clear of the task tag
@@ -73,13 +77,16 @@ export default class Guide {
 
   // ── the line of thought ──
 
-  // a new thought waits for the one still being said to finish — up to a few
-  // seconds — so no one is cut off mid-word (`now`: it can't wait, a moose!).
+  // a new thought waits a moment if the last one is nearly said, so nobody is
+  // cut off on their last word; otherwise it takes over straight away (the
+  // last voice fades out) — what you're thinking keeps up with where you are.
+  // `now`: never wait (a moose!). `patient`: wait for the whole of the last
+  // one (the first thought in the forest, after the words you left home on).
   // A thought that comes while another is waiting takes its place.
-  say(str, ms = 4200, { now = false } = {}) {
+  say(str, ms = 4200, { now = false, patient = false } = {}) {
     if (this.waiting) { this.waiting.remove(); this.waiting = null; }
     const left = now ? 0 : stillSaying();
-    if (left > 0 && left < WAIT_AT_MOST) {
+    if (left > 0 && left < (patient ? PATIENT_FOR : WAIT_AT_MOST)) {
       this.waiting = this.scene.time.delayedCall(left + 250, () => { this.waiting = null; this.sayNow(str, ms); });
       return;
     }

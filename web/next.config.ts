@@ -9,6 +9,14 @@ const game = process.env.GAME_URL ?? "http://localhost:5002";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // the game's own files (its code, sounds and voices) are named after what's
+  // in them, so a file of that name never changes: a browser can keep it for
+  // good, and a second visit doesn't fetch the voices again. (Only the files
+  // straight inside /game/assets — the pictures in its folders keep their
+  // names when they're redrawn, so those are asked for afresh.)
+  async headers() {
+    return [{ source: "/game/assets/:file", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] }];
+  },
   async rewrites() {
     return [
       { source: "/svc/auth/:path*", destination: `${auth}/api/auth/:path*` },

@@ -25,7 +25,7 @@ import Windfall from '../world/windfall.js';
 import GuideBird from '../world/guideBird.js';
 import Walks from '../world/walks.js';
 import Leaps from '../world/leaps.js';
-import { along } from '../world/road.js';
+import { along, stretch } from '../world/road.js';
 import { play, bed, level, fade, steps, nearness, nowAndThen } from '../audio/sound.js';
 import Guide, { INK, PENCIL } from '../ui/guide.js';
 
@@ -120,8 +120,24 @@ export default class ForestScene extends Phaser.Scene {
     this.brookL = along(14848);        // the brook near the end, bank to bank — its bridge is down
     this.brookR = along(15184);        //   (three boards' width: see puzzles/bridge.js)
     this.lastStretchX = this.brookL - 110;   // the scream reaches you at the water's edge; the rest lies beyond the brook
+    // and one after each puzzle in between, so a journey saved and quit in the
+    // middle of the road comes back close to where it stopped
+    this.foxTorchX = stretch('past-the-fox').from + 96;        // after the fox, before the hungry horse
+    this.meadowTorchX = this.pastMeadowX + 16;                  // after the goodbye, before the moose
+    this.fishTorchX = stretch('past-the-stones').from + 1100;   // past the fish's puddle, short of the mushroom hill
+    this.catTorchX = stretch('stone-stair').from - 12;          // after the cat: just past where the rope lets you down, before the stone stair
+    this.thornTorchX = stretch('past-the-thorns').from + 96;    // through the bramble
+    this.fawnTorchX = stretch('past-the-mud').from - 160;       // after the fawn, before the owl's cart
+    this.windfallTorchX = stretch('windfall').to + 96;          // over the fallen trees, before the duckling's log
+    this.pondTorchX = stretch('past-the-pond').from + 96;       // after the duckling's pond
+    this.stagTorchX = stretch('sunset-ridge').from - 32;        // after the old stag
+    this.beeTorchX = stretch('past-the-bee').from + 96;         // after the bumblebee
+    // (the ids are kept in a save, so they never change: new ones get new numbers)
     this.torchCheckpoints = { 'torch-1': this.riverTorchX, 'torch-2': this.torchX, 'torch-3': this.brambleTorchX,
-      'torch-4': this.restTorchX, 'torch-5': this.acornTorchX, 'torch-6': this.bridgeTorchX };
+      'torch-4': this.restTorchX, 'torch-5': this.acornTorchX, 'torch-6': this.bridgeTorchX,
+      'torch-7': this.foxTorchX, 'torch-8': this.meadowTorchX, 'torch-9': this.fishTorchX, 'torch-10': this.catTorchX,
+      'torch-11': this.thornTorchX, 'torch-12': this.fawnTorchX, 'torch-13': this.windfallTorchX, 'torch-14': this.pondTorchX,
+      'torch-15': this.stagTorchX, 'torch-16': this.beeTorchX };
     this.currentCheckpoint = null;
     this.saidGoodbye = false;
     this.grassWidth = 440;
@@ -297,16 +313,9 @@ export default class ForestScene extends Phaser.Scene {
     addWater((this.brookL + this.brookR) / 2, this.brookR - this.brookL + 20, 14, 88, 3, 6);
     addWater((this.brookL + this.brookR) / 2, this.brookR - this.brookL + 20, 18, 12, 7, 9, 0.88);
 
-    // ── checkpoint torches — each starts unlit and lights as you pass it:
-    // on the near bank of the river, before the crossing, and before the bramble ──
-    this.torches = {
-      'torch-1': this.makeTorch(this.riverTorchX),
-      'torch-2': this.makeTorch(this.torchX),
-      'torch-3': this.makeTorch(this.brambleTorchX),
-      'torch-4': this.makeTorch(this.restTorchX),
-      'torch-5': this.makeTorch(this.acornTorchX),
-      'torch-6': this.makeTorch(this.bridgeTorchX)
-    };
+    // ── checkpoint torches (torchCheckpoints, above) — each starts unlit and
+    // lights as you pass it ──
+    this.torches = Object.fromEntries(Object.entries(this.torchCheckpoints).map(([id, x]) => [id, this.makeTorch(x)]));
 
 
     // ── the pond — a small woodland pool in front of the path, light sliding on it ──
@@ -715,7 +724,7 @@ export default class ForestScene extends Phaser.Scene {
     this.windowBird.start(this.player.x);
     this.buildTasks();
     if (this.saved.place === 'start') {
-      this.time.delayedCall(600, () => this.showThought('north. but there\'s no hurry.'));
+      this.time.delayedCall(600, () => this.guide.say('north. but there\'s no hurry.', 4000, { patient: true }));
       this.time.delayedCall(4200, () => this.guide.tip(['i'], 'open your bag'));
     }
     // development only: number keys that jump along the road (dev/shortcuts.js)
@@ -1177,7 +1186,7 @@ export default class ForestScene extends Phaser.Scene {
     // ── light a torch as you pass it (a warm point in the forest) — it's your checkpoint now ──
     Object.entries(this.torches).forEach(([id, torch]) => {
       if (torch.lit || Math.abs(px - torch.x) >= 50) return;
-      if (id === 'torch-3' && this.player.y <= this.groundY - 60) return;   // not from up on the hill
+      if ((id === 'torch-3' || id === 'torch-10') && this.player.y <= this.groundY - 60) return;   // not from up on the hill, or the cat's cliff
       this.respawnX = torch.x;
       this.respawnY = this.standY;
       this.setCheckpoint(id);
