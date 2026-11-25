@@ -55,12 +55,34 @@ builder.Services.AddControllers();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = (rejected, token) => new ValueTask(rejected.HttpContext.Response.WriteAsJsonAsync(
+        new { error = "Too many tries just now. Wait a little and try again." }, token));
     options.AddFixedWindowLimiter("admin-enter", limiter =>
     {
         limiter.PermitLimit = 5;
         limiter.Window = TimeSpan.FromMinutes(1);
     });
+
+    // signing in and making accounts, a limited number of times from one
+    // address: plenty for people (a whole classroom on one network included),
+    // too few to guess passwords or fill the database with made-up players.
+    // (Each sign-in is slow work on purpose — that's how passwords are checked —
+    // so this also keeps a flood of them from slowing the service for everyone.)
+    options.AddPolicy("sign-in", context => RateLimitPartition.GetFixedWindowLimiter(
+        ClientAddress(context),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1) }));
+    options.AddPolicy("sign-up", context => RateLimitPartition.GetFixedWindowLimiter(
+        ClientAddress(context),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromHours(1) }));
 });
+
+// who's asking: published, requests come through the website and the host,
+// which name the person's own address first in X-Forwarded-For
+static string ClientAddress(HttpContext context)
+{
+    var forwarded = context.Request.Headers["X-Forwarded-For"].ToString().Split(',')[0].Trim();
+    return forwarded.Length > 0 ? forwarded : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+}
 
 // CORS for game client and website
 builder.Services.AddCors(options =>

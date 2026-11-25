@@ -11,6 +11,14 @@ public class User
     public DateTime CreatedAt { get; private set; }
     public DateTime? LastLoginAt { get; private set; }
 
+    // wrong passwords in a row; after too many, the account can't be signed in
+    // to for a while, so a password can't be guessed by trying thousands
+    public int FailedLogins { get; private set; }
+    public DateTime? LockedUntil { get; private set; }
+
+    public const int MostFailedLogins = 10;
+    public static readonly TimeSpan LockedFor = TimeSpan.FromMinutes(15);
+
     private User() { }
 
     public static User Create(string username, string email, string passwordHash)
@@ -48,5 +56,19 @@ public class User
     public void RecordLogin()
     {
         LastLoginAt = DateTime.UtcNow;
+        FailedLogins = 0;
+        LockedUntil = null;
+    }
+
+    public bool IsLocked(DateTime now) => LockedUntil > now;
+
+    public void RecordFailedLogin(DateTime now)
+    {
+        FailedLogins++;
+        if (FailedLogins >= MostFailedLogins)
+        {
+            LockedUntil = now.Add(LockedFor);
+            FailedLogins = 0;
+        }
     }
 }

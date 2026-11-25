@@ -14,8 +14,27 @@ const nextConfig: NextConfig = {
   // good, and a second visit doesn't fetch the voices again. (Only the files
   // straight inside /game/assets — the pictures in its folders keep their
   // names when they're redrawn, so those are asked for afresh.)
+  //
+  // And on every page, a few rules for the browser, so the site can't be
+  // misused by others: no other website may show these pages inside its own
+  // (where a hidden sign-in form could be clicked without the person knowing),
+  // files are only ever read as what they say they are, other sites aren't told
+  // which page someone came from, and nothing may ask for the camera,
+  // microphone or location.
   async headers() {
-    return [{ source: "/game/assets/:file", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] }];
+    return [
+      { source: "/game/assets/:file", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
   },
   async rewrites() {
     return [
