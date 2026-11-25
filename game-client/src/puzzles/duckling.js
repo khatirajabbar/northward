@@ -180,14 +180,25 @@ export default class DucklingPuzzle {
     }
     // at your heel, as fast as it can go — which isn't fast. (and never back
     // over the log: if you're still on the far side of it, it waits there)
+    // once it's walking it keeps walking while you do, steadily at your heel,
+    // and only stands when you've stopped and it has caught up; it starts off
+    // again when you're a few steps ahead. (stopping and starting every few
+    // frames, it flickered between its walking and standing pictures, and
+    // turned to and fro whenever it came a pixel too close)
     const want = Math.max(px - Math.sign(gap || 1) * HEEL, this.logX + 58);
-    const reach = PACE * scene.game.loop.delta / 1000;
-    const step = Math.max(-reach, Math.min(reach, want - duckling.x));
-    if (Math.abs(want - duckling.x) > 4 && Math.abs(step) > 0.2) {
+    const off = want - duckling.x;
+    const youMove = Math.abs(scene.player.body.velocity.x) > 10;
+    const go = this.stepping ? (Math.abs(off) > 0.5 || youMove) : Math.abs(off) > 12;
+    this.stepping = go;
+    if (go) {
+      const reach = PACE * scene.game.loop.delta / 1000;
+      const step = Math.max(-reach, Math.min(reach, off));
       duckling.x += step;
-      duckling.setFlipX(step > 0).play('duckling-walk', true);
+      if (Math.abs(step) > 0.3) duckling.setFlipX(step > 0);     // it turns only when it really sets off the other way
+      duckling.play('duckling-walk', true);
     } else {
-      duckling.setFlipX(gap > 0).play('duckling-stand', true);
+      if (far > 8) duckling.setFlipX(gap > 0);                     // stood still, it looks to you
+      duckling.play('duckling-stand', true);
     }
     if (!this.said.pond && duckling.x > this.arriveX - 220) { this.said.pond = true; scene.showThought('a pond — and a duck, calling.', 3000); }
     if (duckling.x > this.arriveX) this.reunite();

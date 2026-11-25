@@ -1453,9 +1453,14 @@ export default class ForestScene extends Phaser.Scene {
       horse.play(Math.abs(this.player.body.velocity.x) > 20 ? 'horse-walk' : 'horse-idle', true);
       horse.anims.timeScale = wading ? 0.7 : 1.3;                  // a slow wade, a quick trot
     } else if (this.horseFed && !this.saidGoodbye) {
-      // dismounted companion — the horse gently trails behind you, over the hills too
-      const behind = Math.min(this.player.x - (this.player.flipX ? -70 : 70), this.horseStopX);
-      const gap = behind - horse.x;
+      // dismounted companion — the horse gently trails after you, over the hills too.
+      // it stays where it is while it eats, and while you're close by; once
+      // you've walked off it follows, stopping a little way short of you on its
+      // own side (never walking through you to get "behind" you as you turn)
+      const eating = horse.anims.currentAnim?.key === 'horse-eat' && horse.anims.isPlaying;
+      const away = this.player.x - horse.x;
+      const after = !eating && Math.abs(away) > 110 ? this.player.x - Math.sign(away) * 70 : horse.x;
+      const gap = Math.min(after, this.horseStopX) - horse.x;
       horse.x += gap * 0.04;
       horse.y = this.hills.surfaceAt(horse.x) + 2;
       horse.setAngle(horse.angle + (this.hills.slantAt(horse.x) - horse.angle) * 0.2);
