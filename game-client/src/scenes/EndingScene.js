@@ -8,7 +8,7 @@ import { FLAGS, clock, tickClock, decodeProgress } from '../services/progress.js
 import { CREDITS } from '../credits.js';
 import Guide, { INK, CREAM } from '../ui/guide.js';
 import { play, bed, level, fade, steps, nearness } from '../audio/sound.js';
-import { speak } from '../audio/voice.js';
+import { speak, warmVoice } from '../audio/voice.js';
 
 // The last field is drawn by tools/forest-art.mjs like the rest of the forest
 // and shown at 2x; this scene tints it from cold night to warm dusk.
@@ -58,6 +58,7 @@ export default class EndingScene extends Phaser.Scene {
     // ── state ──
     this.characterId = this.registry.get('playAs') || 'lpc-khatira';
     this.companionId = CRYING_COMPANION[this.characterId] || 'lpc-oliver';
+    warmVoice(this.companionId);                         // the one by the tree speaks too, at the end
     this.arrivalShown = false;
     this.talked = false;
     this.buryOffered = false;

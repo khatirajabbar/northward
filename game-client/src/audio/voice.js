@@ -3,13 +3,15 @@
 // by whoever is thinking or saying it — if it's been recorded (tools/voices.mjs).
 // A line with no recording yet is simply read, as before.
 //
-// One voice at a time. A new thought waits for the last to be finished (ui/guide.js),
-// and carries on into the next scene; a line in the talk at the end takes over
-// straight away (you asked for it, with E). They follow the
-// "sounds" switch (the pause menu, the title chip, M).
+// One voice at a time. A new thought waits a moment for the last to finish,
+// then takes over, the last one fading out (ui/guide.js); a voice carries on
+// into the next scene. A line in the talk at the end takes over straight away
+// (you asked for it, with E). They follow the "sounds" switch (the pause
+// menu, the title chip, M).
 //
-// The recordings are only fetched when a line is first said, so they cost
-// nothing to load up front.
+// Nothing is loaded up front. Once you've chosen who's walking, their voice
+// is fetched quietly in the background (warmVoice), so a line starts the
+// moment it's thought, even on a slow connection.
 
 import { lineKey } from './speech.js';
 import { isOn } from './sound.js';
@@ -19,13 +21,36 @@ const FILES = import.meta.glob('./voices/*/*.mp3', { eager: true, query: '?url',
 const URL_OF = Object.fromEntries(Object.entries(FILES).map(([file, url]) => [file.slice('./voices/'.length, -'.mp3'.length), url]));
 
 const LOUD = 0.95;
+const FADE_MS = 160;            // a voice that's taken over from doesn't stop dead
 let current = null;
+const ready = new Map();        // "lpc-khatira/1a2b3c4d" → the recording, already fetched (a blob: url)
+const warming = new Set();      // travelers whose voice is being fetched
+
+// fetch all of one traveler's lines, one at a time, after the game's own
+// loading is done. Skipped where the browser asks to save data
+export function warmVoice(who) {
+  if (warming.has(who)) return;
+  warming.add(who);
+  if (navigator.connection && navigator.connection.saveData) return;
+  const keys = Object.keys(URL_OF).filter((k) => k.startsWith(`${who}/`));
+  const next = async () => {
+    const key = keys.shift();
+    if (!key) return;
+    try {
+      const response = await fetch(URL_OF[key]);
+      if (response.ok) ready.set(key, URL.createObjectURL(await response.blob()));
+    } catch { /* offline for a moment: that line is fetched when it's said, as before */ }
+    setTimeout(next, 30);
+  };
+  setTimeout(next, 2500);
+}
 
 // say `text` in `who`'s voice. `onLength(ms)` hears how long it turned out to
 // be, once that's known (so the words can stay up for as long as they're said)
 export function speak(who, text, onLength) {
-  stopSpeaking();
-  const url = URL_OF[`${who}/${lineKey(text)}`];
+  stopSpeaking({ fade: true });
+  const key = `${who}/${lineKey(text)}`;
+  const url = ready.get(key) || URL_OF[key];
   if (!url) { unrecorded(who, text); return; }
   if (!isOn('sounds')) return;
   const audio = new Audio(url);
@@ -48,10 +73,20 @@ function unrecorded(who, text) {
   if (import.meta.env.DEV) console.warn(`[voice] no recording for ${who}: "${text}"`);
 }
 
-export function stopSpeaking() {
+// stop the voice: faded out over a moment (a new line taking over), or at once
+export function stopSpeaking({ fade = false } = {}) {
   if (!current) return;
-  current.pause();
+  const audio = current;
   current = null;
+  if (!fade || audio.paused) { audio.pause(); return; }
+  const from = audio.volume, start = performance.now();
+  const step = () => {
+    const t = (performance.now() - start) / FADE_MS;
+    if (t >= 1) { audio.pause(); return; }
+    audio.volume = from * (1 - t);
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 // how many lines each traveler has recorded (for the tool and for checking)
