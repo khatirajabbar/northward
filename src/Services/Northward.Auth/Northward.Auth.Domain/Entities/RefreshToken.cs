@@ -1,7 +1,12 @@
+using System.Security.Cryptography;
+using System.Text;
 using Northward.Auth.Domain.Exceptions;
 
 namespace Northward.Auth.Domain.Entities;
 
+// A sign-in renewal code. Only its fingerprint is kept (Token holds the
+// fingerprint, not the code), so a copy of the database can't be used to sign
+// in as anyone: the code itself exists only in the player's browser.
 public class RefreshToken
 {
     public Guid Id { get; private set; }
@@ -33,7 +38,7 @@ public class RefreshToken
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Token = token,
+            Token = FingerprintOf(token),
             ExpiresAt = expiresAt,
             CreatedAt = DateTime.UtcNow
         };
@@ -45,6 +50,11 @@ public class RefreshToken
             throw new DomainException("Refresh token is already revoked.");
 
         RevokedAt = DateTime.UtcNow;
-        ReplacedByToken = replacedByToken;
+        ReplacedByToken = replacedByToken is null ? null : FingerprintOf(replacedByToken);
     }
+
+    // the code is long and random, so a plain SHA-256 of it is enough to keep
+    // (unlike a password, there's nothing to guess)
+    public static string FingerprintOf(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 }

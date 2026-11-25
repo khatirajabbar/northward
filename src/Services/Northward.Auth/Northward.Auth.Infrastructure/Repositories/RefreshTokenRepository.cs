@@ -14,8 +14,12 @@ public class RefreshTokenRepository : IRefreshTokenRepository
         _context = context;
     }
 
-    public async Task<RefreshToken?> GetByTokenAsync(string token) =>
-        await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == token);
+    // looked up by its fingerprint: the code itself isn't kept
+    public async Task<RefreshToken?> GetByTokenAsync(string token)
+    {
+        var fingerprint = RefreshToken.FingerprintOf(token);
+        return await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == fingerprint);
+    }
 
     public async Task AddAsync(RefreshToken refreshToken) =>
         await _context.RefreshTokens.AddAsync(refreshToken);
