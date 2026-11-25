@@ -223,10 +223,11 @@ export default class OwlPuzzle {
     this.stone.setPosition(this.stoneX, this.floor(this.stoneX) + 2).setDepth(7.2).setAngle(0);
   }
 
-  // in your hands, in front of you
-  carry(sprite, up) {
+  // in your hands, in front of you: `up` is how far below your middle its
+  // bottom is, `ahead` how far in front of you
+  carry(sprite, up, ahead = 9) {
     const player = this.scene.player, way = player.flipX ? -1 : 1;
-    sprite.setPosition(player.x + way * 9 * FOREST_SCALE, player.y + up * FOREST_SCALE);
+    sprite.setPosition(player.x + way * ahead * FOREST_SCALE, player.y + up * FOREST_SCALE);
   }
 
   // up into the hole it goes, and its mother comes to see
@@ -275,7 +276,8 @@ export default class OwlPuzzle {
     }
 
     // what's in your hands goes where you go
-    if (this.holding === 'stone') this.carry(this.stone, 10);
+    // the stone is heavy: held low in both hands, against you, not up by your face
+    if (this.holding === 'stone') this.carry(this.stone, 20, 5);
     if (this.holding === 'chick') { this.carry(this.chick, 16); this.chick.setFlipX(player.flipX); }
 
     // pushing: walking into it, on the ground, and it isn't wedged
