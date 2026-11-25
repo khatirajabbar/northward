@@ -14,8 +14,16 @@ public class LeaderboardService : ILeaderboardService
         _leaderboardRepository = leaderboardRepository;
     }
 
+    // a journey takes a good while to walk, so more than this in an hour
+    // didn't come from playing
+    public const int MostEntriesPerHour = 3;
+
     public async Task<LeaderboardEntryDto> SubmitAsync(Guid userId, string username, SubmitEntryRequestDto request)
     {
+        var lastHour = await _leaderboardRepository.CountByUserSinceAsync(userId, DateTime.UtcNow.AddHours(-1));
+        if (lastHour >= MostEntriesPerHour)
+            throw new InvalidOperationException("that's a few journeys in one hour already. the board will take the next one later.");
+
         var entry = LeaderboardEntry.Create(
             userId,
             username,

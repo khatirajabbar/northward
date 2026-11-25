@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Northward.Auth.Application.DTOs;
 using Northward.Auth.Application.Interfaces;
 using Northward.Auth.Domain.Exceptions;
@@ -19,6 +20,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("sign-up")]
     public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
     {
         try
@@ -33,6 +35,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("sign-in")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
         try

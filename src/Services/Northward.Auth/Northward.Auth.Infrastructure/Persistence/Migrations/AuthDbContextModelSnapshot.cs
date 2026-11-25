@@ -104,7 +104,13 @@ namespace Northward.Auth.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("FailedLogins")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LockedUntil")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PasswordHash")

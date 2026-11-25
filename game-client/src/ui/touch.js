@@ -74,7 +74,7 @@ export function setupTouch(game) {
     b.className = `pad-key pad-key--${name} ${extra}`.trim();
     b.setAttribute('aria-label', label);
     const img = document.createElement('img');
-    img.src = `/assets/ui/key-${name}.png`;
+    img.src = `${import.meta.env.BASE_URL}assets/ui/key-${name}.png`;
     img.alt = '';
     img.draggable = false;
     b.appendChild(img);
@@ -106,7 +106,7 @@ export function setupTouch(game) {
   walk.setAttribute('aria-label', 'walk');
   pad.appendChild(walk);
   const halves = { left: document.createElement('img'), right: document.createElement('img') };
-  Object.entries(halves).forEach(([name, img]) => { img.src = `/assets/ui/key-${name}.png`; img.alt = ''; img.draggable = false; img.className = `pad-walk__${name}`; walk.appendChild(img); });
+  Object.entries(halves).forEach(([name, img]) => { img.src = `${import.meta.env.BASE_URL}assets/ui/key-${name}.png`; img.alt = ''; img.draggable = false; img.className = `pad-walk__${name}`; walk.appendChild(img); });
   let way = null, walkPointer = null;
   const goWay = (next) => {
     if (next === way) return;

@@ -42,8 +42,16 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(request.Email)
             ?? throw new DomainException("Invalid email or password.");
 
+        var now = DateTime.UtcNow;
+        if (user.IsLocked(now))
+            throw new DomainException("Too many wrong passwords. Try again in 15 minutes.");
+
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        {
+            user.RecordFailedLogin(now);
+            await _userRepository.SaveChangesAsync();
             throw new DomainException("Invalid email or password.");
+        }
 
         user.RecordLogin();
         await _userRepository.SaveChangesAsync();
