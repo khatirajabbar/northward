@@ -7,7 +7,7 @@
 
 export const VOICES = {
   'lpc-khatira': '7Oe5w10Lkmw2m7thw7Bq',          // Khatira — a young woman
-  'lpc-oliver': 'XJihvgl2RqbNhA4ErtLw'            // Oliver — a young man
+  'lpc-oliver': 'sy82hnCq3jGxFihPCnOh'            // Oliver — a young man
 };
 
 // ElevenLabs' most natural voice model
@@ -18,7 +18,9 @@ export const MODEL = 'eleven_v3';
 // light Scandinavian accent, close and unhurried
 export const DESCRIPTIONS = {
   'lpc-khatira': 'A young Swedish woman in her mid-twenties, speaking English with a soft, light Scandinavian accent. She is quietly thinking to herself, not performing: gentle, close and unhurried, warm but a little shy, curious about the world around her. Calm, natural pacing with small pauses. Intimate, close-microphone studio quality, no background noise.',
-  'lpc-oliver': 'A young Swedish man in his mid-twenties, speaking English with a soft, light Scandinavian accent. He is quietly thinking to himself, not performing: calm, low and gentle, thoughtful and kind, a little quiet. Natural, unhurried pacing with small pauses. Intimate, close-microphone studio quality, no background noise.'
+  // (his first voice, made from "intimate, close-microphone, low and quiet", came out whispery, like ASMR:
+  // this one asks for an ordinary speaking voice, said out loud)
+  'lpc-oliver': 'A young Swedish man in his mid-twenties, speaking English with a light Scandinavian accent. A clear, natural speaking voice at an ordinary conversational volume, like a friendly, down-to-earth guy talking to himself out loud on a walk through the woods: calm, warm and thoughtful, a little dry, with some lightness in it. A full, steady voice, medium-low pitch, relaxed natural pacing. Clean studio recording, no background noise.'
 };
 
 // what the voices say while they're being chosen: lines from the game (100 to 1000 letters)
