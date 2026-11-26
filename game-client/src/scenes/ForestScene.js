@@ -437,12 +437,14 @@ export default class ForestScene extends Phaser.Scene {
       this.add.image(this.cliffTopX + 100 + dx, this.cliffTopY + 4, i % 2 ? 'woods-tuft-b' : 'woods-tuft-a')
         .setOrigin(0.5, 1).setScale(ART).setDepth(9);
     });
-    // the flat top runs on past the rock to the lip, where you can't just walk off
+    // the flat top runs on past the rock to the lip. on your own you can hop
+    // down, the same as off the mushrooms; with the cat in your arms you can't
+    // (the same rule as the mushrooms): the rope is the only way down with it
     const lipX = this.cliffTopX + 230;
     makeLedge(this.cliffTopX + 180, this.cliffTopY, 100, 16);
     const lip = this.add.rectangle(lipX + 3, this.cliffTopY - 60, 6, 120).setVisible(false);
     this.physics.add.existing(lip, true);
-    this.physics.add.collider(this.player, lip);
+    this.physics.add.collider(this.player, lip, null, () => this.carryingCat, this);
     this.catRope = new CatRope(this, { rockX: this.cliffTopX + 100, waistY: this.cliffTopY - 34, edgeX: lipX, topY: this.cliffTopY });
     // with the cat in your arms, the mushrooms are no way down: you stop at the top of them
     const mushroomTop = this.add.rectangle(this.cliffTopX - 113, this.cliffTopY - 60, 6, 120).setVisible(false);
@@ -985,7 +987,7 @@ export default class ForestScene extends Phaser.Scene {
       { id: 'cat', text: 'climb the mushrooms up to the cat',
         done: () => this.catRescued, until: () => along(6790),
         where: () => [this.catSprite.x, this.catSprite.y - 50] },
-      { id: 'cat-rope', text: 'loop your rope round the rock, and let yourselves down',
+      { id: 'cat-rope', text: 'loop your rope round the rock, both ends over the edge, and let yourselves down',
         when: () => this.carryingCat || this.catRope.done,
         done: () => this.catRope.lowering || this.catRope.done || this.catFollowing || this.player.body.bottom > this.cliffTopY + 60,
         until: () => this.cliffTopX + 700, sight: null,
@@ -994,10 +996,10 @@ export default class ForestScene extends Phaser.Scene {
         when: () => this.carryingCat || this.catFollowing,
         done: () => this.catFollowing, until: () => this.cliffTopX + 700, sight: null,
         where: () => null },
-      { id: 'rope-back', text: 'go back up the mushrooms for your rope',
+      { id: 'rope-back', text: 'pull one end of your rope: it slides round the rock and down to you',
         when: () => this.catRope.left || this.catRope.taken, sight: null,
-        done: () => this.catRope.taken,
-        where: () => [this.cliffTopX + 100, this.cliffTopY - 118] },
+        done: () => this.catRope.taken || this.catRope.pulling,
+        where: () => [this.catRope.footX, this.groundY - 70] },
       { id: 'bird', text: 'free the bird — gently, through the thorns',
         done: () => this.birdFreed, until: () => this.brambleX + this.brambleWidth / 2 + 220,
         where: () => [this.birdX, g - 84] },
@@ -1341,6 +1343,8 @@ export default class ForestScene extends Phaser.Scene {
 
     if (this.catRope.lowering) {
       this.catRope.hang();
+    } else if (this.catRope.pulling) {
+      this.catRope.haul();
     } else if (this.resting) {
       this.player.setVelocity(0, 0);
       this.restTimer += this.game.loop.delta;
@@ -1393,7 +1397,7 @@ export default class ForestScene extends Phaser.Scene {
       if (this.player.anims.currentAnim?.key !== `${this.characterId}-jump`) this.player.play(`${this.characterId}-jump`);
     }
     // you jump; the horse doesn't (on its back, up does nothing)
-    if (jump && onGround && !this.resting && !this.riding) this.player.setVelocityY(this.boardwalk.jump(-340));
+    if (jump && onGround && !this.resting && !this.riding && !this.catRope.pulling) this.player.setVelocityY(this.boardwalk.jump(-340));
     // the river bed sits lower than the banks — the horse steps up and out by itself
     if (wading && onGround && (this.player.body.blocked.left || this.player.body.blocked.right)) this.player.setVelocityY(-300);
 
@@ -1557,6 +1561,7 @@ export default class ForestScene extends Phaser.Scene {
     // anything to do: left waiting, it would do the next thing you came near
     const pressedE = Phaser.Input.Keyboard.JustDown(this.keyE);
     if (this.catRope.lowering) { this.guide.prompt(['down'], 'hold to let the rope out', this.player.x, this.player.y - 66); return; }
+    if (this.catRope.pulling) { this.guide.hidePrompt(); return; }
     const offers = [this.catRope.offer(px), this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround),
       this.squirrel.offer(px, onGround), this.duck.offer(px, onGround), this.bumblebee.offer(px, onGround), this.turtle.offer(px, onGround),
       this.bridge.offer(px, onGround), this.moose.offer(px), this.fish.offer(px, onGround), this.owl.offer(px, onGround)].filter(Boolean);
