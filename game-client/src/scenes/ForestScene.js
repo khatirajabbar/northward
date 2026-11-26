@@ -35,6 +35,8 @@ const ART = 2;
 // how far the cat reaches out in front of its middle: where it stops short of
 // something to jump it, and lands clear past it
 const CAT_ROOM = 30;
+const STONE_HALF = 20;      // half a stepping stone's top, where you (and the cat) can stand
+const HORSE_TOP_STEP = 6;   // the furthest the horse walking after you goes in a frame
 
 // the same throws of the dice every time — for dressing a stretch of road by rule
 function seeded(seed) {
@@ -319,6 +321,9 @@ export default class ForestScene extends Phaser.Scene {
     });
     // the near surface over the stones — their feet sit IN the water instead of on top of it
     addWater(this.crossX, this.crossWidth + 20, 18, 12, 7, 8, 0.88);
+    // and the cat crosses them as you do, a hop from each one to the next
+    const stoneEdges = [gapL, ...this.stoneXs.flatMap((sx) => [sx - STONE_HALF, sx + STONE_HALF]), gapR];
+    for (let i = 0; i < stoneEdges.length; i += 2) this.leaps.add(stoneEdges[i], stoneEdges[i + 1], this.groundY);
     // the brook near the end of the road — the same water, under a bridge that has lost its boards
     addWater((this.brookL + this.brookR) / 2, this.brookR - this.brookL + 20, 14, 88, 3, 6);
     addWater((this.brookL + this.brookR) / 2, this.brookR - this.brookL + 20, 18, 12, 7, 9, 0.88);
@@ -1101,25 +1106,74 @@ export default class ForestScene extends Phaser.Scene {
     this.saveProgress();
   }
 
-  // back to the last torch you lit — on your own feet, whatever you were doing
+  // the water a cat won't set foot in: between the stepping stones (it hops
+  // them, see the leaps added for them), and the river and the broken brook,
+  // which it has no way over (`wall`) — it waits on its own bank for you
+  wetSpans() {
+    const spans = [];
+    const edges = [this.crossX - this.crossWidth / 2,
+      ...this.stoneXs.flatMap((sx) => [sx - STONE_HALF, sx + STONE_HALF]), this.crossX + this.crossWidth / 2];
+    for (let i = 0; i < edges.length; i += 2) spans.push([edges[i], edges[i + 1], false]);
+    spans.push([this.riverX - this.riverWidth / 2, this.riverX + this.riverWidth / 2, true]);
+    if (!this.bridge.done) spans.push([this.brookL, this.brookR, true]);
+    return spans;
+  }
+
+  // where a follower at x heading for `want` should head instead, so it's
+  // never stood in the water
+  dryFor(x, want) {
+    for (const [a, b, wall] of this.wetSpans()) {
+      if (wall && x <= a && want > a) return a - 12;
+      if (wall && x >= b && want < b) return b + 12;
+      if (want > a && want < b) return x <= a ? a - 12 : b + 12;
+    }
+    return want;
+  }
+
+  // the torch to go back to: the nearest one you've lit on the side you came
+  // from. going on up the road that's the last one you lit; walking back down
+  // it, it's the one you've just passed, not one far up ahead. (after the
+  // goodbye, the river torch is across water you can't cross: never that one)
+  backTorchX() {
+    const x = this.player.x, fromRight = this.player.flipX;
+    let best = null;
+    Object.entries(this.torches).forEach(([id, torch]) => {
+      if (!torch.lit || (id === 'torch-1' && this.saidGoodbye)) return;
+      if (fromRight ? torch.x <= x : torch.x >= x) return;
+      if (best === null || Math.abs(torch.x - x) < Math.abs(best - x)) best = torch.x;
+    });
+    return best ?? this.respawnX;
+  }
+
+  // back to a torch (see backTorchX) — on your own feet, whatever you were doing
   respawn() {
     if (this.riding) {
       this.riding = false;
       setTravelerBody(this.player);
     }
+    const at = this.backTorchX();
     this.player.setVelocity(0, 0);
-    this.player.setPosition(this.respawnX, this.standY);
+    this.player.setPosition(at, this.standY);
     // the cat comes back with you, a step behind, instead of racing the whole
     // way from wherever you fell
     if (this.catFollowing && !this.carryingCat) {
       const cat = this.catSprite;
       cat.leap?.stop();
       cat.leaping = false;
-      const x = this.respawnX - 50;
+      const behind = this.player.flipX ? 1 : -1;            // the way you came
+      const x = at + behind * 50;
       const floor = this.boardwalk.floorAt(x) ?? this.windfall.floorAt(x) ?? this.hills.surfaceAt(x);
-      cat.setPosition(x, floor + 2).setFlipX(true);
+      cat.setPosition(x, floor + 2).setFlipX(behind < 0);   // looking at you (the art faces left)
       cat.stillMs = 0;
       cat.play('cat-stand');
+    }
+    // and so does the horse, if it's still walking with you
+    if (this.horseFed && !this.saidGoodbye) {
+      const horse = this.horseSprite, behind = this.player.flipX ? 1 : -1;
+      const x = Math.min(at + behind * 70, this.horseStopX);
+      horse.setPosition(x, this.hills.surfaceAt(x) + 2).setAngle(0).setFlipX(x < at);
+      horse.anims.timeScale = 1;
+      horse.play('horse-idle');
     }
   }
 
@@ -1431,7 +1485,7 @@ export default class ForestScene extends Phaser.Scene {
       const floor = (x) => this.boardwalk.floorAt(x) ?? this.windfall.floorAt(x) ?? this.hills.surfaceAt(x);
       let leap = null;
       updateCatFollow(this, cat, this.player, floor(cat.x), 0, (want) => {
-        const plan = this.leaps.plan(cat.x, want, CAT_ROOM);
+        const plan = this.leaps.plan(cat.x, this.dryFor(cat.x, want), CAT_ROOM);
         leap = plan.leap;
         return plan.want;
       });
@@ -1483,10 +1537,13 @@ export default class ForestScene extends Phaser.Scene {
       const away = this.player.x - horse.x;
       const after = !eating && Math.abs(away) > 110 ? this.player.x - Math.sign(away) * 70 : horse.x;
       const gap = Math.min(after, this.horseStopX) - horse.x;
-      horse.x += gap * 0.04;
-      horse.y = this.hills.surfaceAt(horse.x) + 2;
+      horse.x += Math.max(-HORSE_TOP_STEP, Math.min(HORSE_TOP_STEP, gap * 0.04));   // from far off, a trot — never a gallop across the screen
+      // in the river it wades, down on the river bed, as when it carries you over
+      const horseWading = Math.abs(horse.x - this.riverX) < this.riverWidth / 2;
+      const footY = horseWading ? this.riverBridge.body.top + 2 : this.hills.surfaceAt(horse.x) + 2;
+      horse.y += Math.abs(footY - horse.y) > 6 ? (footY - horse.y) * 0.25 : footY - horse.y;
       horse.setAngle(horse.angle + (this.hills.slantAt(horse.x) - horse.angle) * 0.2);
-      horse.anims.timeScale = 1;
+      horse.anims.timeScale = horseWading ? 0.7 : 1;
       if (horse.anims.currentAnim?.key !== 'horse-eat' || !horse.anims.isPlaying) {
         horse.setFlipX(horse.x < this.player.x);
         horse.play(Math.abs(gap) > 10 ? 'horse-walk' : 'horse-idle', true);
@@ -1496,11 +1553,23 @@ export default class ForestScene extends Phaser.Scene {
     // ── interaction prompt + action ──
     let label = null, action = null;
     const near = (x, r = 75) => Math.abs(px - x) < r;
+    // a press of E is used up the frame it happens, whether or not there's
+    // anything to do: left waiting, it would do the next thing you came near
+    const pressedE = Phaser.Input.Keyboard.JustDown(this.keyE);
     if (this.catRope.lowering) { this.guide.prompt(['down'], 'hold to let the rope out', this.player.x, this.player.y - 66); return; }
     const offers = [this.catRope.offer(px), this.fox.offer(px, onGround), this.fawn.offer(px, onGround), this.stag.offer(px, onGround),
       this.squirrel.offer(px, onGround), this.duck.offer(px, onGround), this.bumblebee.offer(px, onGround), this.turtle.offer(px, onGround),
       this.bridge.offer(px, onGround), this.moose.offer(px), this.fish.offer(px, onGround), this.owl.offer(px, onGround)].filter(Boolean);
-    const foxOffer = offers.find((o) => o.action) || null;
+    // one thing in your hands at a time: with the cat, the trout, the owl chick
+    // or its stone, the duckling or a board in your arms, only what's to do
+    // with that is on offer (walked off with one, you'd pick up a second)
+    const holding = this.carryingCat ? (a) => a.startsWith('cat-') || a === 'putdowncat'
+      : this.fish.held ? (a) => a.startsWith('fish-')
+      : this.owl.holding ? (a) => a.startsWith('owl-')
+      : this.duck.stage === 'held' ? (a) => a.startsWith('duck-')
+      : this.bridge.carrying ? (a) => a.startsWith('bridge-')
+      : null;
+    const foxOffer = offers.find((o) => o.action && (!holding || holding(o.action))) || null;
     const reminder = offers.find((o) => o.hint) || null;
     const nearCarrot = this.carrotSprites.find((cr) => cr.active && Math.abs(px - cr.itemX) < 70);
     if (nearCarrot) { label = 'pick up the carrot'; action = 'carrot'; this._nearCarrot = nearCarrot; }
@@ -1525,6 +1594,7 @@ export default class ForestScene extends Phaser.Scene {
       if (mh && (this.inventory.carrots || 0) > 0) { label = 'give a carrot'; action = 'feedmeadow'; this._nearMeadow = mh; }
     }
     if (this.horseHungryHintShown && !near(this.horseX, 95)) this.horseHungryHintShown = false;
+    if (holding && action && !holding(action)) { label = null; action = null; }
 
     // nothing else to do here? then E sets down the cat you're carrying —
     // whenever you like, walking or standing. the words only come up once
@@ -1545,10 +1615,10 @@ export default class ForestScene extends Phaser.Scene {
     else if (this.stair.against() || this.windfall.against()) this.guide.prompt(['up'], 'jump', ...over);
     else this.guide.hidePrompt();
 
-    if (this.riding && action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
+    if (this.riding && action && pressedE) {
       // a mounted action takes priority over dismounting, so E does the action instead of getting off
       this.doAction(action);
-    } else if (this.riding && Phaser.Input.Keyboard.JustDown(this.keyE)) {
+    } else if (this.riding && pressedE) {
       const inGrassNow = this.player.x > (this.grassX - this.grassWidth / 2) - 18 &&
                          this.player.x < (this.grassX + this.grassWidth / 2) + 18;
       if (inGrassNow) {
@@ -1559,7 +1629,7 @@ export default class ForestScene extends Phaser.Scene {
         this.player.y += this.rideLift;
         this.showThought('back on your feet.');
       }
-    } else if (action && Phaser.Input.Keyboard.JustDown(this.keyE)) {
+    } else if (action && pressedE) {
       this.doAction(action);
     }
   }

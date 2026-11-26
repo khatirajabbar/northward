@@ -82,7 +82,7 @@ export default class OldStagPuzzle {
 
   update(px) {
     const scene = this.scene;
-    if (!this.noticed && Math.abs(px - this.x) < 300) {
+    if (!this.noticed && !this.done && Math.abs(px - this.x) < 300) {
       this.noticed = true;
       scene.showThought("an old stag, lying under the oak. he doesn't run from me.", 4200);
     }

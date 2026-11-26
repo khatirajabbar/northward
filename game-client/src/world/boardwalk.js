@@ -105,7 +105,11 @@ export default class Boardwalk {
   update(px) {
     const scene = this.scene, player = scene.player, body = player.body;
     if (!this.boards) return;
-    if (!this.said.first && px > this.from + 60 && px < this.bogL) {
+    // the bank you last stood on: miss a board and it's that one you're back on
+    if (px < this.bogL) this.bank = 'left';
+    else if (px > this.bogR) this.bank = 'right';
+    // (only coming to it the first time: not on the way back, having crossed it)
+    if (!this.said.first && !player.flipX && px > this.from + 60 && px < this.bogL) {
       this.said.first = true;
       scene.showThought('the ground goes soft here. someone laid boards over it, a long time ago.', 4200);
     }
@@ -136,7 +140,7 @@ export default class Boardwalk {
   }
 
   // you stand there in it a moment, and then you're back on the bank where
-  // the boards begin, to cross again from the start
+  // the boards begin (the one you came from), to cross again from the start
   sink() {
     const scene = this.scene, player = scene.player, cam = scene.cameras.main;
     this.sunk = true;
@@ -150,8 +154,9 @@ export default class Boardwalk {
       cam.once('camerafadeoutcomplete', () => {
         setTravelerBody(player, 0);
         player.setVelocity(0, 0);
-        player.setPosition(this.bogL - 70, scene.standY - DECK - 4);
-        player.setFlipX(false);
+        const back = this.bank === 'right';      // on your way back, it's the far bank you came from
+        player.setPosition(back ? this.bogR + 70 : this.bogL - 70, scene.standY - DECK - 4);
+        player.setFlipX(back);
         this.boards.forEach((b) => this.mend(b));
         this.sunk = false;
         cam.fadeIn(320, 10, 13, 20);

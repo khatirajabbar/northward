@@ -259,7 +259,7 @@ export default class OwlPuzzle {
     const scene = this.scene, player = scene.player, now = scene.time.now;
     const dt = Math.min(50, scene.game.loop.delta) / 1000;
 
-    if (!this.said.seen && px > this.treeX - 520 && px < this.treeX + 200) {
+    if (!this.said.seen && !this.done && px > this.treeX - 520 && px < this.treeX + 200) {
       this.said.seen = true;
       scene.showThought('an owl chick, fallen out of its nest — and its mother up there, watching. the hole is far too high to reach.', 5200);
     }
