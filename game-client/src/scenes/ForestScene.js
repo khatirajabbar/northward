@@ -437,12 +437,14 @@ export default class ForestScene extends Phaser.Scene {
       this.add.image(this.cliffTopX + 100 + dx, this.cliffTopY + 4, i % 2 ? 'woods-tuft-b' : 'woods-tuft-a')
         .setOrigin(0.5, 1).setScale(ART).setDepth(9);
     });
-    // the flat top runs on past the rock to the lip, where you can't just walk off
+    // the flat top runs on past the rock to the lip. on your own you can hop
+    // down, the same as off the mushrooms; with the cat in your arms you can't
+    // (the same rule as the mushrooms): the rope is the only way down with it
     const lipX = this.cliffTopX + 230;
     makeLedge(this.cliffTopX + 180, this.cliffTopY, 100, 16);
     const lip = this.add.rectangle(lipX + 3, this.cliffTopY - 60, 6, 120).setVisible(false);
     this.physics.add.existing(lip, true);
-    this.physics.add.collider(this.player, lip);
+    this.physics.add.collider(this.player, lip, null, () => this.carryingCat, this);
     this.catRope = new CatRope(this, { rockX: this.cliffTopX + 100, waistY: this.cliffTopY - 34, edgeX: lipX, topY: this.cliffTopY });
     // with the cat in your arms, the mushrooms are no way down: you stop at the top of them
     const mushroomTop = this.add.rectangle(this.cliffTopX - 113, this.cliffTopY - 60, 6, 120).setVisible(false);
