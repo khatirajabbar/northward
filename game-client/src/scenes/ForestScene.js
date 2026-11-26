@@ -79,6 +79,16 @@ export default class ForestScene extends Phaser.Scene {
     this.lakeCenterX = along(1980);
 
     // ── state ──
+    // Phaser keeps this same scene object for every journey, so whatever
+    // "already happened" last time must be forgotten here — otherwise a second
+    // journey in the same visit never reaches its ending (it thinks it started)
+    this.screamHeard = false;
+    this.cryingHeard = false;
+    this.endingTriggered = false;
+    this.hasRested = false;
+    this.metHorse = false;
+    this.riverThoughtShown = false;
+    this.saidCarrot = false;
     this.characterId = this.registry.get('playAs') || 'lpc-khatira';
     this.kindness = this.registry.get('kindness') || 0;
 
