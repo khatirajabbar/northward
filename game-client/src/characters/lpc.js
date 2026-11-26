@@ -113,4 +113,12 @@ export function createLpcAnims(scene, characterId) {
     frameRate: 4,
     repeat: 0
   });
+
+  // hauling on a rope, hand over hand: reach out, take hold, draw it in to the hip
+  scene.anims.create({
+    key: `${characterId}-haul`,
+    frames: [43, 44, 44, 43, 42, 41, 41].map((frame) => ({ key: `${characterId}-watering-sheet`, frame })),
+    frameRate: 10,
+    repeat: -1
+  });
 }
