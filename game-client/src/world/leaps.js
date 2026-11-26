@@ -47,7 +47,7 @@ export default class Leaps {
     const y0 = ground(x0), y1 = ground(x1);
     const rise = (y0 + y1) / 2 - (Math.min(y0, y1, l.top) - height);
     sprite.leaping = true;
-    this.scene.tweens.addCounter({
+    sprite.leap = this.scene.tweens.addCounter({
       from: 0, to: 1, duration: (Math.abs(x1 - x0) / speed) * 1000,
       onUpdate: (tween) => {
         const t = tween.getValue();

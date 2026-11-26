@@ -1109,6 +1109,18 @@ export default class ForestScene extends Phaser.Scene {
     }
     this.player.setVelocity(0, 0);
     this.player.setPosition(this.respawnX, this.standY);
+    // the cat comes back with you, a step behind, instead of racing the whole
+    // way from wherever you fell
+    if (this.catFollowing && !this.carryingCat) {
+      const cat = this.catSprite;
+      cat.leap?.stop();
+      cat.leaping = false;
+      const x = this.respawnX - 50;
+      const floor = this.boardwalk.floorAt(x) ?? this.windfall.floorAt(x) ?? this.hills.surfaceAt(x);
+      cat.setPosition(x, floor + 2).setFlipX(true);
+      cat.stillMs = 0;
+      cat.play('cat-stand');
+    }
   }
 
   // record the torch you just passed as the active checkpoint and save,
