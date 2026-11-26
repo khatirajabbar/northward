@@ -76,7 +76,8 @@ export default class Windfall {
   }
 
   update(px) {
-    if (!this.said.first && px > this.from + 40 && px < this.from + 300) {
+    // coming to them, not back over them
+    if (!this.said.first && !this.scene.player.flipX && px > this.from + 40 && px < this.from + 300) {
       this.said.first = true;
       this.scene.showThought('trees down across the road. a storm, and not long ago.', 3600);
     }

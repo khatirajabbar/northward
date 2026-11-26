@@ -74,6 +74,8 @@ export default class EndingScene extends Phaser.Scene {
     this.ended = false;
     // (a scene is kept and reused: what the last ending left behind is cleared here)
     this.leaving = false;
+    this.walkingHome = false;     // left on if the last ending was clicked away before you'd walked out of sight
+    this.figureMood = null;
     this.canLeave = false;
     this.offered = false;
     this.busy = false;
@@ -386,7 +388,10 @@ export default class EndingScene extends Phaser.Scene {
       if (this.arrivalShown && !this.sitting && !this.saidGoodbye) this.catWaits();
       else updateCatFollow(this, this.cat, this.player, this.groundY, this.sitting ? 1 : 0);
     }
-    if (this.canLeave && (Phaser.Input.Keyboard.JustDown(this.keyE) || Phaser.Input.Keyboard.JustDown(this.keyEnter))) this.returnToTitle();
+    // a press of E is used up the frame it happens, and does one thing: left
+    // waiting, it would do the next thing you came near by itself
+    let pressedE = Phaser.Input.Keyboard.JustDown(this.keyE);
+    if (this.canLeave && (pressedE || Phaser.Input.Keyboard.JustDown(this.keyEnter))) { pressedE = false; this.returnToTitle(); }
 
     const px = this.player.x;
     const onGround = this.player.body.blocked.down;
@@ -405,7 +410,7 @@ export default class EndingScene extends Phaser.Scene {
     this.bgLayers.forEach((l) => { l.tilePositionX = camX * l.parallaxFactor / l.tileScaleX; });
 
     // ── dialogue — 'e' advances one line at a time, the box stays over the speaker ──
-    if (this.dialogueActive && Phaser.Input.Keyboard.JustDown(this.keyE)) this.advanceDialogue();
+    if (this.dialogueActive && pressedE) { pressedE = false; this.advanceDialogue(); }
     if (this.dialogueActive) this.positionDialogueBox();
 
     // ── arrival — one spare thought, nothing more ──
@@ -472,7 +477,7 @@ export default class EndingScene extends Phaser.Scene {
     if (label) this.guide.prompt(['e'], label, this.player.x, this.player.y - 66);
     else if (!this.dialogueActive) this.guide.hidePrompt();
 
-    if (action && Phaser.Input.Keyboard.JustDown(this.keyE)) this.doAction(action);
+    if (action && pressedE) this.doAction(action);
   }
 
   doAction(action) {

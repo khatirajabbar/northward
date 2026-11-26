@@ -16,6 +16,7 @@ const TRAIL_GAP = 100;     // how far behind it trails while you walk
 const CLOSE_GAP = 44;      // how close it comes when you stop
 const SETTLE_MS = 700;     // stillness before it walks over to you
 const SIT_MS = 1500;       // stillness before it sits down
+const TOP_STEP = 6;        // the furthest it goes in a frame: a quick run, a little faster than you walk
 
 // call every frame. `floorY` is the y of the ground under the cat's feet.
 // `restSide` (-1 left, 1 right) picks where it settles when that matters.
@@ -34,7 +35,8 @@ export function updateCatFollow(scene, cat, player, floorY, restSide = 0, aim = 
   if (Math.abs(gap) > wanted) target = player.x + side * wanted;
   if (restSide && cat.stillMs > SETTLE_MS) target = player.x + restSide * CLOSE_GAP;
   if (aim) target = aim(target);
-  const step = (target - cat.x) * 0.06;
+  // it eases in when close, and from far off it runs, but never faster than a cat can
+  const step = Math.max(-TOP_STEP, Math.min(TOP_STEP, (target - cat.x) * 0.06));
   cat.x += step;
   cat.y += (floorY + SINK - cat.y) * 0.18;
 
