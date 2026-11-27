@@ -97,6 +97,31 @@ public class LeaderboardController : ControllerBase
         return NoContent();
     }
 
+    // ── the admin page (the admin pass comes from the sign-in service's
+    // admin password; see its MessagesController) ──
+
+    /// <summary>
+    /// Everyone who has reached the end, newest first, and whether the board shows them. Admin only.
+    /// </summary>
+    [Authorize(Roles = AdminRole)]
+    [HttpGet("admin/players")]
+    public async Task<IActionResult> GetPlayers()
+    {
+        return Ok(await _leaderboardService.GetPlayersAsync());
+    }
+
+    /// <summary>
+    /// Take a player off the public board, or put them back. Their journeys and account are kept. Admin only.
+    /// </summary>
+    [Authorize(Roles = AdminRole)]
+    [HttpPut("admin/players/{userId:guid}/hidden")]
+    public async Task<IActionResult> SetHidden(Guid userId, [FromBody] SetHiddenRequestDto request)
+    {
+        return await _leaderboardService.SetHiddenAsync(userId, request.Hidden) ? NoContent() : NotFound(new { error = "Player not found." });
+    }
+
+    private const string AdminRole = "admin";
+
     private Guid GetUserId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

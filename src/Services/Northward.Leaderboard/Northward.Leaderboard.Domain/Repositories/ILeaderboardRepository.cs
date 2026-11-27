@@ -11,5 +11,8 @@ public interface ILeaderboardRepository
     Task<int> CountByUserSinceAsync(Guid userId, DateTime since);
     Task AddAsync(LeaderboardEntry entry);
     Task DeleteByUserIdAsync(Guid userId);
+    Task<List<BoardPlayer>> GetPlayersAsync();
+    Task<bool> HasPlayerAsync(Guid userId);
+    Task SetHiddenAsync(Guid userId, bool hidden);
     Task SaveChangesAsync();
 }

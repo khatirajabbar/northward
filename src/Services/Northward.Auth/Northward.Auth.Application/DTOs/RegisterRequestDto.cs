@@ -4,7 +4,10 @@ namespace Northward.Auth.Application.DTOs;
 
 public record RegisterRequestDto(
     [Required(ErrorMessage = "Username is required.")]
-    [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters.")]
+    // the rules a name must keep (3 to 20 characters, which letters …) are
+    // UsernameRules', so a player is told exactly what's wrong; this only stops
+    // something absurdly long from being sent at all
+    [MaxLength(100, ErrorMessage = "your name can be 20 characters at most.")]
     string Username,
 
     [Required(ErrorMessage = "Email is required.")]

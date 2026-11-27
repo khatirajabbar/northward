@@ -22,6 +22,20 @@ namespace Northward.Leaderboard.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Northward.Leaderboard.Domain.Entities.HiddenPlayer", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("HiddenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("HiddenPlayers");
+                });
+
             modelBuilder.Entity("Northward.Leaderboard.Domain.Entities.LeaderboardEntry", b =>
                 {
                     b.Property<Guid>("Id")

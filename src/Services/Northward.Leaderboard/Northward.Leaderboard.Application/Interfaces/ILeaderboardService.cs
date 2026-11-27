@@ -10,4 +10,6 @@ public interface ILeaderboardService
     Task<List<LeaderboardEntryDto>> GetMyEntriesAsync(Guid userId);
     Task DeleteMyEntriesAsync(Guid userId);
     Task<LeaderboardStatsDto> GetStatsAsync();
+    Task<List<BoardPlayerDto>> GetPlayersAsync();
+    Task<bool> SetHiddenAsync(Guid userId, bool hidden);
 }

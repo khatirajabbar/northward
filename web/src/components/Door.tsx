@@ -36,8 +36,8 @@ export default function Door({ mode }: { mode: "login" | "register" }) {
       {joining && (
         <label className="field">
           <span className="label">traveler&apos;s name</span>
-          <input name="username" autoComplete="username" required minLength={3} maxLength={50} />
-          <span className="field__hint">the name the leaderboard will show. 3 letters or more.</span>
+          <input name="username" autoComplete="username" required minLength={3} maxLength={20} />
+          <span className="field__hint">the name the leaderboard will show: 3 to 20 letters or numbers (spaces and - _ . are fine too).</span>
         </label>
       )}
       <label className="field">

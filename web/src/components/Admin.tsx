@@ -1,13 +1,15 @@
 "use client";
 
-// The admin page: the messages players have sent. It asks for its own
+// The admin page: the messages players have sent, and everyone on the
+// leaderboard (with a way to take a name off the board). It asks for its own
 // password (not a player's), and keeps the pass it's given only for as long
 // as this tab is open.
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { day } from "@/lib/format";
+import { clock, day } from "@/lib/format";
 import Shuffle from "./Shuffle";
 
 type Letter = { id: string; username: string; email: string; text: string; createdAt: string; mayShow: boolean; shown: boolean };
+type Player = { userId: string; username: string; journeys: number; kindest: number; quickest: string; lastArrived: string; hidden: boolean };
 
 const KEPT = "northward.admin";
 const CHANGED = "northward:admin";
@@ -130,6 +132,7 @@ export default function Admin() {
   }
 
   return (
+    <>
     <div className="part">
       <div className="part__head">
         <span className="label">{letters === null ? "fetching…" : letters.length === 1 ? "1 message" : `${letters.length} messages`}</span>
@@ -179,6 +182,78 @@ export default function Admin() {
                 ) : (
                   <button className="plain" onClick={() => setAsking(letter.id)}>
                     delete
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+    <Players pass={pass} leave={leave} />
+    </>
+  );
+}
+
+// everyone who has reached the end of the road, newest first. A name nobody
+// should have to read can be taken off the public board (and put back): the
+// player's journeys and account are kept, only the board stops showing them.
+function Players({ pass, leave }: { pass: string; leave: () => void }) {
+  const [players, setPlayers] = useState<Player[] | null>(null);
+
+  useEffect(() => {
+    let here = true;
+    fetch("/svc/leaderboard/admin/players", { headers: { Authorization: `Bearer ${pass}` } }).then(async (response) => {
+      if (!here) return;
+      if (response.ok) setPlayers(await response.json());
+      else if (response.status === 401) leave();
+      else setPlayers([]);
+    });
+    return () => {
+      here = false;
+    };
+  }, [pass, leave]);
+
+  async function hide(userId: string, hidden: boolean) {
+    const response = await fetch(`/svc/leaderboard/admin/players/${userId}/hidden`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${pass}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ hidden }),
+    });
+    if (response.ok) setPlayers((all) => (all ?? []).map((player) => (player.userId === userId ? { ...player, hidden } : player)));
+    else if (response.status === 401) leave();
+  }
+
+  return (
+    <div className="part">
+      <div className="part__head">
+        <span className="label">{players === null ? "fetching…" : players.length === 1 ? "1 player on the board" : `${players.length} players on the board`}</span>
+      </div>
+      {players && players.length === 0 && <p className="board__empty">nobody has reached the end yet.</p>}
+      {players && players.length > 0 && (
+        <div className="letters">
+          {players.map((player) => (
+            <article key={player.userId} className="letter">
+              <div className="letter__head">
+                <span className="letter__who">
+                  <span>{player.username}</span>
+                  <span className="label">
+                    {player.journeys === 1 ? "1 journey" : `${player.journeys} journeys`} · ♥ {player.kindest} · {clock(player.quickest)}
+                  </span>
+                </span>
+                <span className="label">{day(player.lastArrived)}</span>
+              </div>
+              <div className="letter__tools">
+                {player.hidden ? (
+                  <>
+                    <span className="letter__shown">hidden from the board</span>
+                    <button className="plain" onClick={() => hide(player.userId, false)}>
+                      show again
+                    </button>
+                  </>
+                ) : (
+                  <button className="plain" onClick={() => hide(player.userId, true)}>
+                    hide from the board
                   </button>
                 )}
               </div>

@@ -23,11 +23,10 @@ public class User
 
     public static User Create(string username, string email, string passwordHash)
     {
-        if (string.IsNullOrWhiteSpace(username))
-            throw new DomainException("Username cannot be empty.");
-
-        if (username.Length < 3)
-            throw new DomainException("Username must be at least 3 characters.");
+        // the name everyone sees on the leaderboard: see UsernameRules
+        var problem = UsernameRules.Problem(username);
+        if (problem is not null)
+            throw new DomainException(problem);
 
         if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
             throw new DomainException("A valid email is required.");
@@ -38,7 +37,7 @@ public class User
         return new User
         {
             Id = Guid.NewGuid(),
-            Username = username.Trim(),
+            Username = UsernameRules.Clean(username),
             Email = email.Trim().ToLowerInvariant(),
             PasswordHash = passwordHash,
             CreatedAt = DateTime.UtcNow

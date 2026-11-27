@@ -8,6 +8,7 @@ public class LeaderboardDbContext : DbContext
     public LeaderboardDbContext(DbContextOptions<LeaderboardDbContext> options) : base(options) { }
 
     public DbSet<LeaderboardEntry> LeaderboardEntries => Set<LeaderboardEntry>();
+    public DbSet<HiddenPlayer> HiddenPlayers => Set<HiddenPlayer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

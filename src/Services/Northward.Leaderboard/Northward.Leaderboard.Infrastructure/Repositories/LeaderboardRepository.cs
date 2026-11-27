@@ -14,9 +14,13 @@ public class LeaderboardRepository : ILeaderboardRepository
         _context = context;
     }
 
+    // the board everyone sees: every journey but those of players the admin has hidden
+    private IQueryable<LeaderboardEntry> Shown =>
+        _context.LeaderboardEntries.Where(e => !_context.HiddenPlayers.Any(h => h.UserId == e.UserId));
+
     public async Task<List<LeaderboardEntry>> GetTopByScoreAsync(int limit, string? season = null)
     {
-        var query = _context.LeaderboardEntries.AsQueryable();
+        var query = Shown;
 
         if (!string.IsNullOrWhiteSpace(season))
             query = query.Where(e => e.Season == season);
@@ -37,7 +41,7 @@ public class LeaderboardRepository : ILeaderboardRepository
 
     public async Task<List<LeaderboardEntry>> GetTopByTimeAsync(int limit, string? season = null)
     {
-        var query = _context.LeaderboardEntries.AsQueryable();
+        var query = Shown;
 
         if (!string.IsNullOrWhiteSpace(season))
             query = query.Where(e => e.Season == season);
@@ -66,7 +70,7 @@ public class LeaderboardRepository : ILeaderboardRepository
 
     public async Task<LeaderboardStats> GetStatsAsync()
     {
-        var entries = _context.LeaderboardEntries;
+        var entries = Shown;
         var journeys = await entries.CountAsync();
         if (journeys == 0) return new LeaderboardStats(0, 0, null, null);
 
@@ -90,6 +94,41 @@ public class LeaderboardRepository : ILeaderboardRepository
     public async Task DeleteByUserIdAsync(Guid userId)
     {
         await _context.LeaderboardEntries.Where(e => e.UserId == userId).ExecuteDeleteAsync();
+        await _context.HiddenPlayers.Where(h => h.UserId == userId).ExecuteDeleteAsync();
+    }
+
+    // everyone who has reached the end, newest arrival first, hidden or not.
+    // (the board is small: read once, then put together here)
+    public async Task<List<BoardPlayer>> GetPlayersAsync()
+    {
+        var journeys = await _context.LeaderboardEntries
+            .Select(e => new { e.UserId, e.Username, e.Score, e.CompletionTime, e.CompletedAt })
+            .ToListAsync();
+        var hidden = (await _context.HiddenPlayers.Select(h => h.UserId).ToListAsync()).ToHashSet();
+
+        return journeys
+            .GroupBy(e => e.UserId)
+            .Select(g =>
+            {
+                var latest = g.MaxBy(e => e.CompletedAt)!;
+                return new BoardPlayer(g.Key, latest.Username, g.Count(), g.Max(e => e.Score),
+                    g.Min(e => e.CompletionTime), latest.CompletedAt, hidden.Contains(g.Key));
+            })
+            .OrderByDescending(p => p.LastArrived)
+            .ToList();
+    }
+
+    public async Task<bool> HasPlayerAsync(Guid userId)
+    {
+        return await _context.LeaderboardEntries.AnyAsync(e => e.UserId == userId);
+    }
+
+    public async Task SetHiddenAsync(Guid userId, bool hidden)
+    {
+        var already = await _context.HiddenPlayers.FindAsync(userId);
+        if (hidden && already is null) await _context.HiddenPlayers.AddAsync(HiddenPlayer.Create(userId));
+        if (!hidden && already is not null) _context.HiddenPlayers.Remove(already);
+        await _context.SaveChangesAsync();
     }
 
     public async Task SaveChangesAsync()

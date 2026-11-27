@@ -68,6 +68,22 @@ public class LeaderboardService : ILeaderboardService
         return new LeaderboardStatsDto(stats.Travelers, stats.Journeys, stats.Kindest, stats.Quickest);
     }
 
+    // ── the admin page ──
+
+    public async Task<List<BoardPlayerDto>> GetPlayersAsync()
+    {
+        var players = await _leaderboardRepository.GetPlayersAsync();
+        return players.Select(p => new BoardPlayerDto(p.UserId, p.Username, p.Journeys, p.Kindest, p.Quickest, p.LastArrived, p.Hidden)).ToList();
+    }
+
+    // false if nobody by that id has ever reached the end
+    public async Task<bool> SetHiddenAsync(Guid userId, bool hidden)
+    {
+        if (!await _leaderboardRepository.HasPlayerAsync(userId)) return false;
+        await _leaderboardRepository.SetHiddenAsync(userId, hidden);
+        return true;
+    }
+
     private static LeaderboardEntryDto MapToDto(LeaderboardEntry entry, int? rank)
     {
         return new LeaderboardEntryDto(
